@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import Carta from "./Carta.jsx";
 
 /* ==========================================================================
    DUAT — MVP de playtest (revelação simultânea com prioridade).
@@ -29,7 +30,9 @@ const CARDS = [
   { key: "hathor", nome: "Hathor", tipo: "Deusa", custo: 2, poder: 2, arch: "buff",
     trigger: "entrar", needs: "ally", texto: "Ao Entrar: +2 de Poder a um aliado nesta via." },
   { key: "amon", nome: "Amon", tipo: "Deus", custo: 5, poder: 5, arch: "buff",
-    trigger: "continuo", texto: "Contínuo: +1 a todas as suas outras cartas em jogo (todas as vias)." },
+    trigger: "continuo", arte: "amon",
+    lore: "Rei dos deuses e senhor dos ventos, Amon ergue os exércitos do Egito sob a luz eterna do Sol.",
+    texto: "Contínuo: +1 a todas as suas outras cartas em jogo (todas as vias)." },
   { key: "set", nome: "Set", tipo: "Deus", custo: 5, poder: 6, arch: "debuff",
     trigger: "entrar", needs: "enemy", texto: "Ao Entrar: −4 de Poder a uma carta inimiga nesta via." },
   { key: "maat", nome: "Maat", tipo: "Deusa", custo: 4, poder: 3, arch: "reset",
@@ -427,6 +430,29 @@ export default function App() {
   const ctx = ctxOf(g);
   const wins = laneWins(g);
 
+  // ============================ TELA: GALERIA ==============================
+  if (screen === "galeria") {
+    return (
+      <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
+        <div className="max-w-6xl mx-auto">
+          <header className="flex flex-wrap items-center gap-3 justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 DUAT <span className="text-stone-500 text-base font-normal tracking-normal">· Galeria de cartas</span></h1>
+              <p className="text-xs text-stone-400">Amon com arte final; as demais com placeholder (vamos completando).</p>
+            </div>
+            <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Voltar</button>
+          </header>
+          <div className="flex flex-wrap gap-4 justify-center">
+            {CARDS.map((def) => (
+              <Carta key={def.key} nome={def.nome} custo={def.custo} poder={def.poder}
+                tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} width={240} />
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ============================ TELA: DECKS ================================
   if (screen === "deck") {
     const ready = build[0].length === 12 && build[1].length === 12;
@@ -473,10 +499,14 @@ export default function App() {
               <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 DUAT <span className="text-stone-500 text-base font-normal tracking-normal">· Montagem de decks</span></h1>
               <p className="text-xs text-stone-400">Cada lado escolhe 12 cartas (sem repetição). Ao iniciar, os decks são embaralhados.</p>
             </div>
-            <button onClick={startMatch} disabled={!ready}
-              className={`px-4 py-2 rounded-md font-semibold text-sm ${ready ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
-              Embaralhar e iniciar
-            </button>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setScreen("galeria")}
+                className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Galeria</button>
+              <button onClick={startMatch} disabled={!ready}
+                className={`px-4 py-2 rounded-md font-semibold text-sm ${ready ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
+                Embaralhar e iniciar
+              </button>
+            </div>
           </header>
           {msg && <div className="mb-3 px-3 py-2 rounded bg-rose-950 border border-rose-800 text-rose-200 text-sm">{msg}</div>}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[0, 1].map((s) => DeckPanel(s))}</div>
