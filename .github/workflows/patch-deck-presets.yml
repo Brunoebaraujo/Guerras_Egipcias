@@ -17,32 +17,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Include Enxame in default deck
-        run: |
-          node <<'NODE'
-          const fs = require('fs');
-          const path = 'src/App.jsx';
-          let source = fs.readFileSync(path, 'utf8');
-          const before = source;
-
-          source = source.replace(`const DECK_LIST = [
-  "montu", "carruagem", "guardareal",
-  "armadura", "escaravelho", "ammit", "sekhmet",
-  "mumia", "sobek", "hathor", "set", "selo",
-];`, `const DECK_LIST = [
-  "montu", "carruagem", "guardareal",
-  "armadura", "escaravelho", "ammit", "enxame",
-  "mumia", "sobek", "hathor", "set", "selo",
-];`);
-
-          source = source.replace(`  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "sekhmet", "mumia", "sobek", "hathor", "set", "selo"],`, `  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],`);
-
-          if (source === before) {
-            console.log('No preset patch needed.');
-            process.exit(0);
-          }
-
-          fs.writeFileSync(path, source);
-          NODE
+        run: node -e "const fs=require('fs'); const p='src/App.jsx'; let s=fs.readFileSync(p,'utf8'); const before=s; const deckOld='const DECK_LIST = [\n  \"montu\", \"carruagem\", \"guardareal\",\n  \"armadura\", \"escaravelho\", \"ammit\", \"sekhmet\",\n  \"mumia\", \"sobek\", \"hathor\", \"set\", \"selo\",\n];'; const deckNew='const DECK_LIST = [\n  \"montu\", \"carruagem\", \"guardareal\",\n  \"armadura\", \"escaravelho\", \"ammit\", \"enxame\",\n  \"mumia\", \"sobek\", \"hathor\", \"set\", \"selo\",\n];'; const presetOld='  \"Padrão\":     [\"montu\", \"carruagem\", \"guardareal\", \"armadura\", \"escaravelho\", \"ammit\", \"sekhmet\", \"mumia\", \"sobek\", \"hathor\", \"set\", \"selo\"],'; const presetNew='  \"Padrão\":     [\"montu\", \"carruagem\", \"guardareal\", \"armadura\", \"escaravelho\", \"ammit\", \"enxame\", \"mumia\", \"sobek\", \"hathor\", \"set\", \"selo\"],'; s=s.replace(deckOld,deckNew).replace(presetOld,presetNew); if(s===before){console.log('No preset patch needed.'); process.exit(0);} fs.writeFileSync(p,s);"
 
       - name: Commit patch
         run: |
