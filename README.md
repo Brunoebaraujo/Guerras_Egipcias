@@ -4,6 +4,18 @@ Protótipo jogável (hotseat) de card game de tema egípcio no estilo Marvel Sna
 3 vias, 4 espaços por lado, energia 1→6 em 6 rodadas, vitória por 2 de 3 vias.
 Revelação por prioridade, montagem de decks, animações e cartas com arte.
 
+## Novidades v0.3
+- **Tabuleiro ilustrado** (`public/tabuleiro.webp`): as cartas são posicionadas
+  nos quadrados de pedra de cada via e a **soma de poder aparece nos discos
+  claros** (o líder da via ganha um anel na cor do lado). A geometria fica no
+  objeto `BOARD` em `src/App.jsx` (percentuais — ajuste fino ali).
+- **Ampliar carta**: clique em qualquer carta do tabuleiro (ou no 🔍 da mão)
+  para vê-la em tamanho grande com custo, poder, efeito e lore.
+- **Motor extraído**: toda a lógica de jogo vive em `src/engine.js` (puro, sem
+  React) com testes formais em `src/engine.test.js` (`npm test`, vitest).
+- **Deploy automático**: push na `main` roda testes, build e publica na branch
+  `gh-pages` via GitHub Actions (`.github/workflows/deploy.yml`).
+
 ## Rodar localmente
 ```bash
 npm install
