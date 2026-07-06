@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write   # necessário para o push na branch gh-pages
+  contents: write   # necessário para publicar a dist na branch gh-pages
 
 concurrency:
   group: pages-deploy
