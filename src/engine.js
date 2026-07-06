@@ -68,7 +68,8 @@ export const CARDS = [
     trigger: "entrar", sacrificeAll: true,
     texto: "Ao Entrar: destrói todas as suas outras cartas nesta via." },
   { key: "bennu", nome: "Bennu", tipo: "Ave", custo: 1, poder: 0, arch: "renascimento",
-    trigger: "morrer",
+    trigger: "morrer", arte: "bennu",
+    lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
     texto: "Ao Morrer: +1 de energia no próximo turno e renasce no tabuleiro com +1 de Poder." },
 ];
 export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
