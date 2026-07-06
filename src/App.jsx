@@ -15,13 +15,13 @@ import {
 
 const DECK_LIST = [
   "montu", "carruagem", "guardareal",
-  "armadura", "escaravelho", "ammit", "sekhmet",
+  "armadura", "escaravelho", "ammit", "enxame",
   "mumia", "sobek", "hathor", "set", "selo",
 ];
 const START_HAND = 4;
 
 const PRESETS = {
-  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "sekhmet", "mumia", "sobek", "hathor", "set", "selo"],
+  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "armadura", "escaravelho"],
   "Sacrifício": ["mumia", "sobek", "anubis", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
   "Controle":   ["set", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "anubis", "guardareal", "colosso", "general", "armadura"],
