@@ -1,4 +1,4 @@
-/* ==========================================================================
+/* ========================================================================== 
    DUAT — Motor do jogo (puro, sem React).
    Tudo aqui opera sobre o objeto de estado `s` (plain object clonável) e
    é coberto por testes em engine.test.js. A UI (App.jsx) só orquestra.
@@ -39,7 +39,7 @@ export const CARDS = [
   { key: "anubis", nome: "Anúbis", tipo: "Deus", custo: 4, poder: 4, arch: "sacrificio",
     trigger: "continuo", texto: "Contínuo: +2 para cada carta sua já destruída na partida." },
   { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 2, arch: "sacrificio",
-    trigger: "morrer", texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
+    trigger: "morrer", arte: "mumia", texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
   { key: "selo", nome: "Selo do Silêncio", tipo: "Magia", custo: 3, poder: 3, arch: "silencio",
     trigger: "continuo", block: true, texto: "Contínuo: cartas inimigas que revelarem nesta via não disparam Ao Entrar." },
   { key: "montu", nome: "Montu", tipo: "Deus", custo: 3, poder: 1, arch: "buff",
