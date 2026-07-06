@@ -42,6 +42,9 @@ export const CARDS = [
     trigger: "morrer", arte: "mumia",
     lore: "Os egípcios não mumificavam seus mortos para lembrar o passado, mas para prepará-los para o futuro. Se o corpo permanecesse intacto, a alma poderia retornar e erguer-se novamente. O corpo era preservado para que o Ka e o Ba pudessem reconhecê-lo após a morte.",
     texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
+  { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro", custo: 3, poder: 2, arch: "crescimento",
+    trigger: "entrar", absorb: "swarm", arte: "enxame",
+    texto: "Ao Entrar: crie 2 cópias desta carta no seu lado. As cópias são Guerreiros base sem efeito e copiam o Poder atual." },
   { key: "selo", nome: "Selo do Silêncio", tipo: "Magia", custo: 3, poder: 3, arch: "silencio",
     trigger: "continuo", block: true, texto: "Contínuo: cartas inimigas que revelarem nesta via não disparam Ao Entrar." },
   { key: "montu", nome: "Montu", tipo: "Deus", custo: 3, poder: 1, arch: "buff",
@@ -143,8 +146,39 @@ export function destroyList(s, victims) {
   return mumias;
 }
 
+function copyVisibleAuraBonus(s, card) {
+  if (laneHasMaat(s.board, card.lane)) return 0;
+  const amon = s.board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
+  const montu = s.board.filter((c) => c.owner === card.owner && c.key === "montu" && c.revealed && !c.dying).length * 2;
+  return amon + montu;
+}
+
+export function resolveEnxame(s, card) {
+  const def = byKey[card.key];
+  const occupied = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && !c.dying).length;
+  const copiesToCreate = Math.min(2, Math.max(0, 4 - occupied));
+  if (copiesToCreate === 0) {
+    pushLog(s, `${def.nome}: sem espaço na via para criar cópias.`);
+    return { uid: card.uid, text: "sem espaço", kind: "block", seq: s.effectSeq };
+  }
+
+  const visiblePower = power(card, ctxOf(s));
+  const printedForCopies = visiblePower - copyVisibleAuraBonus(s, card);
+  for (let i = 0; i < copiesToCreate; i++) {
+    s.plays[card.owner] += 1;
+    s.board.push({
+      uid: nextUid(), key: card.key, owner: card.owner, lane: card.lane,
+      printed: printedForCopies, baked: 0, mods: [], revealed: true, dying: false,
+      entryPlays: s.plays[card.owner], enteredRound: s.round, moved: false, baseCopy: true,
+    });
+  }
+  pushLog(s, `${def.nome} criou ${copiesToCreate} cópia(s) com Poder ${visiblePower}.`);
+  return { uid: card.uid, text: `+${copiesToCreate} cópias`, kind: "buff", seq: s.effectSeq };
+}
+
 // Destrói as OUTRAS cartas do próprio dono na via (Apófis absorve; Dilúvio só destrói).
 export function resolveDestroyOwnLane(s, card, absorb) {
+  if (card.key === "enxame") return resolveEnxame(s, card);
   const def = byKey[card.key];
   const victims = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && !c.dying);
   if (victims.length === 0) { pushLog(s, `${def.nome}: nada para destruir na via.`); return { uid: card.uid, text: "sozinho", kind: "block", seq: s.effectSeq }; }
