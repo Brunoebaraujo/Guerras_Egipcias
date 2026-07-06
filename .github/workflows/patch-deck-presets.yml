@@ -2,8 +2,9 @@ name: Patch deck presets
 
 on:
   push:
+    branches: [main]
     paths:
-      - .github/workflows/patch-deck-presets.yml
+      - ".github/workflows/patch-deck-presets.yml"
   workflow_dispatch:
 
 permissions:
@@ -14,8 +15,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Include Enxame in default deck
         run: |
