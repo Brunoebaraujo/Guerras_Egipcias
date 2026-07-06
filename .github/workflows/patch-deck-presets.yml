@@ -1,0 +1,58 @@
+name: Patch deck presets
+
+on:
+  push:
+    paths:
+      - .github/workflows/patch-deck-presets.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Include Enxame in default deck
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const path = 'src/App.jsx';
+          let source = fs.readFileSync(path, 'utf8');
+          const before = source;
+
+          source = source.replace(`const DECK_LIST = [
+  "montu", "carruagem", "guardareal",
+  "armadura", "escaravelho", "ammit", "sekhmet",
+  "mumia", "sobek", "hathor", "set", "selo",
+];`, `const DECK_LIST = [
+  "montu", "carruagem", "guardareal",
+  "armadura", "escaravelho", "ammit", "enxame",
+  "mumia", "sobek", "hathor", "set", "selo",
+];`);
+
+          source = source.replace(`  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "sekhmet", "mumia", "sobek", "hathor", "set", "selo"],`, `  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],`);
+
+          if (source === before) {
+            console.log('No preset patch needed.');
+            process.exit(0);
+          }
+
+          fs.writeFileSync(path, source);
+          NODE
+
+      - name: Commit patch
+        run: |
+          if git diff --quiet -- src/App.jsx; then
+            echo "No changes to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/App.jsx
+          git commit -m "decks: inclui enxame no deck padrao"
+          git push
