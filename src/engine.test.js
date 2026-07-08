@@ -21,7 +21,7 @@ beforeEach(resetUid);
 describe("power()", () => {
   it("carta base vale o poder impresso", () => {
     const s = mkState([mk("colosso")]);
-    expect(power(s.board[0], ctxOf(s))).toBe(12);
+    expect(power(s.board[0], ctxOf(s))).toBe(14);
   });
 
   it("Amon dá +1 às outras cartas do MESMO lado, em todas as vias, e não a si", () => {
@@ -36,8 +36,8 @@ describe("power()", () => {
 
   it("Montu dá +2 apenas a Guerreiros do dono", () => {
     const s = mkState([mk("montu"), mk("carruagem"), mk("hathor")]);
-    expect(power(s.board[1], ctxOf(s))).toBe(7);      // 5 + 2
-    expect(power(s.board[2], ctxOf(s))).toBe(2);      // Deusa: sem buff
+    expect(power(s.board[1], ctxOf(s))).toBe(8);      // 6 + 2
+    expect(power(s.board[2], ctxOf(s))).toBe(2);      // Divindade: sem buff
   });
 
   it("Maat prende TODA a via ao poder impresso (dos dois lados)", () => {
@@ -61,7 +61,7 @@ describe("power()", () => {
 
   it("cartas com dying não contam no placar da via", () => {
     const s = mkState([mk("colosso"), mk("servo", { dying: 1 })]);
-    expect(laneScore(ctxOf(s), 0, 0)).toBe(12);
+    expect(laneScore(ctxOf(s), 0, 0)).toBe(14);
   });
 });
 
@@ -118,9 +118,9 @@ describe("Sobek", () => {
 describe("Apófis / Dilúvio", () => {
   it("Apófis absorve o poder total das vítimas", () => {
     const apofis = mk("apofis");
-    const s = mkState([apofis, mk("carruagem"), mk("servo")]);         // 5 + 1
+    const s = mkState([apofis, mk("carruagem"), mk("servo")]);         // 6 + 1
     resolveDestroyOwnLane(s, apofis, true);
-    expect(power(apofis, ctxOf(s))).toBe(9);                           // 3 + 6
+    expect(power(apofis, ctxOf(s))).toBe(10);                          // 3 + 7
   });
 
   it("Dilúvio destrói sem absorver", () => {
@@ -176,8 +176,8 @@ describe("Selo do Silêncio", () => {
 describe("laneWins()", () => {
   it("conta vias por maior soma; empate não pontua", () => {
     const s = mkState([
-      mk("colosso"),                                  // via 0: A 12 × 0
-      mk("colosso", { owner: 1, lane: 1 }),           // via 1: 0 × B 12
+      mk("colosso"),                                  // via 0: A 14 × 0
+      mk("colosso", { owner: 1, lane: 1 }),           // via 1: 0 × B 14
       mk("servo", { lane: 2 }), mk("servo", { owner: 1, lane: 2 }), // via 2: 1 × 1
     ]);
     expect(laneWins(s)).toEqual([1, 1]);
