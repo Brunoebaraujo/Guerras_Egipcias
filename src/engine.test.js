@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
-  destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
+  destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -129,6 +129,69 @@ describe("Apófis / Dilúvio", () => {
     resolveDestroyOwnLane(s, dil, false);
     expect(power(dil, ctxOf(s))).toBe(7);
     expect(s.board.filter((c) => c.dying)).toHaveLength(1);
+  });
+});
+
+/* --------------------------- Assassino Medjay ------------------------------- */
+describe("Assassino Medjay", () => {
+  it("destrói Montu na mesma via", () => {
+    const medjay = mk("assassino-medjay");
+    const montu = mk("montu");
+    const s = mkState([medjay, montu]);
+    const fx = resolveDestroyAllOfTypeInLane(s, medjay, "Divindade");
+    expect(fx.kind).toBe("debuff");
+    expect(montu.dying).toBe(1);
+    expect(s.deaths).toEqual([1, 0]);
+  });
+
+  it("destrói todas as Divindades na mesma via, dos dois lados", () => {
+    const medjay = mk("assassino-medjay");
+    const montu = mk("montu");
+    const set = mk("set", { owner: 1 });
+    const s = mkState([medjay, montu, set]);
+    resolveDestroyAllOfTypeInLane(s, medjay, "Divindade");
+    expect(montu.dying).toBe(1);
+    expect(set.dying).toBe(1);
+    expect(s.deaths).toEqual([1, 1]);
+  });
+
+  it("não destrói Guerreiro, Criatura, Magia, Relíquia ou Fenômeno", () => {
+    const medjay = mk("assassino-medjay");
+    const cards = [mk("servo"), mk("mumia"), mk("selo"), mk("armadura"), mk("diluvio")];
+    const s = mkState([medjay, ...cards]);
+    const fx = resolveDestroyAllOfTypeInLane(s, medjay, "Divindade");
+    expect(fx.kind).toBe("block");
+    expect(cards.every((c) => !c.dying)).toBe(true);
+    expect(s.deaths).toEqual([0, 0]);
+  });
+
+  it("não destrói Divindades em outras vias", () => {
+    const medjay = mk("assassino-medjay", { lane: 0 });
+    const montu = mk("montu", { lane: 1 });
+    const s = mkState([medjay, montu]);
+    resolveDestroyAllOfTypeInLane(s, medjay, "Divindade");
+    expect(montu.dying).toBe(false);
+    expect(s.deaths).toEqual([0, 0]);
+  });
+
+  it("sem Divindade na via não destrói nada", () => {
+    const medjay = mk("assassino-medjay");
+    const servo = mk("servo");
+    const s = mkState([medjay, servo]);
+    const fx = resolveDestroyAllOfTypeInLane(s, medjay, "Divindade");
+    expect(fx.text).toBe("sem alvo");
+    expect(servo.dying).toBe(false);
+    expect(s.deaths).toEqual([0, 0]);
+  });
+
+  it("usa destroyList, preservando contadores de morte", () => {
+    const medjay = mk("assassino-medjay");
+    const montu = mk("montu");
+    const hathor = mk("hathor", { owner: 1 });
+    const s = mkState([medjay, montu, hathor]);
+    resolveDestroyAllOfTypeInLane(s, medjay, "Divindade");
+    expect(s.deaths).toEqual([1, 1]);
+    expect(s.board.filter((c) => c.dying)).toEqual([montu, hathor]);
   });
 });
 
