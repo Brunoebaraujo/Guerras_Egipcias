@@ -18,9 +18,9 @@ const TINT = {
 // Zonas da moldura (em % do tamanho da carta)
 const POS = {
   window: { left: "15%", top: "12.4%", width: "69.7%", height: "38.3%" },
-  cost:   { left: "15.1%", top: "11.0%" }, // centro do disco azul (medido + compensação óptica dos dígitos)
-  power:  { left: "85.0%", top: "11.0%" }, // centro do disco vermelho (medido + compensação óptica)
-  name:   { left: "27%", top: "3.5%", width: "46%", height: "5.8%" },
+  cost:   { left: "12.7%", top: "10.1%" }, // centro do disco azul (validado por render)
+  power:  { left: "87.3%", top: "10.1%" }, // centro do disco vermelho (validado por render)
+  name:   { left: "27%", top: "5.8%", width: "46%", height: "5.6%" },
   typebar:{ left: "15%", top: "51.5%", width: "70%", height: "5.5%" },
   text:   { left: "12%", top: "60.5%", width: "76%", height: "29.5%" },
 };
@@ -34,14 +34,14 @@ export default function Carta({
   const artSrc = arte ? base + "cartas/" + arte + ".webp" : null;
 
   // Fonte do nome encolhe conforme o comprimento (nomes de 2 linhas cabem na placa)
-  const nameSize = width * (nome.length > 24 ? 0.033 : nome.length > 14 ? 0.038 : 0.046);
+  const nameSize = width * (nome.length > 24 ? 0.032 : nome.length > 14 ? 0.036 : 0.046);
   const efeitoSize = width * ((efeito || "").length > 90 ? 0.037 : 0.040);
   const loreSize = width * ((lore || "").length > 110 ? 0.031 : 0.035);
 
   const num = {
     position: "absolute", transform: "translate(-50%,-50%)", zIndex: 20,
     fontWeight: 800, color: "#f7e9c0", textShadow: "0 2px 4px rgba(0,0,0,.85)",
-    fontSize: width * 0.112, lineHeight: 1, fontFamily: "Georgia, 'Times New Roman', serif",
+    fontSize: width * 0.105, lineHeight: 1, fontFamily: "Georgia, 'Times New Roman', serif",
   };
 
   return (
