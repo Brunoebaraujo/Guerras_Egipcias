@@ -45,6 +45,11 @@ export const CARDS = [
   { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro", custo: 3, poder: 2, arch: "crescimento",
     trigger: "entrar", absorb: "swarm", arte: "enxame",
     texto: "Ao Entrar: crie 2 cópias desta carta no seu lado. As cópias são Guerreiros base sem efeito e copiam o Poder atual." },
+  { key: "assassino-medjay", nome: "Assassino Medjay", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff",
+    trigger: "entrar",
+    destroyAllOfTypeInLane: "Divindade",
+    texto: "Ao Entrar: destrói todas as Divindades nesta via.",
+    lore: "Os Medjay protegiam as fronteiras do Egito, mas alguns eram treinados para missões mais sombrias: silenciar falsos milagres, profanar altares inimigos e lembrar até aos deuses que o faraó também tinha lâminas." },
   { key: "selo", nome: "Selo do Silêncio", tipo: "Magia", custo: 3, poder: 3, arch: "silencio",
     trigger: "continuo", block: true, texto: "Contínuo: cartas inimigas que revelarem nesta via não disparam Ao Entrar." },
   { key: "montu", nome: "Montu", tipo: "Divindade", custo: 3, poder: 1, arch: "buff",
@@ -210,6 +215,29 @@ export function resolveArmadura(s, arm) {
   arm.dying = s.effectSeq;
   pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
+}
+
+export function resolveDestroyAllOfTypeInLane(s, card, tipo) {
+  const victims = s.board.filter((c) => {
+    if (c.dying) return false;
+    if (c.lane !== card.lane) return false;
+    if (c.uid === card.uid) return false;
+
+    const def = byKey[c.key];
+    return def.tipo === tipo;
+  });
+
+  if (victims.length === 0) {
+    pushLog(s, `${byKey[card.key].nome}: nenhuma ${tipo} encontrada na Via ${card.lane + 1}.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+
+  destroyList(s, victims);
+
+  const names = victims.map((v) => byKey[v.key].nome).join(", ");
+  pushLog(s, `${byKey[card.key].nome} destruiu ${tipo}(s) na Via ${card.lane + 1}: ${names}.`);
+
+  return { uid: card.uid, text: `destruiu ${victims.length}`, kind: "debuff", seq: s.effectSeq };
 }
 
 export function resolveSekhmet(s, card, cost) {
