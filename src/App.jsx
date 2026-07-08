@@ -4,7 +4,7 @@ import {
   CARDS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME,
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets,
-  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
+  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -22,7 +22,7 @@ const START_HAND = 4;
 
 const PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
-  "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "armadura", "escaravelho"],
+  "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "assassino-medjay", "escaravelho"],
   "Sacrifício": ["mumia", "sobek", "anubis", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
   "Controle":   ["set", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "anubis", "guardareal", "colosso", "general", "armadura"],
 };
@@ -191,6 +191,7 @@ export default function App() {
       if (def.sacrificeAll) { s.effect = resolveDestroyOwnLane(s, card, false); commit(s); return; }
       if (def.fuse) { s.effect = resolveArmadura(s, card); commit(s); return; }
       if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); commit(s); return; }
+      if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); commit(s); return; }
       if (def.needs) {
         const tg = validTargets(card, def.needs, s.board);
         if (tg.length === 0) {
