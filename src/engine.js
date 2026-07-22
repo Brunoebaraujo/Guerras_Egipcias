@@ -27,7 +27,7 @@ export const CARDS = [
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 2, arch: "buff",
     trigger: "entrar", needs: "ally", texto: "Ao Entrar: +2 de Poder a um aliado nesta via." },
   { key: "heka", nome: "Heka", tipo: "Divindade", custo: 2, poder: 1, arch: "buff",
-    trigger: "entrar", buffNext: 3,
+    trigger: "entrar", buffNext: 3, arte: "heka",
     lore: "Heka é a magia que precede a criação — a força que anima o gesto dos deuses. Antes que qualquer poder se manifeste, Heka já o preparou.",
     texto: "Ao Entrar: sua próxima carta revelada nesta rodada entra com +3 de Poder permanente." },
   { key: "amon", nome: "Amon", tipo: "Divindade", custo: 5, poder: 5, arch: "buff",
