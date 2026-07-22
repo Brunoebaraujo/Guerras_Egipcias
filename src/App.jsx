@@ -384,11 +384,13 @@ export default function App() {
         @keyframes duatFloat { 0%{opacity:0;transform:translate(-50%,3px)} 25%{opacity:1} 100%{opacity:0;transform:translate(-50%,-22px)} }
         @keyframes duatVanish { 0%{opacity:1;transform:scale(1)} 30%{opacity:.9;transform:scale(1.04)} 100%{opacity:0;transform:scale(.5) rotate(-8deg)} }
         @keyframes duatZoomIn { 0%{transform:scale(.85);opacity:0} 100%{transform:scale(1);opacity:1} }
+        @keyframes duatCharge { 0%,100%{ box-shadow:0 0 3px 1px rgba(251,191,36,.5), 0 0 8px 2px rgba(251,191,36,.22) } 50%{ box-shadow:0 0 7px 2px rgba(251,191,36,.95), 0 0 17px 5px rgba(251,191,36,.5) } }
         .duat-pop { animation: duatPop .42s ease-out; }
         .duat-badge { animation: duatFloat .9s ease-out forwards; }
         .duat-vanish { animation: duatVanish .7s ease-in forwards; }
         .duat-zoom { animation: duatZoomIn .18s ease-out; }
-        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom { animation: none; } }
+        .duat-charge { animation: duatCharge 1.5s ease-in-out infinite; }
+        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge { animation: none; } }
       `}</style>
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
@@ -566,6 +568,8 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
           const isMoving = moving && moving.uid === c.uid;
           const reveal = g.lastReveal && g.lastReveal.uid === c.uid ? g.lastReveal.seq : null;
           const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
+          // Heka revelada "carrega" o brilho enquanto o dono tiver reserva pendente.
+          const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
           let onClick;
           if (c.dying) onClick = undefined;
           else if (canTarget) onClick = (e) => { e.stopPropagation(); onTarget(c); };
@@ -573,7 +577,7 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
           else onClick = (e) => { e.stopPropagation(); onZoom(c); };
           return (
             <MiniCard key={c.uid} c={c} ctx={ctx} bw={bw} canTarget={canTarget} movable={movable} isMoving={isMoving}
-              reveal={reveal} badge={badge} dying={!!c.dying} onClick={onClick}
+              reveal={reveal} badge={badge} dying={!!c.dying} charging={charging} onClick={onClick}
               onRemove={onRemove && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); onRemove(c.uid); } : null} />
           );
         })}
@@ -593,7 +597,7 @@ function EffectBadge({ badge, size }) {
 }
 
 /* Carta em miniatura sobre o tabuleiro: arte de fundo quando existir. */
-function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, dying, onClick, onRemove }) {
+function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, dying, charging, onClick, onRemove }) {
   const base = import.meta.env.BASE_URL;
   const def = byKey[c.key];
   const f = (n) => Math.max(8, (bw * n) / 100);       // fontes proporcionais ao tabuleiro
@@ -636,6 +640,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, dyi
 
   return (
     <div onClick={onClick} className={dying ? "duat-vanish" : reveal ? "duat-pop" : ""} style={common} title={def.texto || def.nome}>
+      {charging && <div className="duat-charge" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 5 }} />}
       <EffectBadge badge={badge} size={f(1.05)} />
       <div style={{ ...frame, border, background: artSrc ? "#000" : "rgba(28,24,17,.9)", boxShadow: canTarget ? "0 0 10px rgba(129,140,248,.8)" : "0 2px 6px rgba(0,0,0,.55)" }}>
         {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }} />}
