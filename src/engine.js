@@ -137,6 +137,28 @@ export const validTargets = (card, needs, board) => {
   return [];
 };
 
+// --------------------------- ordem de revelação -----------------------------
+// A fila de revelação obedece a duas regras, nesta ordem:
+//   1. PRIORIDADE — o lado com prioridade revela TODAS as suas cartas antes de
+//      o oponente começar. (`s.priority` = índice do lado que vai primeiro.)
+//   2. ORDEM DE COLOCAÇÃO — dentro de cada lado, as cartas revelam na sequência
+//      EXATA em que foram colocadas no tabuleiro, atravessando as vias. O board
+//      já está em ordem de colocação (todo posicionamento faz push no fim, e
+//      recolher+recolocar joga a carta para o fim da sequência), então basta
+//      filtrar por dono preservando a ordem do array.
+// NÃO há agrupamento por via: o entrelaçamento entre vias segue a sequência de
+// jogo do jogador. Como a revelação também é a ordem de resolução dos efeitos,
+// isso permite cadeias intencionais — p.ex. colocar um buff na Via 3 ANTES do
+// Enxame na Via 1 para que o Enxame copie o Poder já buffado.
+export function buildRevealQueue(s) {
+  const order = [s.priority, 1 - s.priority];
+  const queue = [];
+  for (const side of order)
+    for (const c of s.board.filter((x) => x.owner === side && !x.revealed))
+      queue.push(c.uid);
+  return queue;
+}
+
 // ------------------------------ destruição ----------------------------------
 export function destroyList(s, victims) {
   const mumias = [];

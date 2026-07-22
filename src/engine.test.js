@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
   destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
+  resolveEnxame, buildRevealQueue,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -244,5 +245,65 @@ describe("laneWins()", () => {
       mk("servo", { lane: 2 }), mk("servo", { owner: 1, lane: 2 }), // via 2: 1 × 1
     ]);
     expect(laneWins(s)).toEqual([1, 1]);
+  });
+});
+
+/* --------------------------- Ordem de revelação ----------------------------- */
+describe("buildRevealQueue()", () => {
+  it("revela TODAS as cartas da prioridade antes das do oponente", () => {
+    // board em ordem de colocação intercalando os dois lados
+    const a1 = mk("servo", { owner: 0, lane: 2, revealed: false });
+    const b1 = mk("servo", { owner: 1, lane: 0, revealed: false });
+    const a2 = mk("servo", { owner: 0, lane: 0, revealed: false });
+    const b2 = mk("servo", { owner: 1, lane: 2, revealed: false });
+    const s = { ...mkState([a1, b1, a2, b2]), priority: 0 };
+    expect(buildRevealQueue(s)).toEqual([a1.uid, a2.uid, b1.uid, b2.uid]);
+  });
+
+  it("a prioridade do lado 1 inverte quem revela primeiro", () => {
+    const a1 = mk("servo", { owner: 0, lane: 0, revealed: false });
+    const b1 = mk("servo", { owner: 1, lane: 0, revealed: false });
+    const s = { ...mkState([a1, b1]), priority: 1 };
+    expect(buildRevealQueue(s)).toEqual([b1.uid, a1.uid]);
+  });
+
+  it("dentro de um lado, segue a ORDEM DE COLOCAÇÃO atravessando as vias (sem agrupar por via)", () => {
+    // Sequência de jogo: Via 3 → Via 1 → Via 3 (lanes 2, 0, 2)
+    const c1 = mk("servo", { lane: 2, revealed: false });
+    const c2 = mk("servo", { lane: 0, revealed: false });
+    const c3 = mk("servo", { lane: 2, revealed: false });
+    const s = { ...mkState([c1, c2, c3]), priority: 0 };
+    // Ordem de colocação pura: c1, c2, c3.
+    // (O comportamento antigo, agrupando por via, teria dado c2, c1, c3.)
+    expect(buildRevealQueue(s)).toEqual([c1.uid, c2.uid, c3.uid]);
+  });
+
+  it("ignora cartas já reveladas (de rodadas anteriores) e enfileira só as novas", () => {
+    const velha = mk("servo", { lane: 0, revealed: true });
+    const nova1 = mk("servo", { lane: 2, revealed: false });
+    const nova2 = mk("servo", { lane: 1, revealed: false });
+    const s = { ...mkState([velha, nova1, nova2]), priority: 0 };
+    expect(buildRevealQueue(s)).toEqual([nova1.uid, nova2.uid]);
+  });
+});
+
+/* Enxame + aura contínua: comportamento conhecido -----------------------------
+   Amon/Montu são auras CONTÍNUAS (recalculadas em power()), então as cópias do
+   Enxame convergem ao mesmo Poder revele-se a aura antes ou depois do Enxame.
+   A mudança de ordem de revelação só altera resultados em efeitos que GRAVAM um
+   valor no momento da revelação (snapshot), não em auras contínuas. */
+describe("Enxame sob aura contínua (Amon) independe da ordem de revelação", () => {
+  it("as cópias chegam ao mesmo Poder com Amon revelado antes OU depois", () => {
+    for (const amonAntes of [true, false]) {
+      resetUid();
+      const amon = mk("amon", { lane: 2, revealed: amonAntes });   // cross-lane
+      const enxame = mk("enxame", { lane: 0, revealed: true });
+      const s = mkState([amon, enxame]);
+      resolveEnxame(s, s.board.find((c) => c.key === "enxame" && !c.baseCopy));
+      s.board.find((c) => c.key === "amon").revealed = true;        // aura em vigor
+      const copias = s.board.filter((c) => c.key === "enxame" && c.baseCopy);
+      expect(copias).toHaveLength(2);
+      for (const c of copias) expect(power(c, ctxOf(s))).toBe(3);   // 2 impresso + 1 Amon
+    }
   });
 });

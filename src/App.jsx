@@ -3,7 +3,7 @@ import Carta from "./Carta.jsx";
 import {
   CARDS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME,
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
-  power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets,
+  power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
 } from "./engine.js";
 
@@ -158,11 +158,7 @@ export default function App() {
     if (!planning) return;
     setMoving(null); setSel(null);
     const s = clone(g);
-    const order = [s.priority, 1 - s.priority];
-    const queue = [];
-    for (const side of order)
-      for (let lane = 0; lane < 3; lane++)
-        for (const c of s.board.filter((x) => x.owner === side && x.lane === lane && !x.revealed)) queue.push(c.uid);
+    const queue = buildRevealQueue(s);
     s.queue = queue; s.lastReveal = null; s.effect = null;
     if (queue.length === 0) { s.phase = "revealed"; pushLog(s, `Nada a revelar nesta rodada.`); }
     else { s.phase = "revealing"; pushLog(s, `Revelação — ${SIDE_NAME[s.priority]} primeiro (${s.priorityReason}).`); }
