@@ -325,21 +325,28 @@ describe("Heka — buff da próxima carta revelada", () => {
     expect(s.pendingBuff[0]).toBe(null);                             // consumido
   });
 
-  it("não vaza para o oponente: só a próxima carta SUA conta", () => {
+  it("não vaza para o oponente: só a próxima carta SUA consome a reserva", () => {
     const heka = mk("heka", { owner: 0, revealed: false });
     const inimigo = mk("servo", { owner: 1, revealed: false });
     const s = { ...mkState([heka, inimigo]), queue: [inimigo.uid], pendingBuff: [null, null] };
-    const eff = resolveHeka(s, heka);
-    expect(eff.kind).toBe("block");                                  // sem carta sua depois
-    expect(s.pendingBuff[0]).toBe(null);
-    expect(applyPendingBuff(s, inimigo)).toBe(0);                    // inimigo não recebe
+    resolveHeka(s, heka);
+    expect(s.pendingBuff[0]).toBe(3);                                // reservado para o lado 0
+    expect(applyPendingBuff(s, inimigo)).toBe(0);                    // inimigo (lado 1) não recebe
+    expect(s.pendingBuff[0]).toBe(3);                               // reserva intacta
   });
 
-  it("se a Heka for a última carta sua a revelar, o efeito se perde", () => {
+  it("a reserva PERSISTE entre rodadas: Heka por último guarda o +3 para a próxima carta", () => {
+    // Rodada 2: Heka é a última carta a revelar (fila vazia depois dela)
     const heka = mk("heka", { revealed: false });
     const s = { ...mkState([heka]), queue: [], pendingBuff: [null, null] };
     const eff = resolveHeka(s, heka);
-    expect(eff.kind).toBe("block");
+    expect(eff.kind).toBe("buff");                                   // reserva mesmo sem alvo agora
+    expect(s.pendingBuff[0]).toBe(3);                               // NÃO se perde entre rodadas
+    // Rodada 3: uma nova carta é jogada e revelada — consome a reserva guardada
+    const nova = mk("servo", { revealed: false });
+    s.board.push(nova);
+    expect(applyPendingBuff(s, nova)).toBe(3);
+    expect(power(nova, ctxOf(s))).toBe(4);                          // 1 + 3
     expect(s.pendingBuff[0]).toBe(null);
   });
 

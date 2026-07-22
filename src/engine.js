@@ -275,11 +275,15 @@ export function resolveSekhmet(s, card, cost) {
 }
 
 // -------------------------- Heka: buff do próximo ----------------------------
-// A Heka não age no alvo na hora: ela RESERVA um buff (+buffNext) para a próxima
-// carta do PRÓPRIO dono que revelar nesta rodada. Como a revelação segue a ordem
-// de colocação atravessando as vias, isso permite "colocar Heka na Via 3 antes do
-// Enxame na Via 1" e propagar o bônus entre vias — inclusive às cópias do Enxame,
-// pois o +3 é um marcador (mod), que resolveEnxame NÃO subtrai (só Amon/Montu são).
+// A Heka não age no alvo na hora: ela RESERVA um buff (+buffNext) para a PRÓXIMA
+// carta do próprio dono que revelar — e essa reserva PERSISTE ENTRE RODADAS. Se a
+// Heka for jogada na rodada 2 e nenhuma carta sua revelar depois nesta rodada, o
+// +3 fica guardado e é aplicado à sua próxima carta revelada na rodada 3, 4, etc.
+// Só se perde se a partida acabar sem nenhuma carta sua revelar depois dela.
+// Como a revelação segue a ordem de colocação atravessando as vias, isso permite
+// "Heka na Via 3 antes do Enxame na Via 1" e propaga o bônus entre vias — inclusive
+// às cópias do Enxame, pois o +3 é um marcador (mod) que resolveEnxame NÃO subtrai
+// (só Amon/Montu são).
 
 // Consome um buff pendente para a carta que acabou de revelar (se houver).
 // Grava como mod permanente e devolve o valor aplicado (0 se nada).
@@ -291,21 +295,14 @@ export function applyPendingBuff(s, card) {
   return val;
 }
 
-// Ao revelar a Heka: reserva o buff para sua próxima carta na fila.
-// Se não houver próxima carta sua a revelar, o efeito se perde (sem alvo).
+// Ao revelar a Heka: reserva o buff para sua próxima carta revelada (agora ou em
+// rodadas futuras). Sempre reserva — quem consome é applyPendingBuff, quando a
+// próxima carta sua revelar.
 export function resolveHeka(s, heka) {
   const def = byKey[heka.key];
   const val = def.buffNext;
   if (!s.pendingBuff) s.pendingBuff = [null, null];
-  const temAlvo = (s.queue || []).some((uid) => {
-    const c = s.board.find((b) => b.uid === uid);
-    return c && c.owner === heka.owner;
-  });
-  if (!temAlvo) {
-    pushLog(s, `${def.nome}: nenhuma carta sua depois dela — efeito perdido.`);
-    return { uid: heka.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
-  }
   s.pendingBuff[heka.owner] = val;
-  pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta revelada.`);
+  pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta revelada (vale entre rodadas).`);
   return { uid: heka.uid, text: `☀ +${val}→`, kind: "buff", seq: s.effectSeq };
 }

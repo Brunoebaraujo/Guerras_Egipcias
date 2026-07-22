@@ -160,7 +160,9 @@ export default function App() {
     setMoving(null); setSel(null);
     const s = clone(g);
     const queue = buildRevealQueue(s);
-    s.queue = queue; s.lastReveal = null; s.effect = null; s.pendingBuff = [null, null];
+    s.queue = queue; s.lastReveal = null; s.effect = null;
+    // NÃO zeramos s.pendingBuff aqui: a reserva da Heka persiste entre rodadas,
+    // até a próxima carta do dono revelar e consumi-la (applyPendingBuff).
     if (queue.length === 0) { s.phase = "revealed"; pushLog(s, `Nada a revelar nesta rodada.`); }
     else { s.phase = "revealing"; pushLog(s, `Revelação — ${SIDE_NAME[s.priority]} primeiro (${s.priorityReason}).`); }
     commit(s);
