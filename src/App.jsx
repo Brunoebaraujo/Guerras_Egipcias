@@ -5,6 +5,7 @@ import {
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
+  applyPendingBuff, resolveHeka,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -50,7 +51,7 @@ export default function App() {
     const pr = coin();
     return {
       round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
-      pendingEnergy: [0, 0], pendingReturn: [],
+      pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null],
       deck: decks, hand, seen: [START_HAND, START_HAND],
       priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
       lastReveal: null, effect: null, effectSeq: 0,
@@ -159,7 +160,7 @@ export default function App() {
     setMoving(null); setSel(null);
     const s = clone(g);
     const queue = buildRevealQueue(s);
-    s.queue = queue; s.lastReveal = null; s.effect = null;
+    s.queue = queue; s.lastReveal = null; s.effect = null; s.pendingBuff = [null, null];
     if (queue.length === 0) { s.phase = "revealed"; pushLog(s, `Nada a revelar nesta rodada.`); }
     else { s.phase = "revealing"; pushLog(s, `Revelação — ${SIDE_NAME[s.priority]} primeiro (${s.priorityReason}).`); }
     commit(s);
@@ -176,12 +177,20 @@ export default function App() {
     s.effectSeq = (s.effectSeq || 0) + 1;
     s.lastReveal = { uid: card.uid, seq: s.effectSeq };
     s.effect = null;
+    // Consome buff pendente (Heka) ANTES do bloqueio: receber um buff não é o
+    // "Ao Entrar" da carta, então o Selo do Silêncio não o impede.
+    const ganho = applyPendingBuff(s, card);
+    if (ganho) {
+      s.effect = { uid: card.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
+      pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
+    }
     const def = byKey[card.key];
     if (def.trigger === "entrar") {
       if (onEnterBlocked(card, s.board)) {
         s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`); commit(s); return;
       }
+      if (def.buffNext) { s.effect = resolveHeka(s, card); commit(s); return; }
       if (def.key === "sobek") { s.effect = resolveSobek(s, card); commit(s); return; }
       if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true); commit(s); return; }
       if (def.sacrificeAll) { s.effect = resolveDestroyOwnLane(s, card, false); commit(s); return; }

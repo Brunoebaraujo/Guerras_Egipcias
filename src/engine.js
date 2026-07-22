@@ -26,6 +26,10 @@ export const CARDS = [
   // Efeito
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 2, arch: "buff",
     trigger: "entrar", needs: "ally", texto: "Ao Entrar: +2 de Poder a um aliado nesta via." },
+  { key: "heka", nome: "Heka", tipo: "Divindade", custo: 2, poder: 1, arch: "buff",
+    trigger: "entrar", buffNext: 3,
+    lore: "Heka é a magia que precede a criação — a força que anima o gesto dos deuses. Antes que qualquer poder se manifeste, Heka já o preparou.",
+    texto: "Ao Entrar: sua próxima carta revelada nesta rodada entra com +3 de Poder permanente." },
   { key: "amon", nome: "Amon", tipo: "Divindade", custo: 5, poder: 5, arch: "buff",
     trigger: "continuo", arte: "amon",
     lore: "Rei dos deuses e senhor dos ventos, Amon ergue os exércitos do Egito sob a luz eterna do Sol.",
@@ -268,4 +272,40 @@ export function resolveSekhmet(s, card, cost) {
   const returns = destroyList(s, victims);
   pushLog(s, `Sekhmet destruiu ${victims.length} carta(s) de custo ${cost}.` + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
   return { uid: card.uid, text: `☾ ${victims.length}✕`, kind: "debuff", seq: s.effectSeq };
+}
+
+// -------------------------- Heka: buff do próximo ----------------------------
+// A Heka não age no alvo na hora: ela RESERVA um buff (+buffNext) para a próxima
+// carta do PRÓPRIO dono que revelar nesta rodada. Como a revelação segue a ordem
+// de colocação atravessando as vias, isso permite "colocar Heka na Via 3 antes do
+// Enxame na Via 1" e propagar o bônus entre vias — inclusive às cópias do Enxame,
+// pois o +3 é um marcador (mod), que resolveEnxame NÃO subtrai (só Amon/Montu são).
+
+// Consome um buff pendente para a carta que acabou de revelar (se houver).
+// Grava como mod permanente e devolve o valor aplicado (0 se nada).
+export function applyPendingBuff(s, card) {
+  const val = s.pendingBuff?.[card.owner];
+  if (!val) return 0;
+  card.mods.push({ src: "Heka", val });
+  s.pendingBuff[card.owner] = null;
+  return val;
+}
+
+// Ao revelar a Heka: reserva o buff para sua próxima carta na fila.
+// Se não houver próxima carta sua a revelar, o efeito se perde (sem alvo).
+export function resolveHeka(s, heka) {
+  const def = byKey[heka.key];
+  const val = def.buffNext;
+  if (!s.pendingBuff) s.pendingBuff = [null, null];
+  const temAlvo = (s.queue || []).some((uid) => {
+    const c = s.board.find((b) => b.uid === uid);
+    return c && c.owner === heka.owner;
+  });
+  if (!temAlvo) {
+    pushLog(s, `${def.nome}: nenhuma carta sua depois dela — efeito perdido.`);
+    return { uid: heka.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  s.pendingBuff[heka.owner] = val;
+  pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta revelada.`);
+  return { uid: heka.uid, text: `☀ +${val}→`, kind: "buff", seq: s.effectSeq };
 }

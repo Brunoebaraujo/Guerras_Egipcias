@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
   destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
-  resolveEnxame, buildRevealQueue,
+  resolveEnxame, buildRevealQueue, applyPendingBuff, resolveHeka,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -305,5 +305,71 @@ describe("Enxame sob aura contínua (Amon) independe da ordem de revelação", (
       expect(copias).toHaveLength(2);
       for (const c of copias) expect(power(c, ctxOf(s))).toBe(3);   // 2 impresso + 1 Amon
     }
+  });
+});
+
+/* --------------------------------- Heka ------------------------------------- */
+// Heka (2/1): reserva +3 para a PRÓXIMA carta sua a revelar. Buff snapshot que
+// atravessa vias — depende da ordem de colocação/revelação.
+describe("Heka — buff da próxima carta revelada", () => {
+  it("reserva +3 e a próxima carta do mesmo dono o consome (mod permanente)", () => {
+    const heka = mk("heka", { revealed: false });
+    const servo = mk("servo", { revealed: false });                 // poder 1
+    const s = { ...mkState([heka, servo]), queue: [servo.uid], pendingBuff: [null, null] };
+    const eff = resolveHeka(s, heka);
+    expect(eff.kind).toBe("buff");
+    expect(s.pendingBuff[0]).toBe(3);
+    s.queue = [];
+    expect(applyPendingBuff(s, servo)).toBe(3);
+    expect(power(servo, ctxOf(s))).toBe(4);                          // 1 + 3
+    expect(s.pendingBuff[0]).toBe(null);                             // consumido
+  });
+
+  it("não vaza para o oponente: só a próxima carta SUA conta", () => {
+    const heka = mk("heka", { owner: 0, revealed: false });
+    const inimigo = mk("servo", { owner: 1, revealed: false });
+    const s = { ...mkState([heka, inimigo]), queue: [inimigo.uid], pendingBuff: [null, null] };
+    const eff = resolveHeka(s, heka);
+    expect(eff.kind).toBe("block");                                  // sem carta sua depois
+    expect(s.pendingBuff[0]).toBe(null);
+    expect(applyPendingBuff(s, inimigo)).toBe(0);                    // inimigo não recebe
+  });
+
+  it("se a Heka for a última carta sua a revelar, o efeito se perde", () => {
+    const heka = mk("heka", { revealed: false });
+    const s = { ...mkState([heka]), queue: [], pendingBuff: [null, null] };
+    const eff = resolveHeka(s, heka);
+    expect(eff.kind).toBe("block");
+    expect(s.pendingBuff[0]).toBe(null);
+  });
+
+  it("dois Hekas em sequência encadeiam: o 1º buffa o 2º, o 2º buffa o seguinte", () => {
+    const h1 = mk("heka", { revealed: false });
+    const h2 = mk("heka", { revealed: false });                     // poder 1
+    const w = mk("carruagem", { revealed: false });                 // poder 6
+    const s = { ...mkState([h1, h2, w]), queue: [h2.uid, w.uid], pendingBuff: [null, null] };
+    applyPendingBuff(s, h1); resolveHeka(s, h1);                     // h1 reserva +3
+    s.queue = [w.uid];
+    expect(applyPendingBuff(s, h2)).toBe(3);                         // h2 recebe +3
+    expect(power(h2, ctxOf(s))).toBe(4);                            // 1 + 3
+    resolveHeka(s, h2);                                              // h2 reserva +3
+    s.queue = [];
+    expect(applyPendingBuff(s, w)).toBe(3);
+    expect(power(w, ctxOf(s))).toBe(9);                            // 6 + 3
+  });
+
+  it("Heka -> Enxame cross-via: o +3 propaga para as cópias", () => {
+    const heka = mk("heka", { lane: 0, revealed: false });
+    const enxame = mk("enxame", { lane: 1, revealed: false });      // poder 2
+    const s = { ...mkState([heka, enxame]), queue: [enxame.uid], pendingBuff: [null, null] };
+    resolveHeka(s, heka);                                            // reserva +3
+    s.queue = [];
+    applyPendingBuff(s, enxame);                                    // Enxame entra com +3
+    enxame.revealed = true;
+    resolveEnxame(s, enxame);
+    const copias = s.board.filter((c) => c.key === "enxame" && c.baseCopy);
+    expect(copias).toHaveLength(2);
+    expect(power(enxame, ctxOf(s))).toBe(5);                        // 2 + 3
+    for (const c of copias) expect(power(c, ctxOf(s))).toBe(5);     // cópias herdam o +3
   });
 });
