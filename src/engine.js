@@ -16,13 +16,20 @@ export const ARCH_COLOR = {
 
 export const CARDS = [
   // Base
-  { key: "servo",     nome: "Servo do Templo",       tipo: "Guerreiro", custo: 0, poder: 1,  arch: "base", arte: "servo", arteFoco: "center 25%" },
-  { key: "arqueiro",  nome: "Arqueiro Núbio",        tipo: "Guerreiro", custo: 1, poder: 3,  arch: "base", arte: "arqueiro" },
-  { key: "lanceiro",  nome: "Lanceiro do Nilo",      tipo: "Guerreiro", custo: 2, poder: 4,  arch: "base", arte: "lanceiro", arteFoco: "center 0%" },
-  { key: "carruagem", nome: "Carruagem de Guerra",   tipo: "Guerreiro", custo: 3, poder: 6,  arch: "base", arte: "carruagem" },
-  { key: "guardareal",nome: "Guarda Real",           tipo: "Guerreiro", custo: 4, poder: 8,  arch: "base", arte: "guardareal", arteFoco: "center 0%" },
-  { key: "general",   nome: "General dos Exércitos", tipo: "Guerreiro", custo: 5, poder: 10, arch: "base", arte: "general" },
-  { key: "colosso",   nome: "Colosso de Mênfis",     tipo: "Guerreiro", custo: 6, poder: 14, arch: "base", arte: "colosso", arteFoco: "center 0%" },
+  { key: "servo",     nome: "Servo do Templo",       tipo: "Guerreiro", custo: 0, poder: 1,  arch: "base", arte: "servo", arteFoco: "center 25%",
+    lore: "Os templos eram os maiores empregadores do Egito e pagavam em pão e cerveja — moeda cunhada só chegaria ao Nilo mais de mil anos depois." },
+  { key: "arqueiro",  nome: "Arqueiro Núbio",        tipo: "Guerreiro", custo: 1, poder: 3,  arch: "base", arte: "arqueiro",
+    lore: "O Egito chamava a Núbia de Ta-Seti, \"a Terra do Arco\". Seus arqueiros eram tão temidos que o faraó preferiu alistá-los a enfrentá-los." },
+  { key: "lanceiro",  nome: "Lanceiro do Nilo",      tipo: "Guerreiro", custo: 2, poder: 4,  arch: "base", arte: "lanceiro", arteFoco: "center 0%",
+    lore: "A infantaria saía dos nomos, recrutada entre camponeses na entressafra. Lança de bronze e escudo de couro de boi: a espinha do exército por dois milênios." },
+  { key: "carruagem", nome: "Carruagem de Guerra",   tipo: "Guerreiro", custo: 3, poder: 6,  arch: "base", arte: "carruagem",
+    lore: "Os hicsos trouxeram o carro de guerra; o Egito o refez mais leve, com rodas de raios e o eixo recuado. Dois homens: um guia os cavalos, o outro atira." },
+  { key: "guardareal",nome: "Guarda Real",           tipo: "Guerreiro", custo: 4, poder: 8,  arch: "base", arte: "guardareal", arteFoco: "center 0%",
+    lore: "A khopesh, espada em foice, era arma e condecoração: o faraó a entregava em mãos aos que juravam guardar-lhe o corpo." },
+  { key: "general",   nome: "General dos Exércitos", tipo: "Guerreiro", custo: 5, poder: 10, arch: "base", arte: "general",
+    lore: "O título era imi-ra mesha, \"superintendente do exército\". Horemheb o portou antes de cingir a coroa: comandar tropas era caminho para o trono." },
+  { key: "colosso",   nome: "Colosso de Mênfis",     tipo: "Guerreiro", custo: 6, poder: 14, arch: "base", arte: "colosso", arteFoco: "center 0%",
+    lore: "O colosso de Ramsés ainda jaz em Mênfis, dez metros de calcário. Estátuas assim tinham culto próprio — o povo lhes rezava como intermediárias do rei." },
   // Efeito
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 2, arch: "buff",
     trigger: "entrar", needs: "ally", texto: "Ao Entrar: +2 de Poder a um aliado nesta via." },
