@@ -216,7 +216,9 @@ export default function App() {
   function applyAim(target) {
     const s = clone(g);
     const tgt = s.board.find((c) => c.uid === target.uid);
-    const mod = aim.srcKey === "hathor" ? { src: "Hathor", val: 2 } : { src: "Set", val: -4 };
+    // Valor vem da definicao da carta (buffTarget), nao mais cravado aqui.
+    const def = byKey[aim.srcKey];
+    const mod = { src: def.nome, val: def.buffTarget };
     tgt.mods.push(mod);
     s.effectSeq = (s.effectSeq || 0) + 1;
     s.effect = { uid: tgt.uid, text: `${mod.val > 0 ? "+" : ""}${mod.val}`, kind: mod.val > 0 ? "buff" : "debuff", seq: s.effectSeq };
