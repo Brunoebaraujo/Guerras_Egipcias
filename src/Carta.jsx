@@ -34,7 +34,9 @@ export default function Carta({
   const artSrc = arte ? base + "cartas/" + arte + ".webp" : null;
 
   // Fonte do nome encolhe conforme o comprimento (nomes de 2 linhas cabem na placa)
-  const nameSize = width * (nome.length > 24 ? 0.032 : nome.length > 14 ? 0.036 : 0.046);
+  // A fonte grande (0.046) so e segura em nome de 1 linha: duas linhas a esse
+// tamanho estouram a placa (teto vertical = 0.0389*width). Limiar em 11 ch.
+  const nameSize = width * (nome.length > 24 ? 0.032 : nome.length > 11 ? 0.036 : 0.046);
   const efeitoSize = width * ((efeito || "").length > 90 ? 0.037 : 0.040);
   const loreSize = width * ((lore || "").length > 110 ? 0.031 : 0.035);
 
