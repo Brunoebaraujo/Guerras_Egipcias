@@ -26,7 +26,7 @@ const POS = {
 };
 
 export default function Carta({
-  nome, custo, poder, tipo, efeito, lore, arch = "base", arte, width = 240,
+  nome, custo, poder, tipo, efeito, lore, arch = "base", arte, arteFoco, width = 240,
 }) {
   const base = import.meta.env.BASE_URL;
   const glyph = GLYPH[arch] || "𓂀";
@@ -49,7 +49,7 @@ export default function Carta({
       {/* Camada de arte (atrás da janela transparente da moldura) */}
       <div style={{ position: "absolute", ...POS.window, overflow: "hidden", zIndex: 0, background: tint }}>
         {artSrc ? (
-          <img src={artSrc} alt={nome} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+          <img src={artSrc} alt={nome} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: arteFoco || "center" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.5)", fontSize: width * 0.26 }}>
             {glyph}

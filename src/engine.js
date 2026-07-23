@@ -16,13 +16,13 @@ export const ARCH_COLOR = {
 
 export const CARDS = [
   // Base
-  { key: "servo",     nome: "Servo do Templo",       tipo: "Guerreiro", custo: 0, poder: 1,  arch: "base" },
-  { key: "arqueiro",  nome: "Arqueiro Núbio",        tipo: "Guerreiro", custo: 1, poder: 3,  arch: "base" },
-  { key: "lanceiro",  nome: "Lanceiro do Nilo",      tipo: "Guerreiro", custo: 2, poder: 4,  arch: "base" },
-  { key: "carruagem", nome: "Carruagem de Guerra",   tipo: "Guerreiro", custo: 3, poder: 6,  arch: "base" },
-  { key: "guardareal",nome: "Guarda Real",           tipo: "Guerreiro", custo: 4, poder: 8,  arch: "base" },
-  { key: "general",   nome: "General dos Exércitos", tipo: "Guerreiro", custo: 5, poder: 10, arch: "base" },
-  { key: "colosso",   nome: "Colosso de Mênfis",     tipo: "Guerreiro", custo: 6, poder: 14, arch: "base" },
+  { key: "servo",     nome: "Servo do Templo",       tipo: "Guerreiro", custo: 0, poder: 1,  arch: "base", arte: "servo", arteFoco: "center 25%" },
+  { key: "arqueiro",  nome: "Arqueiro Núbio",        tipo: "Guerreiro", custo: 1, poder: 3,  arch: "base", arte: "arqueiro" },
+  { key: "lanceiro",  nome: "Lanceiro do Nilo",      tipo: "Guerreiro", custo: 2, poder: 4,  arch: "base", arte: "lanceiro", arteFoco: "center 0%" },
+  { key: "carruagem", nome: "Carruagem de Guerra",   tipo: "Guerreiro", custo: 3, poder: 6,  arch: "base", arte: "carruagem" },
+  { key: "guardareal",nome: "Guarda Real",           tipo: "Guerreiro", custo: 4, poder: 8,  arch: "base", arte: "guardareal", arteFoco: "center 0%" },
+  { key: "general",   nome: "General dos Exércitos", tipo: "Guerreiro", custo: 5, poder: 10, arch: "base", arte: "general" },
+  { key: "colosso",   nome: "Colosso de Mênfis",     tipo: "Guerreiro", custo: 6, poder: 14, arch: "base", arte: "colosso", arteFoco: "center 0%" },
   // Efeito
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 2, arch: "buff",
     trigger: "entrar", needs: "ally", texto: "Ao Entrar: +2 de Poder a um aliado nesta via." },
@@ -49,7 +49,7 @@ export const CARDS = [
   { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro", custo: 3, poder: 2, arch: "crescimento",
     trigger: "entrar", absorb: "swarm", arte: "enxame",
     texto: "Ao Entrar: crie 2 cópias desta carta no seu lado. As cópias são Guerreiros base sem efeito e copiam o Poder atual." },
-  { key: "assassino-medjay", nome: "Assassino Medjay", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff",
+  { key: "assassino-medjay", nome: "Assassino Medjay", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff", arte: "assassino-medjay",
     trigger: "entrar",
     destroyAllOfTypeInLane: "Divindade",
     texto: "Ao Entrar: destrói todas as Divindades nesta via.",

@@ -306,7 +306,7 @@ export default function App() {
           <div className="flex flex-wrap gap-4 justify-center">
             {CARDS.map((def) => (
               <Carta key={def.key} nome={def.nome} custo={def.custo} poder={def.poder}
-                tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} width={240} />
+                tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={240} />
             ))}
           </div>
         </div>
@@ -667,7 +667,7 @@ function ZoomModal({ zoom, onClose }) {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, cursor: "zoom-out" }}>
       <div className="duat-zoom" onClick={(e) => e.stopPropagation()} style={{ cursor: "default" }}>
         <Carta nome={def.nome} custo={def.custo} poder={shown} tipo={def.tipo}
-          efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} width={w} />
+          efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={w} />
         <div className="text-center mt-2 text-sm text-stone-300" style={{ maxWidth: w }}>
           <div>{sub}</div>
           <div className="text-xs text-stone-400 mt-0.5">
