@@ -77,7 +77,7 @@ export const CARDS = [
   { key: "sekhmet", nome: "Sekhmet", tipo: "Divindade", custo: 3, poder: 4, arch: "debuff",
     trigger: "entrar", wipeCost: 1,
     texto: "Ao Entrar: destrói todas as cartas de custo 1 em jogo (dos dois lados)." },
-  { key: "apofis", nome: "Apófis", tipo: "Criatura", custo: 4, poder: 3, arch: "sacrificio",
+  { key: "apofis", nome: "Apófis", tipo: "Criatura", custo: 4, poder: 3, arch: "sacrificio", arte: "apofis",
     trigger: "entrar", absorb: true,
     texto: "Ao Entrar: destrói suas outras cartas nesta via e ganha o Poder total delas." },
   { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 7, arch: "sacrificio",
@@ -86,7 +86,7 @@ export const CARDS = [
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
     trigger: "morrer", arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
-    texto: "Ao Morrer: +1 de energia no próximo turno e renasce no tabuleiro com +1 de Poder." },
+    texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. +1 de energia no próximo turno." },
 ];
 export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
 export const SIDE_NAME = ["Lado A (ouro)", "Lado B (lápis)"];
@@ -183,6 +183,35 @@ export function destroyList(s, victims) {
   for (const v of victims) { v.dying = s.effectSeq; s.deaths[v.owner] += 1; }
   for (const r of mumias) s.hand[r.owner].push({ hid: nextUid(), key: "mumia", printed: 2, baked: r.val - 2 });
   return mumias;
+}
+
+// -------------------------- renascimento do Bennu ---------------------------
+// Consome s.pendingReturn e recoloca cada Bennu AINDA NA MESMA RODADA, numa via
+// sorteada entre as que tem espaco (pode calhar de ser a via de origem).
+// rng injetavel para os testes.
+export function resolveBennuRebirth(s, rng = Math.random) {
+  if (!s.pendingReturn || s.pendingReturn.length === 0) return [];
+  const nascidos = [];
+  for (const r of s.pendingReturn) {
+    const livres = [0, 1, 2].filter(
+      (lane) => s.board.filter((c) => c.owner === r.owner && c.lane === lane && !c.dying).length < 4
+    );
+    if (livres.length === 0) {
+      pushLog(s, `\u27f3 Bennu nao renasceu \u2014 todas as vias do ${SIDE_NAME[r.owner]} estao cheias.`);
+      continue;
+    }
+    const lane = livres[Math.floor(rng() * livres.length)];
+    const card = {
+      uid: nextUid(), key: "bennu", owner: r.owner, lane,
+      printed: r.printed, baked: r.baked, mods: [], revealed: true,
+      entryPlays: s.plays[r.owner], enteredRound: s.round, moved: false,
+    };
+    s.board.push(card);
+    nascidos.push(card);
+    pushLog(s, `\u27f3 Bennu renasceu na Via ${lane + 1} do ${SIDE_NAME[r.owner]} (Poder ${r.printed + r.baked}).`);
+  }
+  s.pendingReturn = [];
+  return nascidos;
 }
 
 function copyVisibleAuraBonus(s, card) {

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
   destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
-  resolveEnxame, buildRevealQueue, applyPendingBuff, resolveHeka,
+  resolveEnxame, buildRevealQueue, applyPendingBuff, resolveHeka, resolveBennuRebirth,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -12,7 +12,7 @@ const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], baked = 0, .
   printed: byKey[key].poder, baked, mods, entryPlays: 0, enteredRound: 1, moved: false, ...rest,
 });
 const mkState = (board = []) => ({
-  board, deaths: [0, 0], plays: [0, 0], hand: [[], []],
+  board, deaths: [0, 0], plays: [0, 0], hand: [[], []], round: 1,
   pendingEnergy: [0, 0], pendingReturn: [], effectSeq: 1, log: [],
 });
 
@@ -93,6 +93,55 @@ describe("Bennu (Ao Morrer)", () => {
     destroyList(s, [bennu]);
     expect(s.pendingEnergy[0]).toBe(1);
     expect(s.pendingReturn).toEqual([{ owner: 0, lane: 1, printed: 0, baked: 1 }]);
+  });
+
+  it("renasce na MESMA rodada, com +1 de Poder, e limpa a fila", () => {
+    const bennu = mk("bennu", { lane: 1 });
+    const s = mkState([bennu]);
+    destroyList(s, [bennu]);
+    s.board = s.board.filter((c) => !c.dying);
+    const nascidos = resolveBennuRebirth(s, () => 0);
+    expect(nascidos).toHaveLength(1);
+    expect(s.pendingReturn).toEqual([]);
+    const novo = s.board.find((c) => c.key === "bennu");
+    expect(novo.revealed).toBe(true);
+    expect(novo.enteredRound).toBe(s.round);
+    expect(power(novo, ctxOf(s))).toBe(1);
+  });
+
+  it("a via e sorteada, nao herdada da via de origem", () => {
+    const alvo = [];
+    for (const r of [0, 0.5, 0.99]) {
+      const bennu = mk("bennu", { lane: 1 });
+      const s = mkState([bennu]);
+      destroyList(s, [bennu]);
+      s.board = s.board.filter((c) => !c.dying);
+      resolveBennuRebirth(s, () => r);
+      alvo.push(s.board.find((c) => c.key === "bennu").lane);
+    }
+    expect(alvo).toEqual([0, 1, 2]);
+  });
+
+  it("sorteia apenas entre vias com espaco", () => {
+    const bennu = mk("bennu", { lane: 0 });
+    const cheia = (lane) => [0, 1, 2, 3].map(() => mk("servo", { lane }));
+    const s = mkState([bennu, ...cheia(0), ...cheia(1)]);
+    destroyList(s, [bennu]);
+    s.board = s.board.filter((c) => !c.dying);
+    resolveBennuRebirth(s, () => 0);
+    expect(s.board.find((c) => c.key === "bennu").lane).toBe(2);
+  });
+
+  it("nao renasce se todas as vias estiverem cheias", () => {
+    const bennu = mk("bennu", { lane: 0 });
+    const cheia = (lane) => [0, 1, 2, 3].map(() => mk("servo", { lane }));
+    const s = mkState([bennu, ...cheia(0), ...cheia(1), ...cheia(2)]);
+    destroyList(s, [bennu]);
+    s.board = s.board.filter((c) => !c.dying);
+    const nascidos = resolveBennuRebirth(s, () => 0);
+    expect(nascidos).toEqual([]);
+    expect(s.board.some((c) => c.key === "bennu")).toBe(false);
+    expect(s.pendingReturn).toEqual([]);
   });
 });
 

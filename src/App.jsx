@@ -5,7 +5,7 @@ import {
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
-  applyPendingBuff, resolveHeka,
+  applyPendingBuff, resolveHeka, resolveBennuRebirth,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -172,6 +172,7 @@ export default function App() {
     const s = clone(g);
     if (s.phase !== "revealing") return;
     if (s.board.some((c) => c.dying)) s.board = s.board.filter((c) => !c.dying);
+    resolveBennuRebirth(s); // Bennu volta na MESMA rodada, em via sorteada
     let card = null;
     while (s.queue.length && !card) { const cu = s.queue.shift(); card = s.board.find((c) => c.uid === cu) || null; }
     if (!card) { s.phase = "revealed"; s.lastReveal = null; s.effect = null; pushLog(s, `Revelação concluída.`); commit(s); return; }
@@ -244,13 +245,6 @@ export default function App() {
     s.energy = [s.round + s.pendingEnergy[0], s.round + s.pendingEnergy[1]];
     const eBonus = [s.pendingEnergy[0], s.pendingEnergy[1]];
     s.pendingEnergy = [0, 0];
-    for (const r of s.pendingReturn) {
-      if (s.board.filter((c) => c.owner === r.owner && c.lane === r.lane).length < 4) {
-        s.board.push({ uid: nextUid(), key: "bennu", owner: r.owner, lane: r.lane, printed: r.printed, baked: r.baked, mods: [], revealed: true, entryPlays: s.plays[r.owner], enteredRound: s.round, moved: false });
-        pushLog(s, `⟳ Bennu renasceu na Via ${r.lane + 1} do ${SIDE_NAME[r.owner]} (Poder ${r.printed + r.baked}).`);
-      } else pushLog(s, `⟳ Bennu não renasceu na Via ${r.lane + 1} do ${SIDE_NAME[r.owner]} — via cheia.`);
-    }
-    s.pendingReturn = [];
     for (let side = 0; side < 2; side++)
       if (s.deck[side].length > 0) {
         const key = s.deck[side].shift();
