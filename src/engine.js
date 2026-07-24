@@ -109,7 +109,10 @@ export const shuffled = (arr) => {
 };
 export const coin = () => (Math.random() < 0.5 ? 0 : 1);
 export const ctxOf = (s) => ({ board: s.board, deaths: s.deaths, plays: s.plays });
-export const pushLog = (s, m) => { s.log = [m, ...s.log].slice(0, 80); };
+export const pushLog = (s, m) => {
+  s.log = [m, ...s.log].slice(0, 80);           // painel: recente primeiro, 80 linhas
+  s.trace = [...(s.trace || []), m];            // exportacao: tudo, em ordem
+};
 
 // ----------------------------- motor de poder -------------------------------
 export const laneHasMaat = (board, lane) =>
@@ -272,6 +275,55 @@ export function descarregarPendentes(s, card, rng = Math.random) {
   let tocadas = 0;
   for (let i = 0; i < n; i++) tocadas += espalharBencao(s, card, rng, i).length;
   return { ondas: n, tocadas };
+}
+
+// ------------------------ diagnostico / log de partida -----------------------
+// Decompoe o poder de uma carta. E o que torna um bug visivel: mostra a origem
+// de cada parcela em vez de so o total. Bonus marcados com * sao inertes.
+export function decompor(c, ctx) {
+  const total = power(c, ctx);
+  if (laneHasMaat(ctx.board, c.lane)) return `${total} (Maat: reduzido ao impresso)`;
+  const partes = [`${c.printed} impresso`];
+  if (c.baked) partes.push(`${c.baked > 0 ? "+" : ""}${c.baked} acumulado`);
+  for (const m of c.mods) partes.push(`${m.val > 0 ? "+" : ""}${m.val} ${m.src}${m.inert ? "*" : ""}`);
+  const aura = total - c.printed - (c.baked || 0) - c.mods.reduce((t, m) => t + m.val, 0);
+  if (aura) partes.push(`${aura > 0 ? "+" : ""}${aura} contínuo`);
+  return `${total} = ${partes.join(" ")}`;
+}
+
+export function snapshotTabuleiro(s, titulo) {
+  const ctx = ctxOf(s);
+  const linhas = [titulo];
+  for (let side = 0; side < 2; side++) {
+    linhas.push(`  ${SIDE_NAME[side]} — energia ${s.energy[side]} | mão: ${s.hand[side].map((h) => byKey[h.key].nome).join(", ") || "vazia"}`);
+    for (let lane = 0; lane < 3; lane++) {
+      const cs = s.board.filter((c) => c.owner === side && c.lane === lane);
+      const desc = cs.length
+        ? cs.map((c) => `${byKey[c.key].nome}${c.revealed ? "" : " (oculta)"}${c.dying ? " (morrendo)" : ""} ${decompor(c, ctx)}`).join(" | ")
+        : "—";
+      linhas.push(`    Via ${lane + 1} [${laneScore(ctx, lane, side)}]: ${desc}`);
+    }
+  }
+  return linhas.join("\n");
+}
+
+export function montarLogPartida(s) {
+  const cab = [
+    "===== DUAT — log de partida =====",
+    `gerado: ${new Date().toISOString()}`,
+    `rodada ${s.round}/6 | fase ${s.phase}${s.finished ? " | ENCERRADA" : ""}`,
+    `prioridade: ${SIDE_NAME[s.priority]} (${s.priorityReason})`,
+    "* = bônus inerte (não dispara gatilhos)",
+    "",
+  ];
+  return [
+    ...cab,
+    snapshotTabuleiro(s, "--- estado atual ---"),
+    "",
+    "--- trilha completa (ordem cronológica) ---",
+    ...(s.trace || []),
+    "",
+  ].join("\n");
 }
 
 function copyVisibleAuraBonus(s, card) {

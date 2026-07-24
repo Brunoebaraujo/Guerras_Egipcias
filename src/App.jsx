@@ -6,6 +6,7 @@ import {
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
+  montarLogPartida, snapshotTabuleiro,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -57,6 +58,7 @@ export default function App() {
       priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
       lastReveal: null, effect: null, effectSeq: 0,
       log: [`Rodada 1 — mão de ${START_HAND}. Prioridade: ${SIDE_NAME[pr]} (sorteio).`],
+      trace: [`Rodada 1 — mão de ${START_HAND}. Prioridade: ${SIDE_NAME[pr]} (sorteio).`],
       finished: false,
     };
   }
@@ -254,6 +256,7 @@ export default function App() {
     if (g.phase !== "revealed") { flash("Revele as cartas antes de avançar."); return; }
     if (g.round >= 6) { finish(); return; }
     const s = clone(g);
+    s.trace = [...(s.trace || []), snapshotTabuleiro(s, `--- fim da rodada ${s.round} ---`)];
     s.round += 1;
     s.energy = [s.round + s.pendingEnergy[0], s.round + s.pendingEnergy[1]];
     const eBonus = [s.pendingEnergy[0], s.pendingEnergy[1]];
@@ -384,6 +387,26 @@ export default function App() {
   }
 
   // =============================== RENDER ==================================
+  async function copiarLog() {
+    const txt = montarLogPartida(g);
+    try {
+      await navigator.clipboard.writeText(txt);
+      flash("Log copiado para a área de transferência.");
+    } catch {
+      baixarLog(); // sem permissão de clipboard: cai para download
+    }
+  }
+  function baixarLog() {
+    const txt = montarLogPartida(g);
+    const url = URL.createObjectURL(new Blob([txt], { type: "text/plain;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `duat-log-r${g.round}-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-")}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    flash("Log baixado.");
+  }
+
   return (
     <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
       <style>{`
@@ -454,7 +477,13 @@ export default function App() {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
           <div className="lg:col-span-2 rounded-lg border border-stone-700 p-3" style={{ backgroundColor: "#1c1a17" }}>
-            <h3 className="text-xs uppercase tracking-widest text-stone-400 mb-2">Registro da partida</h3>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs uppercase tracking-widest text-stone-400">Registro da partida</h3>
+              <div className="flex gap-1">
+                <button onClick={copiarLog} className="text-[10px] px-2 py-0.5 rounded border border-stone-600 text-stone-300 hover:bg-stone-700">Copiar</button>
+                <button onClick={baixarLog} className="text-[10px] px-2 py-0.5 rounded border border-stone-600 text-stone-300 hover:bg-stone-700">Baixar</button>
+              </div>
+            </div>
             <div className="space-y-1 overflow-auto text-sm text-stone-300 pr-1" style={{ maxHeight: 220 }}>
               {g.log.map((l, i) => (<div key={i} className={i === 0 ? "text-stone-100" : "text-stone-400"}>{l}</div>))}
             </div>
