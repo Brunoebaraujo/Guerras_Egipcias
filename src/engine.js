@@ -118,21 +118,37 @@ export const pushLog = (s, m) => {
 export const laneHasMaat = (board, lane) =>
   board.some((c) => c.lane === lane && c.key === "maat" && c.revealed && !c.dying);
 
-export function power(card, ctx) {
+// Decompoe o poder em parcelas nomeadas. O power() abaixo e a SOMA disto, para
+// que o numero exibido e a explicacao nunca possam divergir.
+export function decomporPartes(card, ctx) {
   const { board, deaths, plays } = ctx;
-  if (laneHasMaat(board, card.lane)) return card.printed;
-  let p = card.printed + (card.baked || 0);
-  for (const m of card.mods) p += m.val;
-  // Amon: +1 a todas as suas OUTRAS cartas
-  p += board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
-  // Montu: +2 aos seus Guerreiros
+  const partes = [{ label: "Impresso", val: card.printed, tipo: "base" }];
+  if (laneHasMaat(board, card.lane)) {
+    partes.push({ label: "Maat — reduzido ao impresso", val: 0, tipo: "maat" });
+    return partes;
+  }
+  if (card.baked) partes.push({ label: "Faixa acumulada", val: card.baked, tipo: "acumulado" });
+  for (const m of card.mods)
+    partes.push({ label: m.src, val: m.val, tipo: m.inert ? "inerte" : m.val > 0 ? "bencao" : "maldicao" });
+
+  const amons = board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
+  if (amons) partes.push({ label: "Amon", val: amons, tipo: "continuo" });
+
   const montus = board.filter((c) => c.owner === card.owner && c.key === "montu" && c.revealed && !c.dying).length;
-  if (byKey[card.key].tipo === "Guerreiro") p += 2 * montus;
-  // Anúbis: escala com mortes suas
-  if (card.key === "anubis") p += 2 * deaths[card.owner];
-  // Ammit: +1 por carta jogada por você após ela
-  if (card.key === "ammit") p += Math.max(0, plays[card.owner] - (card.entryPlays || 0));
-  return p;
+  if (montus && byKey[card.key].tipo === "Guerreiro") partes.push({ label: "Montu", val: 2 * montus, tipo: "continuo" });
+
+  if (card.key === "anubis" && deaths[card.owner])
+    partes.push({ label: "Anúbis — mortes suas", val: 2 * deaths[card.owner], tipo: "continuo" });
+
+  if (card.key === "ammit") {
+    const v = Math.max(0, plays[card.owner] - (card.entryPlays || 0));
+    if (v) partes.push({ label: "Ammit — cartas jogadas após ela", val: v, tipo: "continuo" });
+  }
+  return partes;
+}
+
+export function power(card, ctx) {
+  return decomporPartes(card, ctx).reduce((t, p) => t + p.val, 0);
 }
 
 export const laneScore = (ctx, lane, side) =>
@@ -281,14 +297,14 @@ export function descarregarPendentes(s, card, rng = Math.random) {
 // Decompoe o poder de uma carta. E o que torna um bug visivel: mostra a origem
 // de cada parcela em vez de so o total. Bonus marcados com * sao inertes.
 export function decompor(c, ctx) {
-  const total = power(c, ctx);
-  if (laneHasMaat(ctx.board, c.lane)) return `${total} (Maat: reduzido ao impresso)`;
-  const partes = [`${c.printed} impresso`];
-  if (c.baked) partes.push(`${c.baked > 0 ? "+" : ""}${c.baked} acumulado`);
-  for (const m of c.mods) partes.push(`${m.val > 0 ? "+" : ""}${m.val} ${m.src}${m.inert ? "*" : ""}`);
-  const aura = total - c.printed - (c.baked || 0) - c.mods.reduce((t, m) => t + m.val, 0);
-  if (aura) partes.push(`${aura > 0 ? "+" : ""}${aura} contínuo`);
-  return `${total} = ${partes.join(" ")}`;
+  const partes = decomporPartes(c, ctx);
+  const total = partes.reduce((t, p) => t + p.val, 0);
+  const txt = partes.map((p) =>
+    p.tipo === "base" ? `${p.val} impresso`
+    : p.tipo === "maat" ? "Maat: reduzido ao impresso"
+    : `${p.val > 0 ? "+" : ""}${p.val} ${p.label}${p.tipo === "inerte" ? "*" : p.tipo === "continuo" ? " (contínuo)" : ""}`
+  );
+  return `${total} = ${txt.join(" ")}`;
 }
 
 export function snapshotTabuleiro(s, titulo) {
@@ -389,7 +405,7 @@ export function resolveArmadura(s, arm) {
   // disparado pela bencao, senao ela entra no sorteio de alvos da Renenutet e
   // leva um +1 para o tumulo.
   arm.dying = s.effectSeq;
-  aplicarBencao(s, target, val, "Armadura");
+  aplicarBencao(s, target, val, "Armadura de Ptah");
   pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
 }

@@ -6,7 +6,7 @@ import {
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
-  montarLogPartida, snapshotTabuleiro,
+  montarLogPartida, snapshotTabuleiro, decomporPartes,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -95,6 +95,7 @@ export default function App() {
     const cur = c.revealed ? power(c, ctxOf(g)) : null;
     setZoom({
       def, printed: c.printed, baked: c.baked || 0, current: cur,
+      partes: c.revealed ? decomporPartes(c, ctxOf(g)) : null,
       sub: `Via ${c.lane + 1} · ${SIDE_NAME[c.owner]}` + (c.revealed ? "" : " · por revelar"),
     });
   }
@@ -704,8 +705,14 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
 }
 
 /* ============================ ZOOM DE CARTA =============================== */
+const PART_COLOR = {
+  base: "text-stone-300", acumulado: "text-amber-300", bencao: "text-emerald-300",
+  inerte: "text-emerald-400/70", maldicao: "text-rose-300", continuo: "text-sky-300",
+  maat: "text-yellow-300",
+};
+
 function ZoomModal({ zoom, onClose }) {
-  const { def, printed, baked, current, sub } = zoom;
+  const { def, printed, baked, current, sub, partes } = zoom;
   const shown = current != null ? current : printed + (baked || 0);
   const w = Math.min(320, typeof window !== "undefined" ? window.innerWidth * 0.78 : 320);
   return (
@@ -718,6 +725,24 @@ function ZoomModal({ zoom, onClose }) {
           <div className="text-xs text-stone-400 mt-0.5">
             Impresso {def.poder}{baked > 0 ? ` · Faixa +${baked}` : ""}{current != null && current !== printed + baked ? ` · Atual ${current}` : ""}
           </div>
+          {partes && partes.length > 1 && (
+            <div className="mt-2 text-left rounded border border-stone-700 bg-stone-900/70 px-2 py-1.5" style={{ maxWidth: w }}>
+              <div className="text-[10px] uppercase tracking-widest text-stone-500 mb-1">Composição do poder</div>
+              {partes.map((p, i) => (
+                <div key={i} className="flex justify-between gap-3 text-xs leading-5">
+                  <span className={PART_COLOR[p.tipo]}>
+                    {p.label}{p.tipo === "continuo" ? " · contínuo" : p.tipo === "inerte" ? " · inerte" : ""}
+                  </span>
+                  <span className={`tabular-nums ${PART_COLOR[p.tipo]}`}>
+                    {p.tipo === "base" || p.tipo === "maat" ? p.val || "" : `${p.val > 0 ? "+" : ""}${p.val}`}
+                  </span>
+                </div>
+              ))}
+              <div className="flex justify-between gap-3 text-xs font-bold border-t border-stone-700 mt-1 pt-1">
+                <span>Total</span><span className="tabular-nums">{shown}</span>
+              </div>
+            </div>
+          )}
           <button onClick={onClose} className="mt-2 px-3 py-1.5 rounded bg-stone-700 hover:bg-stone-600 text-xs">Fechar</button>
         </div>
       </div>
