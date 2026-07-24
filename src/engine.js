@@ -68,7 +68,7 @@ export const CARDS = [
   { key: "montu", nome: "Montu", tipo: "Divindade", custo: 3, poder: 1, arch: "buff",
     trigger: "continuo", anthemType: "Guerreiro", anthemVal: 2,
     texto: "Contínuo: seus Guerreiros ganham +2 de Poder." },
-  { key: "armadura", nome: "Armadura de Ptah", tipo: "Relíquia", custo: 2, poder: 3, arch: "fusao",
+  { key: "armadura", nome: "Armadura de Ptah", tipo: "Relíquia", custo: 2, poder: 3, arch: "fusao", arte: "armadura", arteFoco: "center 0%",
     trigger: "entrar", fuse: true,
     texto: "Ao Entrar: funde-se com um aliado aleatório nesta via, conferindo seu Poder a ele." },
   { key: "escaravelho", nome: "Escaravelho Alado", tipo: "Criatura", custo: 1, poder: 3, arch: "movimento",
@@ -90,7 +90,7 @@ export const CARDS = [
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
     texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. +1 de energia no próximo turno." },
   { key: "renenutet", nome: "Renenutet", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
-    trigger: "entrar", spreadOnBlessing: 2,
+    trigger: "entrar", spreadOnBlessing: 2, arte: "renenutet", arteFoco: "center 0%",
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
     texto: "Ao receber uma bênção permanente: +1 a duas outras cartas suas em jogo. Bênçãos recebidas fora de jogo resolvem ao entrar." },
 ];
