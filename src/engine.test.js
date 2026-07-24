@@ -487,7 +487,8 @@ describe("Renenutet (bênçãos)", () => {
     expect(tocadas).toBe(6);
     expect(ren.pendentes).toBe(0);
     expect(alvos.reduce((t, a) => t + soma(a), 0)).toBe(6);
-    expect(s.blessings.map((b) => b.wave)).toEqual([0, 0, 1, 1, 2, 2]);
+    expect(s.blessings.filter((b) => b.role === "alvo").map((b) => b.wave)).toEqual([0, 0, 1, 1, 2, 2]);
+    expect(s.blessings.filter((b) => b.role === "fonte")).toHaveLength(3);
   });
 
   it("regressao: a Armadura consumida nao pode receber a bencao que ela mesma disparou", () => {

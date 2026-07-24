@@ -75,9 +75,18 @@ export default function App() {
   const [fast, setFast] = useState(false);
   const flashRef = useRef(null);
 
+  // O passo seguinte espera a animação terminar. Sem isso, uma distribuição de
+  // bênçãos em varias ondas era cortada no meio pelo avanco automatico.
+  function esperaRevelacao() {
+    const b = g.blessings || [];
+    if (!b.length) return fast ? 110 : 800;
+    const ondas = Math.max(...b.map((x) => x.wave)) + 1;
+    return fast ? 200 + 260 * ondas : 900 + 800 * ondas;
+  }
+
   useEffect(() => {
     if (g.phase !== "revealing" || aim) return;
-    const t = setTimeout(() => stepReveal(), fast ? 110 : 800);
+    const t = setTimeout(() => stepReveal(), esperaRevelacao());
     return () => clearTimeout(t);
   });
 
@@ -420,10 +429,16 @@ export default function App() {
         .duat-badge { animation: duatFloat .9s ease-out forwards; }
         .duat-vanish { animation: duatVanish .7s ease-in forwards; }
         .duat-zoom { animation: duatZoomIn .18s ease-out; }
-        @keyframes duatBless { 0%{ box-shadow:0 0 0 0 rgba(74,222,128,0); transform:scale(1) } 25%{ box-shadow:0 0 9px 3px rgba(74,222,128,.9); transform:scale(1.06) } 100%{ box-shadow:0 0 0 0 rgba(74,222,128,0); transform:scale(1) } }
+        @keyframes duatBlessRing { 0%{ opacity:0; transform:scale(.82) } 18%{ opacity:.95 } 100%{ opacity:0; transform:scale(1.6) } }
+        @keyframes duatBlessGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(74,222,128,0) } 32%{ box-shadow:0 0 16px 6px rgba(74,222,128,.8) } }
+        @keyframes duatBlessRise { 0%{ opacity:0; transform:translate(-50%,12px) scale(.65) } 18%{ opacity:1; transform:translate(-50%,0) scale(1.2) } 70%{ opacity:1; transform:translate(-50%,-14px) scale(1.05) } 100%{ opacity:0; transform:translate(-50%,-34px) scale(1) } }
+        @keyframes duatBlessFonte { 0%{ opacity:0; transform:scale(.9) } 20%{ opacity:1 } 100%{ opacity:0; transform:scale(1.45) } }
         .duat-charge { animation: duatCharge 1.5s ease-in-out infinite; }
-        .duat-bless { animation: duatBless .55s ease-out both; }
-        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-bless { animation: none; } }
+        .duat-bless-ring  { animation: duatBlessRing 1.15s cubic-bezier(.2,.7,.3,1) both; }
+        .duat-bless-glow  { animation: duatBlessGlow 1.15s ease-out both; }
+        .duat-bless-rise  { animation: duatBlessRise 1.5s ease-out both; }
+        .duat-bless-fonte { animation: duatBlessFonte .95s ease-out both; }
+        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise,.duat-bless-fonte { animation: none; } }
       `}</style>
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
@@ -681,12 +696,23 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
   return (
     <div onClick={onClick} className={dying ? "duat-vanish" : reveal ? "duat-pop" : ""} style={common} title={def.texto || def.nome}>
       {charging && <div className="duat-charge" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 5 }} />}
-      {blessings.map((b, i) => (
-        <React.Fragment key={`${b.seq}-${b.wave}-${i}`}>
-          <div className="duat-bless" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 6, animationDelay: `${b.wave * 0.45}s` }} />
-          <span className="duat-badge" style={{ position: "absolute", left: "50%", top: "-2px", zIndex: 9, pointerEvents: "none", fontWeight: 800, fontSize: f(1.05), color: "#4ade80", textShadow: "0 1px 3px rgba(0,0,0,.95)", animationDelay: `${b.wave * 0.45}s` }}>+1</span>
-        </React.Fragment>
-      ))}
+      {blessings.map((b, i) => {
+        // A fonte pisca 0,18s antes dos alvos: origem primeiro, destino depois.
+        const atraso = b.wave * 0.8 + (b.role === "fonte" ? 0 : 0.18);
+        const d = `${atraso}s`;
+        if (b.role === "fonte") return (
+          <div key={`f${b.seq}-${b.wave}-${i}`} className="duat-bless-fonte"
+            style={{ position: "absolute", inset: -3, borderRadius: "inherit", pointerEvents: "none", zIndex: 6,
+                     border: "2px solid rgba(251,191,36,.95)", boxShadow: "0 0 12px 3px rgba(251,191,36,.55)", animationDelay: d }} />
+        );
+        return (
+          <React.Fragment key={`a${b.seq}-${b.wave}-${i}`}>
+            <div className="duat-bless-ring" style={{ position: "absolute", inset: -4, borderRadius: "inherit", pointerEvents: "none", zIndex: 6, border: "2.5px solid rgba(74,222,128,.95)", animationDelay: d }} />
+            <div className="duat-bless-glow" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 6, animationDelay: d }} />
+            <span className="duat-bless-rise" style={{ position: "absolute", left: "50%", top: "-4px", zIndex: 9, pointerEvents: "none", fontWeight: 900, fontSize: f(1.6), color: "#4ade80", textShadow: "0 0 6px rgba(74,222,128,.7), 0 1px 3px rgba(0,0,0,.95)", animationDelay: d }}>+1</span>
+          </React.Fragment>
+        );
+      })}
       <EffectBadge badge={badge} size={f(1.05)} />
       <div style={{ ...frame, border, background: artSrc ? "#000" : "rgba(28,24,17,.9)", boxShadow: canTarget ? "0 0 10px rgba(129,140,248,.8)" : "0 2px 6px rgba(0,0,0,.55)" }}>
         {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }} />}

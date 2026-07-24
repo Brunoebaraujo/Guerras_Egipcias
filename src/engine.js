@@ -270,8 +270,12 @@ export function espalharBencao(s, fonte, rng = Math.random, wave = 0) {
   const def = byKey[fonte.key];
   const alvos = sortearAlvos(s, fonte, def.spreadOnBlessing, rng);
   for (const a of alvos) aplicarBencao(s, a, 1, def.nome, { inert: true });
-  // Registra a onda para a animação: cada onda tem seu proprio atraso na tela.
-  s.blessings = (s.blessings || []).concat(alvos.map((a) => ({ uid: a.uid, wave, seq: s.effectSeq })));
+  // Registra a onda para a animação. A fonte tambem entra, para que o olho veja
+  // de onde a bencao partiu antes de ver onde ela chegou.
+  s.blessings = (s.blessings || []).concat(
+    alvos.length ? [{ uid: fonte.uid, wave, seq: s.effectSeq, role: "fonte" }] : [],
+    alvos.map((a) => ({ uid: a.uid, wave, seq: s.effectSeq, role: "alvo" })),
+  );
   if (alvos.length === 0) pushLog(s, `${def.nome}: nenhuma outra carta sua em jogo para abençoar.`);
   else pushLog(s, `${def.nome} abençoou ${alvos.map((a) => byKey[a.key].nome).join(" e ")} (+1).`);
   return alvos;
