@@ -52,8 +52,10 @@ export const CARDS = [
     texto: "Contínuo: nesta via, toda carta (dos dois lados) volta ao Poder impresso." },
   { key: "sobek", nome: "Sobek", tipo: "Criatura", custo: 2, poder: 2, arch: "sacrificio",
     trigger: "entrar", texto: "Ao Entrar: destrua suas outras cartas nesta via; +1 por carta destruída." },
-  { key: "anubis", nome: "Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "sacrificio",
-    trigger: "continuo", texto: "Contínuo: +2 para cada carta sua já destruída na partida." },
+  { key: "osiris", nome: "Osíris", tipo: "Divindade", custo: 4, poder: 4, arch: "sacrificio",
+    trigger: "continuo", arte: "osiris",
+    lore: "Assassinado e esquartejado por Set, Osíris renasceu como senhor dos mortos e juiz do além. Deus que morreu para reinar sobre a morte, ele cresce com cada fim.",
+    texto: "Contínuo: +2 para cada carta destruída na partida, de qualquer lado." },
   { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 2, arch: "sacrificio",
     trigger: "morrer", arte: "mumia",
     lore: "Os egípcios não mumificavam seus mortos para lembrar o passado, mas para prepará-los para o futuro. Se o corpo permanecesse intacto, a alma poderia retornar e erguer-se novamente. O corpo era preservado para que o Ka e o Ba pudessem reconhecê-lo após a morte.",
@@ -140,8 +142,10 @@ export function decomporPartes(card, ctx) {
   const montus = board.filter((c) => c.owner === card.owner && c.key === "montu" && c.revealed && !c.dying).length;
   if (montus && byKey[card.key].tipo === "Guerreiro") partes.push({ label: "Montu", val: 2 * montus, tipo: "continuo" });
 
-  if (card.key === "anubis" && deaths[card.owner])
-    partes.push({ label: "Anúbis — mortes suas", val: 2 * deaths[card.owner], tipo: "continuo" });
+  if (card.key === "osiris") {
+    const totalMortes = deaths[0] + deaths[1];
+    if (totalMortes) partes.push({ label: "Osíris — mortes na partida", val: 2 * totalMortes, tipo: "continuo" });
+  }
 
   if (card.key === "ammit") {
     const v = Math.max(0, plays[card.owner] - (card.entryPlays || 0));
@@ -245,7 +249,7 @@ export function resolveBennuRebirth(s, rng = Math.random) {
 // ------------------------------- bênçãos ------------------------------------
 // Uma BENÇÃO é um bônus permanente e positivo vindo de OUTRA carta: fica gravado
 // em `mods` e sobrevive à saída da fonte (Hathor, Heka, Armadura de Ptah).
-// Efeitos "Contínuo:" (Amon, Montu, Anúbis, Ammit, Maat) são recalculados a cada
+// Efeitos "Contínuo:" (Amon, Montu, Osíris, Ammit, Maat) são recalculados a cada
 // leitura de poder e somem com a fonte — não são bênçãos e não disparam nada.
 // `inert` marca o bônus que a própria Renenutet espalha: ele nunca dispara
 // gatilho, o que impede o laço entre duas cópias dela.

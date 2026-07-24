@@ -25,8 +25,8 @@ const START_HAND = 4;
 const PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "assassino-medjay", "escaravelho"],
-  "Sacrifício": ["mumia", "sobek", "anubis", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
-  "Controle":   ["set", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "anubis", "guardareal", "colosso", "general", "armadura"],
+  "Sacrifício": ["mumia", "sobek", "osiris", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
+  "Controle":   ["set", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "armadura"],
   "Bênção":     ["renenutet", "hathor", "heka", "armadura", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "escaravelho", "montu", "amon"],
 };
 const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));

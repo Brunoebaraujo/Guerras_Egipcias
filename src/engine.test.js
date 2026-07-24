@@ -48,10 +48,10 @@ describe("power()", () => {
     expect(power(buffed, ctxOf(s))).toBe(1);          // impresso, ignora mods e Amon
   });
 
-  it("Anúbis escala +2 por morte própria", () => {
-    const s = mkState([mk("anubis")]);
-    s.deaths[0] = 3;
-    expect(power(s.board[0], ctxOf(s))).toBe(10);     // 4 + 6
+  it("Osíris escala +2 por morte de qualquer lado", () => {
+    const s = mkState([mk("osiris")]);
+    s.deaths = [2, 1];
+    expect(power(s.board[0], ctxOf(s))).toBe(10);     // 4 + 2*(2+1)
   });
 
   it("Ammit cresce +1 por carta jogada depois dela", () => {
@@ -576,5 +576,22 @@ describe("Set (dispersão caótica)", () => {
     resolveSet(s, set, () => 0);
     expect(alvo.mods).toHaveLength(1);
     expect(alvo.mods[0].val).toBe(3);
+  });
+});
+
+/* --------------------------------- Osíris ---------------------------------- */
+describe("Osíris (cresce com as mortes)", () => {
+  it("+2 por morte de qualquer lado", () => {
+    const osiris = mk("osiris");
+    const s = mkState([osiris]);
+    s.deaths = [2, 3]; // 5 mortes na partida
+    expect(power(osiris, ctxOf(s))).toBe(4 + 2 * 5);
+  });
+
+  it("sem mortes, vale so o impresso", () => {
+    const osiris = mk("osiris");
+    const s = mkState([osiris]);
+    s.deaths = [0, 0];
+    expect(power(osiris, ctxOf(s))).toBe(4);
   });
 });
