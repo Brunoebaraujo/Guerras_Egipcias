@@ -42,9 +42,10 @@ export const CARDS = [
     trigger: "continuo", arte: "amon",
     lore: "Rei dos deuses e senhor dos ventos, Amon ergue os exércitos do Egito sob a luz eterna do Sol.",
     texto: "Contínuo: +1 a todas as suas outras cartas em jogo (todas as vias)." },
-  { key: "set", nome: "Set", tipo: "Divindade", custo: 5, poder: 6, arch: "debuff",
-    trigger: "entrar", needs: "enemy", buffTarget: -4,
-    texto: "Ao Entrar: −4 de Poder a uma carta inimiga nesta via." },
+  { key: "set", nome: "Set", tipo: "Divindade", custo: 5, poder: 5, arch: "debuff",
+    trigger: "entrar", scatterEnemies: 2, arte: "set",
+    lore: "Set matou Osíris e disputou o trono com Hórus por oitenta anos. Deus do deserto e da tempestade, era a força que desarruma o que Maat arruma.",
+    texto: "Ao Entrar: duas cartas inimigas desta via são lançadas para vias aleatórias. Sem espaço, permanecem." },
   { key: "maat", nome: "Maat", tipo: "Divindade", custo: 4, poder: 3, arch: "reset",
     trigger: "continuo", arte: "maat", arteFoco: "center 0%",
     lore: "Maat é a filha de Rá e Hathor. Ela é irmã do faraó mítico, assegura o equilíbrio cósmico e é graças a ela que o mundo funciona perfeitamente.",
@@ -346,6 +347,42 @@ export function montarLogPartida(s) {
     ...(s.trace || []),
     "",
   ].join("\n");
+}
+
+// ------------------------------ Set: dispersao ------------------------------
+// Empurra ate N cartas inimigas da via do Set para outra via sorteada. Cada
+// carta rola de forma independente, e falha sozinha se nao houver espaco.
+// Nao consome o movimento proprio da carta: a vitima nao escolheu sair.
+export function resolveSet(s, set, rng = Math.random) {
+  const def = byKey[set.key];
+  const pool = s.board.filter(
+    (c) => c.owner !== set.owner && c.lane === set.lane && c.revealed && !c.dying
+  );
+  const vitimas = [];
+  while (vitimas.length < def.scatterEnemies && pool.length > 0) {
+    vitimas.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  }
+  if (vitimas.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta inimiga nesta via para dispersar.`);
+    return { movidas: [], presas: [] };
+  }
+  const movidas = [], presas = [];
+  for (const v of vitimas) {
+    const destinos = [0, 1, 2].filter(
+      (l) => l !== v.lane &&
+        s.board.filter((c) => c.owner === v.owner && c.lane === l && !c.dying).length < 4
+    );
+    if (destinos.length === 0) {
+      presas.push(v);
+      pushLog(s, `⇄ ${byKey[v.key].nome} resistiu — as outras vias do ${SIDE_NAME[v.owner]} estão cheias.`);
+      continue;
+    }
+    const origem = v.lane;
+    v.lane = destinos[Math.floor(rng() * destinos.length)];
+    movidas.push({ uid: v.uid, de: origem, para: v.lane });
+    pushLog(s, `⇄ ${def.nome} lançou ${byKey[v.key].nome} da Via ${origem + 1} para a Via ${v.lane + 1}.`);
+  }
+  return { movidas, presas };
 }
 
 function copyVisibleAuraBonus(s, card) {

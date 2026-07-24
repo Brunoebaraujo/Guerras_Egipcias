@@ -3,7 +3,7 @@ import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
   destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   resolveEnxame, buildRevealQueue, applyPendingBuff, resolveHeka, resolveBennuRebirth,
-  aplicarBencao, espalharBencao, descarregarPendentes,
+  aplicarBencao, espalharBencao, descarregarPendentes, resolveSet,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -512,5 +512,69 @@ describe("Renenutet (bênçãos)", () => {
     const { ondas } = descarregarPendentes(s, ren, () => 0);
     expect(ondas).toBe(0);
     expect(soma(a)).toBe(0);
+  });
+});
+
+/* ---------------------------------- Set ------------------------------------ */
+describe("Set (dispersão caótica)", () => {
+  const inimigo = (k, lane) => ({ ...mk(k, { lane }), owner: 1 });
+
+  it("lanca duas cartas inimigas da via para outras vias", () => {
+    const set = mk("set", { lane: 1 });
+    const a = inimigo("servo", 1), b = inimigo("arqueiro", 1), c = inimigo("lanceiro", 1);
+    const s = mkState([set, a, b, c]);
+    const { movidas } = resolveSet(s, set, () => 0);
+    expect(movidas).toHaveLength(2);
+    for (const m of movidas) expect(m.para).not.toBe(1);
+    expect([a, b, c].filter((x) => x.lane === 1)).toHaveLength(1);
+  });
+
+  it("nao move cartas do proprio dono nem de outras vias", () => {
+    const set = mk("set", { lane: 0 });
+    const aliado = mk("servo", { lane: 0 });
+    const longe = inimigo("arqueiro", 2);
+    const s = mkState([set, aliado, longe]);
+    const { movidas } = resolveSet(s, set, () => 0);
+    expect(movidas).toHaveLength(0);
+    expect(aliado.lane).toBe(0);
+    expect(longe.lane).toBe(2);
+  });
+
+  it("a carta permanece se as outras vias do dono estiverem cheias", () => {
+    const set = mk("set", { lane: 0 });
+    const alvo = inimigo("servo", 0);
+    const cheia = (lane) => [0, 1, 2, 3].map(() => ({ ...mk("arqueiro", { lane }), owner: 1 }));
+    const s = mkState([set, alvo, ...cheia(1), ...cheia(2)]);
+    const { movidas, presas } = resolveSet(s, set, () => 0);
+    expect(movidas).toHaveLength(0);
+    expect(presas).toHaveLength(1);
+    expect(alvo.lane).toBe(0);
+  });
+
+  it("move apenas uma quando so ha uma carta inimiga na via", () => {
+    const set = mk("set", { lane: 1 });
+    const unico = inimigo("servo", 1);
+    const s = mkState([set, unico]);
+    const { movidas } = resolveSet(s, set, () => 0);
+    expect(movidas).toHaveLength(1);
+    expect(unico.lane).not.toBe(1);
+  });
+
+  it("nao consome o movimento proprio da vitima", () => {
+    const set = mk("set", { lane: 1 });
+    const alvo = inimigo("escaravelho", 1);
+    const s = mkState([set, alvo]);
+    resolveSet(s, set, () => 0);
+    expect(alvo.moved).toBeFalsy();
+  });
+
+  it("preserva os bonus ja recebidos pela carta deslocada", () => {
+    const set = mk("set", { lane: 1 });
+    const alvo = inimigo("servo", 1);
+    alvo.mods = [{ src: "Hathor", val: 3, inert: false }];
+    const s = mkState([set, alvo]);
+    resolveSet(s, set, () => 0);
+    expect(alvo.mods).toHaveLength(1);
+    expect(alvo.mods[0].val).toBe(3);
   });
 });

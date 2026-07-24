@@ -6,7 +6,7 @@ import {
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
-  montarLogPartida, snapshotTabuleiro, decomporPartes,
+  montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -207,6 +207,11 @@ export default function App() {
         card.pendentes = 0; // Selo: gatilhos acumulados sao perdidos, nao adiados.
         s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`); commit(s); return;
+      }
+      if (def.scatterEnemies) {
+        const { movidas, presas } = resolveSet(s, card);
+        s.effect = { uid: card.uid, text: movidas.length ? `⇄ ${movidas.length}` : "⇄ —", kind: movidas.length ? "debuff" : "block", seq: s.effectSeq };
+        commit(s); return;
       }
       if (def.spreadOnBlessing) {
         const { ondas, tocadas } = descarregarPendentes(s, card);
