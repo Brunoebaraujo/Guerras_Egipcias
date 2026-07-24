@@ -333,8 +333,11 @@ export function resolveArmadura(s, arm) {
   if (allies.length === 0) { pushLog(s, `Armadura de Ptah: sem aliado na via — permanece em campo (3).`); return { uid: arm.uid, text: "sem fusão", kind: "block", seq: s.effectSeq }; }
   const target = allies[Math.floor(Math.random() * allies.length)];
   const val = power(arm, ctxOf(s));
-  aplicarBencao(s, target, val, "Armadura");
+  // A Armadura e consumida pela fusao: precisa morrer ANTES de qualquer efeito
+  // disparado pela bencao, senao ela entra no sorteio de alvos da Renenutet e
+  // leva um +1 para o tumulo.
   arm.dying = s.effectSeq;
+  aplicarBencao(s, target, val, "Armadura");
   pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
 }

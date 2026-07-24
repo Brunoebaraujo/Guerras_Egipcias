@@ -490,6 +490,20 @@ describe("Renenutet (bênçãos)", () => {
     expect(s.blessings.map((b) => b.wave)).toEqual([0, 0, 1, 1, 2, 2]);
   });
 
+  it("regressao: a Armadura consumida nao pode receber a bencao que ela mesma disparou", () => {
+    const ren = mk("renenutet", { lane: 0 });
+    const arm = mk("armadura", { lane: 0 });
+    const srv = mk("servo", { lane: 1 });
+    const esc = mk("escaravelho", { lane: 2 });
+    const s = mkState([ren, arm, srv, esc]);
+    resolveArmadura(s, arm);
+    // Alvos validos = apenas Servo e Escaravelho: a Armadura ja esta morrendo.
+    expect(soma(srv)).toBe(1);
+    expect(soma(esc)).toBe(1);
+    expect(arm.mods).toHaveLength(0);
+    expect(arm.dying).toBeTruthy();
+  });
+
   it("sem pendentes, a entrada nao produz nada", () => {
     const ren = mk("renenutet");
     const a = mk("servo");
