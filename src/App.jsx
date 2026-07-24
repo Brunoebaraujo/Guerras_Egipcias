@@ -5,7 +5,7 @@ import {
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
-  applyPendingBuff, resolveHeka, resolveBennuRebirth,
+  applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -26,6 +26,7 @@ const PRESETS = {
   "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "assassino-medjay", "escaravelho"],
   "Sacrifício": ["mumia", "sobek", "anubis", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
   "Controle":   ["set", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "anubis", "guardareal", "colosso", "general", "armadura"],
+  "Bênção":     ["renenutet", "hathor", "heka", "armadura", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "escaravelho", "montu", "amon"],
 };
 const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
 
@@ -51,7 +52,7 @@ export default function App() {
     const pr = coin();
     return {
       round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
-      pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null],
+      pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], blessings: [],
       deck: decks, hand, seen: [START_HAND, START_HAND],
       priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
       lastReveal: null, effect: null, effectSeq: 0,
@@ -113,7 +114,7 @@ export default function App() {
     s.plays[side] += 1;
     s.board.push({
       uid: nextUid(), key: h.key, owner: side, lane,
-      printed: h.printed, baked: h.baked, mods: [], revealed: false,
+      printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
       entryPlays: s.plays[side], enteredRound: s.round, moved: false,
     });
     s.energy[side] -= def.custo;
@@ -171,6 +172,7 @@ export default function App() {
   function stepReveal() {
     const s = clone(g);
     if (s.phase !== "revealing") return;
+    s.blessings = [];
     if (s.board.some((c) => c.dying)) s.board = s.board.filter((c) => !c.dying);
     resolveBennuRebirth(s); // Bennu volta na MESMA rodada, em via sorteada
     let card = null;
@@ -190,8 +192,16 @@ export default function App() {
     const def = byKey[card.key];
     if (def.trigger === "entrar") {
       if (onEnterBlocked(card, s.board)) {
+        card.pendentes = 0; // Selo: gatilhos acumulados sao perdidos, nao adiados.
         s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`); commit(s); return;
+      }
+      if (def.spreadOnBlessing) {
+        const { ondas, tocadas } = descarregarPendentes(s, card);
+        s.effect = ondas
+          ? { uid: card.uid, text: `✦ ${ondas}×`, kind: "buff", seq: s.effectSeq }
+          : null;
+        commit(s); return;
       }
       if (def.buffNext) { s.effect = resolveHeka(s, card); commit(s); return; }
       if (def.key === "sobek") { s.effect = resolveSobek(s, card); commit(s); return; }
@@ -219,8 +229,9 @@ export default function App() {
     // Valor vem da definicao da carta (buffTarget), nao mais cravado aqui.
     const def = byKey[aim.srcKey];
     const mod = { src: def.nome, val: def.buffTarget };
-    tgt.mods.push(mod);
     s.effectSeq = (s.effectSeq || 0) + 1;
+    s.blessings = [];
+    aplicarBencao(s, tgt, mod.val, def.nome);
     s.effect = { uid: tgt.uid, text: `${mod.val > 0 ? "+" : ""}${mod.val}`, kind: mod.val > 0 ? "buff" : "debuff", seq: s.effectSeq };
     pushLog(s, `${aim.srcNome} deu ${mod.val > 0 ? "+" : ""}${mod.val} a ${byKey[tgt.key].nome} (${SIDE_NAME[tgt.owner]}).`);
     setAim(null); commit(s);
@@ -385,8 +396,10 @@ export default function App() {
         .duat-badge { animation: duatFloat .9s ease-out forwards; }
         .duat-vanish { animation: duatVanish .7s ease-in forwards; }
         .duat-zoom { animation: duatZoomIn .18s ease-out; }
+        @keyframes duatBless { 0%{ box-shadow:0 0 0 0 rgba(74,222,128,0); transform:scale(1) } 25%{ box-shadow:0 0 9px 3px rgba(74,222,128,.9); transform:scale(1.06) } 100%{ box-shadow:0 0 0 0 rgba(74,222,128,0); transform:scale(1) } }
         .duat-charge { animation: duatCharge 1.5s ease-in-out infinite; }
-        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge { animation: none; } }
+        .duat-bless { animation: duatBless .55s ease-out both; }
+        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-bless { animation: none; } }
       `}</style>
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
@@ -564,6 +577,7 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
           const isMoving = moving && moving.uid === c.uid;
           const reveal = g.lastReveal && g.lastReveal.uid === c.uid ? g.lastReveal.seq : null;
           const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
+          const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
           // Heka revelada "carrega" o brilho enquanto o dono tiver reserva pendente.
           const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
           let onClick;
@@ -573,7 +587,7 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
           else onClick = (e) => { e.stopPropagation(); onZoom(c); };
           return (
             <MiniCard key={c.uid} c={c} ctx={ctx} bw={bw} canTarget={canTarget} movable={movable} isMoving={isMoving}
-              reveal={reveal} badge={badge} dying={!!c.dying} charging={charging} onClick={onClick}
+              reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging} onClick={onClick}
               onRemove={onRemove && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); onRemove(c.uid); } : null} />
           );
         })}
@@ -593,7 +607,7 @@ function EffectBadge({ badge, size }) {
 }
 
 /* Carta em miniatura sobre o tabuleiro: arte de fundo quando existir. */
-function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, dying, charging, onClick, onRemove }) {
+function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, blessings = [], dying, charging, onClick, onRemove }) {
   const base = import.meta.env.BASE_URL;
   const def = byKey[c.key];
   const f = (n) => Math.max(8, (bw * n) / 100);       // fontes proporcionais ao tabuleiro
@@ -637,6 +651,12 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, dyi
   return (
     <div onClick={onClick} className={dying ? "duat-vanish" : reveal ? "duat-pop" : ""} style={common} title={def.texto || def.nome}>
       {charging && <div className="duat-charge" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 5 }} />}
+      {blessings.map((b, i) => (
+        <React.Fragment key={`${b.seq}-${b.wave}-${i}`}>
+          <div className="duat-bless" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 6, animationDelay: `${b.wave * 0.45}s` }} />
+          <span className="duat-badge" style={{ position: "absolute", left: "50%", top: "-2px", zIndex: 9, pointerEvents: "none", fontWeight: 800, fontSize: f(1.05), color: "#4ade80", textShadow: "0 1px 3px rgba(0,0,0,.95)", animationDelay: `${b.wave * 0.45}s` }}>+1</span>
+        </React.Fragment>
+      ))}
       <EffectBadge badge={badge} size={f(1.05)} />
       <div style={{ ...frame, border, background: artSrc ? "#000" : "rgba(28,24,17,.9)", boxShadow: canTarget ? "0 0 10px rgba(129,140,248,.8)" : "0 2px 6px rgba(0,0,0,.55)" }}>
         {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }} />}

@@ -3,6 +3,7 @@ import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
   destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   resolveEnxame, buildRevealQueue, applyPendingBuff, resolveHeka, resolveBennuRebirth,
+  aplicarBencao, espalharBencao, descarregarPendentes,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -427,5 +428,74 @@ describe("Heka — buff da próxima carta revelada", () => {
     expect(copias).toHaveLength(2);
     expect(power(enxame, ctxOf(s))).toBe(5);                        // 2 + 3
     for (const c of copias) expect(power(c, ctxOf(s))).toBe(5);     // cópias herdam o +3
+  });
+});
+
+/* ------------------------------- Renenutet ---------------------------------- */
+describe("Renenutet (bênçãos)", () => {
+  const soma = (c) => c.mods.reduce((t, m) => t + m.val, 0);
+
+  it("uma bênção permanente espalha +1 para duas outras cartas suas", () => {
+    const ren = mk("renenutet");
+    const a = mk("servo"), b = mk("arqueiro"), c = mk("lanceiro");
+    const s = mkState([ren, a, b, c]);
+    aplicarBencao(s, ren, 3, "Hathor", { rng: () => 0 });
+    const tocadas = [a, b, c].filter((x) => soma(x) === 1);
+    expect(tocadas).toHaveLength(2);
+    expect(soma(ren)).toBe(3);
+  });
+
+  it("o +1 espalhado e inerte: duas copias nao entram em laco", () => {
+    const r1 = mk("renenutet"), r2 = mk("renenutet");
+    const s = mkState([r1, r2]);
+    aplicarBencao(s, r1, 3, "Hathor", { rng: () => 0 });
+    expect(soma(r2)).toBe(1);              // recebeu
+    expect(r2.mods[0].inert).toBe(true);   // mas nao dispara
+    expect(soma(r1)).toBe(3);              // r1 nao recebeu de volta
+  });
+
+  it("debuff nao dispara bencao", () => {
+    const ren = mk("renenutet");
+    const a = mk("servo");
+    const s = mkState([ren, a]);
+    aplicarBencao(s, ren, -4, "Set", { rng: () => 0 });
+    expect(soma(a)).toBe(0);
+  });
+
+  it("nao dispara enquanto nao esta revelada em campo", () => {
+    const ren = mk("renenutet", { revealed: false });
+    const a = mk("servo");
+    const s = mkState([ren, a]);
+    aplicarBencao(s, ren, 3, "Hathor", { rng: () => 0 });
+    expect(soma(a)).toBe(0);
+  });
+
+  it("abencoa apenas um alvo quando so ha um disponivel", () => {
+    const ren = mk("renenutet");
+    const a = mk("servo");
+    const s = mkState([ren, a]);
+    espalharBencao(s, ren, () => 0);
+    expect(soma(a)).toBe(1);
+  });
+
+  it("descarrega 3 pendentes em 3 ondas independentes", () => {
+    const ren = mk("renenutet", { pendentes: 3 });
+    const alvos = [mk("servo"), mk("arqueiro"), mk("lanceiro"), mk("colosso")];
+    const s = mkState([ren, ...alvos]);
+    const { ondas, tocadas } = descarregarPendentes(s, ren, () => 0);
+    expect(ondas).toBe(3);
+    expect(tocadas).toBe(6);
+    expect(ren.pendentes).toBe(0);
+    expect(alvos.reduce((t, a) => t + soma(a), 0)).toBe(6);
+    expect(s.blessings.map((b) => b.wave)).toEqual([0, 0, 1, 1, 2, 2]);
+  });
+
+  it("sem pendentes, a entrada nao produz nada", () => {
+    const ren = mk("renenutet");
+    const a = mk("servo");
+    const s = mkState([ren, a]);
+    const { ondas } = descarregarPendentes(s, ren, () => 0);
+    expect(ondas).toBe(0);
+    expect(soma(a)).toBe(0);
   });
 });

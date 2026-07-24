@@ -89,6 +89,10 @@ export const CARDS = [
     trigger: "morrer", arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
     texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. +1 de energia no próximo turno." },
+  { key: "renenutet", nome: "Renenutet", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
+    trigger: "entrar", spreadOnBlessing: 2,
+    lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
+    texto: "Ao receber uma bênção permanente: +1 a duas outras cartas suas em jogo. Bênçãos recebidas fora de jogo resolvem ao entrar." },
 ];
 export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
 export const SIDE_NAME = ["Lado A (ouro)", "Lado B (lápis)"];
@@ -216,6 +220,60 @@ export function resolveBennuRebirth(s, rng = Math.random) {
   return nascidos;
 }
 
+// ------------------------------- bênçãos ------------------------------------
+// Uma BENÇÃO é um bônus permanente e positivo vindo de OUTRA carta: fica gravado
+// em `mods` e sobrevive à saída da fonte (Hathor, Heka, Armadura de Ptah).
+// Efeitos "Contínuo:" (Amon, Montu, Anúbis, Ammit, Maat) são recalculados a cada
+// leitura de poder e somem com a fonte — não são bênçãos e não disparam nada.
+// `inert` marca o bônus que a própria Renenutet espalha: ele nunca dispara
+// gatilho, o que impede o laço entre duas cópias dela.
+
+export function aplicarBencao(s, alvo, val, srcNome, { inert = false, rng = Math.random } = {}) {
+  alvo.mods.push({ src: srcNome, val, inert });
+  if (val <= 0 || inert) return [];
+  return espalharSeAbencoada(s, alvo, rng);
+}
+
+// Sorteia `n` alvos distintos entre as cartas do dono, em jogo, exceto a fonte.
+function sortearAlvos(s, fonte, n, rng) {
+  const pool = s.board.filter(
+    (c) => c.owner === fonte.owner && c.uid !== fonte.uid && c.revealed && !c.dying
+  );
+  const escolhidos = [];
+  while (escolhidos.length < n && pool.length > 0) {
+    escolhidos.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
+  }
+  return escolhidos;
+}
+
+// Uma onda de distribuição. Devolve os alvos tocados.
+export function espalharBencao(s, fonte, rng = Math.random, wave = 0) {
+  const def = byKey[fonte.key];
+  const alvos = sortearAlvos(s, fonte, def.spreadOnBlessing, rng);
+  for (const a of alvos) aplicarBencao(s, a, 1, def.nome, { inert: true });
+  // Registra a onda para a animação: cada onda tem seu proprio atraso na tela.
+  s.blessings = (s.blessings || []).concat(alvos.map((a) => ({ uid: a.uid, wave, seq: s.effectSeq })));
+  if (alvos.length === 0) pushLog(s, `${def.nome}: nenhuma outra carta sua em jogo para abençoar.`);
+  else pushLog(s, `${def.nome} abençoou ${alvos.map((a) => byKey[a.key].nome).join(" e ")} (+1).`);
+  return alvos;
+}
+
+function espalharSeAbencoada(s, alvo, rng) {
+  if (!byKey[alvo.key].spreadOnBlessing) return [];
+  if (!alvo.revealed || alvo.dying) return [];
+  return espalharBencao(s, alvo, rng);
+}
+
+// Descarrega os gatilhos acumulados fora de jogo: uma onda independente por
+// gatilho, cada uma com sorteio próprio. Registra as ondas para a animação.
+export function descarregarPendentes(s, card, rng = Math.random) {
+  const n = card.pendentes || 0;
+  card.pendentes = 0;
+  let tocadas = 0;
+  for (let i = 0; i < n; i++) tocadas += espalharBencao(s, card, rng, i).length;
+  return { ondas: n, tocadas };
+}
+
 function copyVisibleAuraBonus(s, card) {
   if (laneHasMaat(s.board, card.lane)) return 0;
   const amon = s.board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
@@ -275,7 +333,7 @@ export function resolveArmadura(s, arm) {
   if (allies.length === 0) { pushLog(s, `Armadura de Ptah: sem aliado na via — permanece em campo (3).`); return { uid: arm.uid, text: "sem fusão", kind: "block", seq: s.effectSeq }; }
   const target = allies[Math.floor(Math.random() * allies.length)];
   const val = power(arm, ctxOf(s));
-  target.mods.push({ src: "Armadura", val });
+  aplicarBencao(s, target, val, "Armadura");
   arm.dying = s.effectSeq;
   pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
@@ -328,7 +386,7 @@ export function resolveSekhmet(s, card, cost) {
 export function applyPendingBuff(s, card) {
   const val = s.pendingBuff?.[card.owner];
   if (!val) return 0;
-  card.mods.push({ src: "Heka", val });
+  aplicarBencao(s, card, val, "Heka");
   s.pendingBuff[card.owner] = null;
   return val;
 }
