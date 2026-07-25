@@ -6,7 +6,7 @@ import {
   power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
-  montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet,
+  montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet, resolveAnubis,
 } from "./engine.js";
 
 /* ==========================================================================
@@ -26,7 +26,7 @@ const PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "assassino-medjay", "escaravelho"],
   "Sacrifício": ["mumia", "sobek", "osiris", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
-  "Controle":   ["set", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "armadura"],
+  "Controle":   ["anubis", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "set"],
   "Bênção":     ["renenutet", "hathor", "heka", "armadura", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "escaravelho", "montu", "amon"],
 };
 const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
@@ -207,6 +207,11 @@ export default function App() {
         card.pendentes = 0; // Selo: gatilhos acumulados sao perdidos, nao adiados.
         s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`); commit(s); return;
+      }
+      if (def.judgeLane) {
+        const { nivel, julgadas } = resolveAnubis(s, card);
+        s.effect = { uid: card.uid, text: nivel === null ? "⚖ —" : `⚖ =${nivel}`, kind: julgadas.length ? "debuff" : "block", seq: s.effectSeq };
+        commit(s); return;
       }
       if (def.scatterEnemies) {
         const { movidas, presas } = resolveSet(s, card);
@@ -739,7 +744,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
 const PART_COLOR = {
   base: "text-stone-300", acumulado: "text-amber-300", bencao: "text-emerald-300",
   inerte: "text-emerald-400/70", maldicao: "text-rose-300", continuo: "text-sky-300",
-  maat: "text-yellow-300",
+  maat: "text-yellow-300", julgado: "text-yellow-300",
 };
 
 function ZoomModal({ zoom, onClose }) {

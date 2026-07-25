@@ -3,7 +3,7 @@ import {
   byKey, power, laneScore, laneWins, ctxOf, onEnterBlocked,
   destroyList, resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   resolveEnxame, buildRevealQueue, applyPendingBuff, resolveHeka, resolveBennuRebirth,
-  aplicarBencao, espalharBencao, descarregarPendentes, resolveSet,
+  aplicarBencao, espalharBencao, descarregarPendentes, resolveSet, resolveAnubis,
   resetUid, nextUid,
 } from "./engine.js";
 
@@ -593,5 +593,73 @@ describe("Osíris (cresce com as mortes)", () => {
     const s = mkState([osiris]);
     s.deaths = [0, 0];
     expect(power(osiris, ctxOf(s))).toBe(4);
+  });
+});
+
+/* --------------------------------- Anúbis ---------------------------------- */
+describe("Anúbis (julgamento: nivela ao menor base)", () => {
+  const P = (c, s) => power(c, ctxOf(s));
+
+  it("nivela o base de todas ao menor da via", () => {
+    const anubis = mk("anubis", { lane: 1 });
+    const forte = mk("general", { lane: 1 });   // base 10
+    const fraco = mk("servo", { lane: 1 });      // base 1
+    const s = mkState([anubis, forte, fraco]);
+    resolveAnubis(s, anubis);
+    expect(P(forte, s)).toBe(1);
+    expect(P(fraco, s)).toBe(1);
+  });
+
+  it("apaga buffs permanentes, mas auras recalculam sobre o novo base", () => {
+    const anubis = mk("anubis", { lane: 0 });
+    const g = mk("lanceiro", { lane: 0 });       // base 4, Guerreiro
+    g.mods = [{ src: "Hathor", val: 3, inert: false }];
+    const montu = mk("montu", { lane: 0 });      // aura +2 a Guerreiros
+    const outro = mk("servo", { lane: 0 });      // base 1 -> nivel = 1
+    const s = mkState([anubis, g, montu, outro]);
+    resolveAnubis(s, anubis);
+    // lanceiro: base nivelado a 1, Hathor apagada, +2 Montu (aura) = 3
+    expect(P(g, s)).toBe(3);
+    expect(g.mods).toHaveLength(0);
+  });
+
+  it("o julgamento persiste após a morte do Anúbis", () => {
+    const anubis = mk("anubis", { lane: 2 });
+    const alvo = mk("colosso", { lane: 2 });     // base 14
+    const fraco = mk("servo", { lane: 2 });
+    const s = mkState([anubis, alvo, fraco]);
+    resolveAnubis(s, anubis);
+    anubis.dying = 1;
+    s.board = s.board.filter((c) => !c.dying);
+    expect(P(alvo, ctxOf(s))).toBe(1);           // segue nivelado sem Anúbis
+  });
+
+  it("Anúbis não se pesa a si mesmo", () => {
+    const anubis = mk("anubis", { lane: 0 });    // base 4
+    const fraco = mk("servo", { lane: 0 });      // base 1
+    const s = mkState([anubis, fraco]);
+    resolveAnubis(s, anubis);
+    expect(anubis.judged).toBeUndefined();
+    expect(P(anubis, s)).toBe(4);
+  });
+
+  it("preserva a Faixa acumulada (crescimento próprio, não buff recebido)", () => {
+    const anubis = mk("anubis", { lane: 1 });
+    const sobek = mk("sobek", { lane: 1, baked: 3 }); // base 2 + faixa 3
+    const fraco = mk("servo", { lane: 1 });            // base 1 -> nivel 1
+    const s = mkState([anubis, sobek, fraco]);
+    resolveAnubis(s, anubis);
+    expect(sobek.judged).toBe(1);
+    expect(P(sobek, s)).toBe(1 + 3);              // base 1 + faixa preservada
+  });
+
+  it("não afeta cartas que entram na via depois", () => {
+    const anubis = mk("anubis", { lane: 0 });
+    const fraco = mk("servo", { lane: 0 });
+    const s = mkState([anubis, fraco]);
+    resolveAnubis(s, anubis);
+    const tardia = mk("general", { lane: 0 });   // entra depois
+    s.board.push(tardia);
+    expect(P(tardia, ctxOf(s))).toBe(10);        // intacta
   });
 });

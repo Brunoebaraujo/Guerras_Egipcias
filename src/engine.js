@@ -53,7 +53,7 @@ export const CARDS = [
   { key: "sobek", nome: "Sobek", tipo: "Criatura", custo: 2, poder: 2, arch: "sacrificio",
     trigger: "entrar", texto: "Ao Entrar: destrua suas outras cartas nesta via; +1 por carta destruída." },
   { key: "osiris", nome: "Osíris", tipo: "Divindade", custo: 4, poder: 4, arch: "sacrificio",
-    trigger: "continuo", arte: "osiris",
+    trigger: "continuo",
     lore: "Assassinado e esquartejado por Set, Osíris renasceu como senhor dos mortos e juiz do além. Deus que morreu para reinar sobre a morte, ele cresce com cada fim.",
     texto: "Contínuo: +2 para cada carta destruída na partida, de qualquer lado." },
   { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 2, arch: "sacrificio",
@@ -98,6 +98,10 @@ export const CARDS = [
     trigger: "entrar", spreadOnBlessing: 2, arte: "renenutet", arteFoco: "center 0%",
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
     texto: "Ao receber uma bênção permanente: +1 a duas outras cartas suas em jogo. Bênçãos recebidas fora de jogo resolvem ao entrar." },
+  { key: "anubis", nome: "Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "reset",
+    trigger: "entrar", judgeLane: true,
+    lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
+    texto: "Ao Entrar: todas as outras cartas desta via têm o Poder base nivelado ao menor entre elas. Buffs permanentes somem; auras permanecem. O julgamento persiste." },
 ];
 export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
 export const SIDE_NAME = ["Lado A (ouro)", "Lado B (lápis)"];
@@ -127,12 +131,17 @@ export const laneHasMaat = (board, lane) =>
 // que o numero exibido e a explicacao nunca possam divergir.
 export function decomporPartes(card, ctx) {
   const { board, deaths, plays } = ctx;
-  const partes = [{ label: "Impresso", val: card.printed, tipo: "base" }];
+  // Anúbis grava card.judged: o base foi nivelado e os buffs permanentes caíram.
+  const julgado = typeof card.judged === "number";
+  const base = julgado ? card.judged : card.printed;
+  const partes = [{ label: julgado ? "Base (julgado por Anúbis)" : "Impresso", val: base, tipo: julgado ? "julgado" : "base" }];
   if (laneHasMaat(board, card.lane)) {
-    partes.push({ label: "Maat — reduzido ao impresso", val: 0, tipo: "maat" });
+    partes.push({ label: "Maat — reduzido ao impresso", val: card.printed - base, tipo: "maat" });
     return partes;
   }
   if (card.baked) partes.push({ label: "Faixa acumulada", val: card.baked, tipo: "acumulado" });
+  // Buffs permanentes gravados ANTES do julgamento foram apagados; só sobrevivem
+  // os mods marcados apos o julgamento (nao ha, hoje) — auras entram abaixo.
   for (const m of card.mods)
     partes.push({ label: m.src, val: m.val, tipo: m.inert ? "inerte" : m.val > 0 ? "bencao" : "maldicao" });
 
@@ -387,6 +396,32 @@ export function resolveSet(s, set, rng = Math.random) {
     pushLog(s, `⇄ ${def.nome} lançou ${byKey[v.key].nome} da Via ${origem + 1} para a Via ${v.lane + 1}.`);
   }
   return { movidas, presas };
+}
+
+// ------------------------------- Anúbis: julgamento -------------------------
+// Nivela o Poder BASE de todas as outras cartas reveladas da via ao menor base
+// entre elas, congelando o valor em card.judged e apagando os buffs permanentes
+// (mods). Auras nao sao tocadas: recalculam por cima do novo base. O efeito e
+// gravado, nao continuo — persiste se Anúbis morrer, e nao alcanca quem entrar
+// depois. Anúbis nao se pesa: fica fora da medicao e do efeito.
+export function resolveAnubis(s, anubis) {
+  const via = s.board.filter(
+    (c) => c.lane === anubis.lane && c.uid !== anubis.uid && c.revealed && !c.dying
+  );
+  if (via.length === 0) {
+    pushLog(s, `⚖ Anúbis não encontrou corações para pesar nesta via.`);
+    return { nivel: null, julgadas: [] };
+  }
+  const baseAtual = (c) => (typeof c.judged === "number" ? c.judged : c.printed);
+  const nivel = Math.min(...via.map(baseAtual));
+  const julgadas = [];
+  for (const c of via) {
+    c.judged = nivel;      // congela o base
+    c.mods = [];           // buffs permanentes caem; auras nao vivem aqui
+    julgadas.push(c.uid);
+  }
+  pushLog(s, `⚖ Anúbis pesou ${via.length} carta(s): Poder base nivelado a ${nivel}.`);
+  return { nivel, julgadas };
 }
 
 function copyVisibleAuraBonus(s, card) {
