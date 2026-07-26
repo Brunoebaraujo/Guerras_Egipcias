@@ -40,6 +40,44 @@ const BOARD = {
   circle: { d: 5.4, topCy: 39.1, botCy: 62.0 },     // discos de placar
 };
 
+/* Animações compartilhadas entre a interface desktop e a mobile. */
+const DUAT_KEYFRAMES = `
+  @keyframes duatPop { 0%{transform:scale(.7);opacity:.35} 60%{transform:scale(1.09)} 100%{transform:scale(1);opacity:1} }
+  @keyframes duatFloat { 0%{opacity:0;transform:translate(-50%,3px)} 25%{opacity:1} 100%{opacity:0;transform:translate(-50%,-22px)} }
+  @keyframes duatVanish { 0%{opacity:1;transform:scale(1)} 30%{opacity:.9;transform:scale(1.04)} 100%{opacity:0;transform:scale(.5) rotate(-8deg)} }
+  @keyframes duatZoomIn { 0%{transform:scale(.85);opacity:0} 100%{transform:scale(1);opacity:1} }
+  @keyframes duatCharge { 0%,100%{ box-shadow:0 0 3px 1px rgba(251,191,36,.5), 0 0 8px 2px rgba(251,191,36,.22) } 50%{ box-shadow:0 0 7px 2px rgba(251,191,36,.95), 0 0 17px 5px rgba(251,191,36,.5) } }
+  .duat-pop { animation: duatPop .42s ease-out; }
+  .duat-badge { animation: duatFloat .9s ease-out forwards; }
+  .duat-vanish { animation: duatVanish .7s ease-in forwards; }
+  .duat-zoom { animation: duatZoomIn .18s ease-out; }
+  @keyframes duatBlessRing { 0%{ opacity:0; transform:scale(.82) } 18%{ opacity:.95 } 100%{ opacity:0; transform:scale(1.6) } }
+  @keyframes duatBlessGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(74,222,128,0) } 32%{ box-shadow:0 0 16px 6px rgba(74,222,128,.8) } }
+  @keyframes duatBlessRise { 0%{ opacity:0; transform:translate(-50%,12px) scale(.65) } 18%{ opacity:1; transform:translate(-50%,0) scale(1.2) } 70%{ opacity:1; transform:translate(-50%,-14px) scale(1.05) } 100%{ opacity:0; transform:translate(-50%,-34px) scale(1) } }
+  @keyframes duatBlessFonte { 0%{ opacity:0; transform:scale(.9) } 20%{ opacity:1 } 100%{ opacity:0; transform:scale(1.45) } }
+  .duat-charge { animation: duatCharge 1.5s ease-in-out infinite; }
+  .duat-bless-ring  { animation: duatBlessRing 1.15s cubic-bezier(.2,.7,.3,1) both; }
+  .duat-bless-glow  { animation: duatBlessGlow 1.15s ease-out both; }
+  .duat-bless-rise  { animation: duatBlessRise 1.5s ease-out both; }
+  .duat-bless-fonte { animation: duatBlessFonte .95s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise,.duat-bless-fonte { animation: none; } }
+`;
+
+/* Largura de referência que alimenta as fontes proporcionais do MiniCard na
+   grade mobile (MiniCard usa f(n)=max(8, bw*n/100)). */
+const MOBILE_BW = 780;
+
+/* Largura de viewport, para escolher entre interface desktop e mobile. */
+function useViewport() {
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  return w;
+}
+
 // =================================== APP ===================================
 export default function App() {
   function freshState(lists = [DECK_LIST, DECK_LIST]) {
@@ -74,6 +112,11 @@ export default function App() {
   const [msg, setMsg] = useState("");
   const [fast, setFast] = useState(false);
   const flashRef = useRef(null);
+
+  // Interface: "auto" segue a largura da tela; o usuário pode forçar uma delas.
+  const vw = useViewport();
+  const [forceView, setForceView] = useState("auto");   // "auto" | "mobile" | "desktop"
+  const isMobile = forceView === "auto" ? vw < 820 : forceView === "mobile";
 
   // O passo seguinte espera a animação terminar. Sem isso, uma distribuição de
   // bênçãos em varias ondas era cortada no meio pelo avanco automatico.
@@ -427,29 +470,25 @@ export default function App() {
     flash("Log baixado.");
   }
 
+  if (isMobile) {
+    return (
+      <>
+        <GameMobile
+          g={g} ctx={ctx} wins={wins} planning={planning}
+          sel={sel} setSel={setSel} aim={aim} moving={moving} msg={msg} fast={fast}
+          startReveal={startReveal} setFast={setFast} nextRound={nextRound} reset={reset}
+          setScreen={setScreen} setForceView={setForceView}
+          placeCard={placeCard} pickUp={pickUp} startMove={startMove} moveTo={moveTo}
+          applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
+          zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
+        {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+      </>
+    );
+  }
+
   return (
     <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
-      <style>{`
-        @keyframes duatPop { 0%{transform:scale(.7);opacity:.35} 60%{transform:scale(1.09)} 100%{transform:scale(1);opacity:1} }
-        @keyframes duatFloat { 0%{opacity:0;transform:translate(-50%,3px)} 25%{opacity:1} 100%{opacity:0;transform:translate(-50%,-22px)} }
-        @keyframes duatVanish { 0%{opacity:1;transform:scale(1)} 30%{opacity:.9;transform:scale(1.04)} 100%{opacity:0;transform:scale(.5) rotate(-8deg)} }
-        @keyframes duatZoomIn { 0%{transform:scale(.85);opacity:0} 100%{transform:scale(1);opacity:1} }
-        @keyframes duatCharge { 0%,100%{ box-shadow:0 0 3px 1px rgba(251,191,36,.5), 0 0 8px 2px rgba(251,191,36,.22) } 50%{ box-shadow:0 0 7px 2px rgba(251,191,36,.95), 0 0 17px 5px rgba(251,191,36,.5) } }
-        .duat-pop { animation: duatPop .42s ease-out; }
-        .duat-badge { animation: duatFloat .9s ease-out forwards; }
-        .duat-vanish { animation: duatVanish .7s ease-in forwards; }
-        .duat-zoom { animation: duatZoomIn .18s ease-out; }
-        @keyframes duatBlessRing { 0%{ opacity:0; transform:scale(.82) } 18%{ opacity:.95 } 100%{ opacity:0; transform:scale(1.6) } }
-        @keyframes duatBlessGlow { 0%,100%{ box-shadow:0 0 0 0 rgba(74,222,128,0) } 32%{ box-shadow:0 0 16px 6px rgba(74,222,128,.8) } }
-        @keyframes duatBlessRise { 0%{ opacity:0; transform:translate(-50%,12px) scale(.65) } 18%{ opacity:1; transform:translate(-50%,0) scale(1.2) } 70%{ opacity:1; transform:translate(-50%,-14px) scale(1.05) } 100%{ opacity:0; transform:translate(-50%,-34px) scale(1) } }
-        @keyframes duatBlessFonte { 0%{ opacity:0; transform:scale(.9) } 20%{ opacity:1 } 100%{ opacity:0; transform:scale(1.45) } }
-        .duat-charge { animation: duatCharge 1.5s ease-in-out infinite; }
-        .duat-bless-ring  { animation: duatBlessRing 1.15s cubic-bezier(.2,.7,.3,1) both; }
-        .duat-bless-glow  { animation: duatBlessGlow 1.15s ease-out both; }
-        .duat-bless-rise  { animation: duatBlessRise 1.5s ease-out both; }
-        .duat-bless-fonte { animation: duatBlessFonte .95s ease-out both; }
-        @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise,.duat-bless-fonte { animation: none; } }
-      `}</style>
+      <style>{DUAT_KEYFRAMES}</style>
       <div className="max-w-6xl mx-auto">
         <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
           <div>
@@ -467,6 +506,7 @@ export default function App() {
             {g.phase === "revealed" && !g.finished && <button onClick={nextRound} className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-500 text-stone-900 font-semibold text-sm">{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>}
             <button onClick={reset} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Reiniciar</button>
             <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300">Decks</button>
+            <button onClick={() => setForceView("mobile")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300" title="Ver a interface mobile">📱</button>
           </div>
         </header>
 
@@ -836,3 +876,207 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
     </div>
   );
 }
+
+/* ==========================================================================
+   INTERFACE MOBILE — tela de jogo compacta (estilo "3 vias lado a lado").
+   Reusa o mesmo estado e as mesmas ações do App, e os componentes de carta
+   (MiniCard, ScoreDisc, EffectBadge). Nada de regra de jogo aqui.
+   ========================================================================== */
+const mBtnBig = { flex: "1 1 auto", padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer" };
+const mBtnSm = { flex: "0 0 auto", padding: "11px 12px", borderRadius: 9, border: "1px solid #44403c", background: "#292524", color: "#d6d3d1", fontSize: 14, cursor: "pointer" };
+const mBtnGhost = { flex: "0 0 auto", padding: "4px 8px", borderRadius: 7, border: "1px solid #44403c", background: "#1c1917", color: "#a8a29e", fontSize: 13, cursor: "pointer" };
+
+function MBanner({ tone, children }) {
+  const map = {
+    rose: ["#4c0519", "#9f1239", "#fecdd3"],
+    sky: ["#082f49", "#0369a1", "#bae6fd"],
+    indigo: ["#1e1b4b", "#4338ca", "#c7d2fe"],
+    amber: ["#451a03", "#b45309", "#fde68a"],
+  };
+  const [bg, bd, fg] = map[tone] || map.rose;
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 8px 4px", padding: "6px 9px", borderRadius: 8, background: bg, border: `1px solid ${bd}`, color: fg, fontSize: 12 }}>
+      {children}
+    </div>
+  );
+}
+
+function MScore({ v, tone, lead }) {
+  const ring = tone === "amber" ? "#fcd34d" : "#7dd3fc";
+  const bg = tone === "amber" ? "rgba(251,191,36,.14)" : "rgba(56,189,248,.14)";
+  return (
+    <div style={{
+      alignSelf: "center", minWidth: 26, textAlign: "center", padding: "1px 8px", borderRadius: 999,
+      background: bg, border: lead ? `1.5px solid ${ring}` : "1px solid rgba(120,113,108,.4)",
+      color: "#f5f5f4", fontWeight: 800, fontSize: 13, fontFamily: "Georgia, serif",
+      boxShadow: lead ? `0 0 7px ${ring}` : "none", transition: "box-shadow .3s ease",
+    }}>{v}</div>
+  );
+}
+
+function MobileZone({ side, lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
+  const cards = g.board.filter((c) => c.lane === lane && c.owner === side);
+  const canDrop = planning && sel && sel.side === side && !moving && !aim;
+  const canMoveHere = moving && moving.side === side && moving.lane !== lane;
+  const active = canDrop || canMoveHere;
+  const ring = side === 0 ? "rgba(251,191,36,.85)" : "rgba(56,189,248,.85)";
+  const zoneClick = canMoveHere ? () => moveTo(side, lane) : canDrop ? () => placeCard(side, lane) : undefined;
+  return (
+    <div onClick={zoneClick} style={{
+      display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3, padding: 3,
+      borderRadius: 7, border: active ? `1px solid ${ring}` : "1px solid rgba(247,233,192,.10)",
+      boxShadow: active ? `0 0 7px ${ring}` : "none", cursor: active ? "pointer" : "default",
+      transition: "box-shadow .2s ease, border-color .2s ease",
+    }}>
+      {[0, 1, 2, 3].map((slot) => {
+        const c = cards[slot];
+        if (!c) return <div key={slot} style={{ aspectRatio: "5 / 7", borderRadius: 4, border: active ? `1px dashed ${ring}` : "1px dashed rgba(247,233,192,.12)" }} />;
+        const canTarget = aim && isAimable(c);
+        const movable = isMovable(c);
+        const isMoving = moving && moving.uid === c.uid;
+        const reveal = g.lastReveal && g.lastReveal.uid === c.uid ? g.lastReveal.seq : null;
+        const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
+        const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
+        const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
+        let onClick;
+        if (c.dying) onClick = undefined;
+        else if (canTarget) onClick = (e) => { e.stopPropagation(); applyAim(c); };
+        else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); startMove(c); };
+        else onClick = (e) => { e.stopPropagation(); zoomBoard(c); };
+        const onRemove = pickUp && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
+        return (
+          <div key={c.uid} style={{ aspectRatio: "5 / 7", position: "relative" }}>
+            <MiniCard c={c} ctx={ctx} bw={MOBILE_BW} canTarget={canTarget} movable={movable} isMoving={isMoving}
+              reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging}
+              onClick={onClick} onRemove={onRemove} />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MobileLane({ lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
+  const sA = laneScore(ctx, lane, 0), sB = laneScore(ctx, lane, 1);
+  const winner = sA > sB ? 0 : sB > sA ? 1 : -1;
+  const maat = laneHasMaat(g.board, lane);
+  const zprops = { lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard };
+  return (
+    <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
+      <MScore v={sB} tone="sky" lead={winner === 1} />
+      <MobileZone side={1} {...zprops} />
+      <div style={{
+        textAlign: "center", fontSize: 10, color: "#f7e9c0", fontFamily: "Georgia, serif", letterSpacing: 0.5,
+        background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.3)", borderRadius: 999,
+        padding: "1px 4px", whiteSpace: "nowrap", overflow: "hidden",
+      }}>VIA {lane + 1}{maat ? " · ⚖" : winner >= 0 ? ` · ♛${winner === 0 ? "A" : "B"}` : ""}</div>
+      <MobileZone side={0} {...zprops} />
+      <MScore v={sA} tone="amber" lead={winner === 0} />
+    </div>
+  );
+}
+
+function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
+  const def = byKey[h.key];
+  const isSel = sel && sel.side === side && sel.hid === h.hid;
+  const afford = g.energy[side] >= def.custo;
+  const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
+  const faixa = h.baked > 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
+  return (
+    <div style={{
+      position: "relative", flex: "0 0 auto", width: 98, borderRadius: 7, background: "#292524",
+      border: isSel ? `2px solid ${accent}` : "1px solid #44403c", opacity: disabled ? 0.45 : afford ? 1 : 0.5,
+    }}>
+      <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
+        style={{ display: "block", textAlign: "left", width: "100%", padding: "5px 18px 5px 6px", background: "none", border: "none", cursor: disabled ? "default" : "pointer" }}>
+        <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 11, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{GLYPH[def.arch]} {def.nome}</div>
+        <div style={{ fontSize: 10, color: "#a8a29e", marginTop: 2 }}>{def.custo}⚡ · {faixa}</div>
+      </button>
+      <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar"
+        style={{ position: "absolute", top: 2, right: 2, fontSize: 11, color: "#78716c", background: "none", border: "none", cursor: "pointer", lineHeight: 1, padding: 2 }}>🔍</button>
+    </div>
+  );
+}
+
+function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom }) {
+  const hand = g.hand[side];
+  const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
+  const isPrio = g.priority === side;
+  const edge = side === 1 ? { borderBottom: `1px solid ${accent}44` } : { borderTop: `1px solid ${accent}44` };
+  return (
+    <div style={{ padding: "4px 8px", background: "#141210", ...edge }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>{SIDE_NAME[side]}</span>
+        {isPrio && <span style={{ fontSize: 9, color: "#78716c" }}>revela 1º</span>}
+        <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]}</span>
+      </div>
+      <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2 }}>
+        {hand.length === 0 && <span style={{ fontSize: 11, color: "#57534e" }}>Mão vazia.</span>}
+        {hand.map((h) => <MHandCard key={h.hid} h={h} side={side} tone={tone} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={onZoom} />)}
+      </div>
+    </div>
+  );
+}
+
+function GameMobile(p) {
+  const {
+    g, ctx, wins, planning, sel, setSel, aim, moving, msg, fast,
+    startReveal, setFast, nextRound, reset, setScreen, setForceView,
+    placeCard, pickUp, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
+    zoomBoard, zoomHand,
+  } = p;
+  const disabled = !planning || !!aim || !!moving;
+  const phaseLabel = planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado";
+  const phaseBg = planning ? "#1c1917" : g.phase === "revealing" ? "#1e1b4b" : "#064e3b";
+  const laneProps = { g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp: planning ? pickUp : null, zoomBoard };
+  return (
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+      <style>{DUAT_KEYFRAMES}</style>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
+        <span style={{ fontWeight: 800, letterSpacing: 2, color: "#fde68a", fontSize: 16 }}>𓂀 DUAT</span>
+        <span style={{ fontSize: 11, color: "#78716c" }}>R {g.round}/6</span>
+        <span style={{ marginLeft: "auto", fontSize: 13 }}>
+          <b style={{ color: "#fcd34d" }}>A {wins[0]}</b> <span style={{ color: "#57534e" }}>×</span> <b style={{ color: "#7dd3fc" }}>{wins[1]} B</b>
+        </span>
+        <button onClick={() => setForceView("desktop")} style={mBtnGhost} title="Ver a interface desktop">🖥</button>
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 12, flexWrap: "wrap" }}>
+        <span style={{ padding: "2px 8px", borderRadius: 6, background: phaseBg, color: "#e7e5e4", fontWeight: 600 }}>{phaseLabel}</span>
+        <span style={{ color: "#78716c" }}>Prioridade</span>
+        <b style={{ color: g.priority === 0 ? "#fcd34d" : "#7dd3fc" }}>{SIDE_NAME[g.priority]}</b>
+        <span style={{ marginLeft: "auto" }}><span style={{ color: "#78716c" }}>⚡ </span><b style={{ color: "#fcd34d" }}>{g.energy[0]}</b> <span style={{ color: "#57534e" }}>/</span> <b style={{ color: "#7dd3fc" }}>{g.energy[1]}</b></span>
+      </div>
+
+      {msg && <MBanner tone="rose">{msg}</MBanner>}
+      {moving && <MBanner tone="sky">⇄ Movendo o Escaravelho — toque numa via do {SIDE_NAME[moving.side]}.</MBanner>}
+      {aim && (
+        <MBanner tone="indigo">
+          <span>🎯 <b>{aim.srcNome}</b>: escolha {aim.needs === "ally" ? "um aliado" : "uma carta inimiga"} na Via {aim.lane + 1}.</span>
+          <button onClick={skipAim} style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #4338ca", background: "#312e81", color: "#c7d2fe", fontSize: 11, cursor: "pointer" }}>Pular</button>
+        </MBanner>
+      )}
+      {sel && planning && !aim && !moving && <MBanner tone="amber">Toque numa via do {SIDE_NAME[sel.side]} para posicionar {byKey[g.hand[sel.side].find((h) => h.hid === sel.hid)?.key]?.nome || "a carta"}.</MBanner>}
+
+      <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} />
+
+      <div style={{ flex: "1 1 auto", display: "flex", gap: 6, padding: "8px", minHeight: 0, alignItems: "flex-start" }}>
+        {[0, 1, 2].map((lane) => <MobileLane key={lane} lane={lane} {...laneProps} />)}
+      </div>
+
+      <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} />
+
+      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
+        {planning && <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09" }}>Revelar</button>}
+        {g.phase === "revealing" && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4" }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
+        {g.phase === "revealed" && !g.finished && <button onClick={nextRound} style={{ ...mBtnBig, background: "#d97706", color: "#0c0a09" }}>{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>}
+        {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{wins[0] > wins[1] ? "Lado A venceu" : wins[1] > wins[0] ? "Lado B venceu" : "Empate"}</span>}
+        <button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
+        <button onClick={() => setScreen("deck")} style={mBtnSm}>Decks</button>
+      </div>
+    </div>
+  );
+}
+
+export { GameMobile };
