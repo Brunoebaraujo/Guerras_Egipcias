@@ -55,7 +55,7 @@ export const CARDS = [
     lore: "Senhor das águas do Nilo, Sobek era temido e cortejado: a mesma fome que devorava também fertilizava a terra. Os egípcios criavam crocodilos sagrados em lagos de templo, pois compreendiam que a força do deus se alimentava do que consumia.",
     texto: "Ao Entrar: destrua suas outras cartas nesta via; +1 por carta destruída." },
   { key: "osiris", nome: "Osíris", tipo: "Divindade", custo: 4, poder: 4, arch: "sacrificio",
-    trigger: "continuo",
+    trigger: "continuo", arte: "osiris", arteFoco: "center 0%",
     lore: "Assassinado e esquartejado por Set, Osíris renasceu como senhor dos mortos e juiz do além. Deus que morreu para reinar sobre a morte, ele cresce com cada fim.",
     texto: "Contínuo: +2 para cada carta destruída na partida, de qualquer lado." },
   { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 2, arch: "sacrificio",
