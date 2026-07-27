@@ -106,7 +106,7 @@ export const CARDS = [
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
     texto: "Ao receber uma bênção permanente: +1 a duas outras cartas suas em jogo. Bênçãos recebidas fora de jogo resolvem ao entrar." },
   { key: "anubis", nome: "Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "reset",
-    trigger: "entrar", judgeLane: true,
+    trigger: "entrar", judgeLane: true, arte: "anubis", arteFoco: "center 0%",
     lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
     texto: "Ao Entrar: todas as outras cartas desta via têm o Poder base nivelado ao menor entre elas. Buffs permanentes somem; auras permanecem. O julgamento persiste." },
 ];
