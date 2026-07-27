@@ -389,6 +389,10 @@ export default function App() {
 
   // ============================ TELA: DECKS ================================
   if (screen === "deck") {
+    if (isMobile) return (
+      <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={startMatch}
+        setScreen={setScreen} setForceView={setForceView} msg={msg} />
+    );
     const ready = build[0].length === 12 && build[1].length === 12;
     const DeckPanel = (side) => {
       const cur = build[side];
@@ -435,6 +439,8 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button onClick={() => setScreen("galeria")}
                 className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Galeria</button>
+              <button onClick={() => setForceView("mobile")} title="Ver a interface mobile"
+                className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300">📱</button>
               <button onClick={startMatch} disabled={!ready}
                 className={`px-4 py-2 rounded-md font-semibold text-sm ${ready ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
                 Embaralhar e iniciar
@@ -1080,3 +1086,142 @@ function GameMobile(p) {
 }
 
 export { GameMobile };
+
+/* ==========================================================================
+   MONTAGEM DE DECK — MOBILE.
+   Grade de cartas (2 col). Tocar NÃO alterna: abre a carta ampliada (Carta)
+   com stats/efeito/lore, X para fechar e botões Adicionar/Retirar do deck.
+   Uma aba escolhe qual lado (A/B) está sendo editado.
+   ========================================================================== */
+function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView, msg }) {
+  const [side, setSide] = useState(0);
+  const [detail, setDetail] = useState(null); // def da carta ampliada, ou null
+  const cur = build[side];
+  const ready = build[0].length === 12 && build[1].length === 12;
+  const accent = side === 0 ? "#fcd34d" : "#7dd3fc";
+
+  const addCard = (k) => {
+    if (build[side].includes(k)) return;
+    if (build[side].length >= 12) { flash("Deck cheio — 12 cartas (retire uma antes)."); return; }
+    setDeck(side, [...build[side], k]);
+  };
+  const removeCard = (k) => setDeck(side, build[side].filter((x) => x !== k));
+
+  const chip = { flex: "0 0 auto", padding: "5px 9px", borderRadius: 7, border: "1px solid #44403c", background: "#292524", color: "#d6d3d1", fontSize: 12, cursor: "pointer" };
+
+  // dimensão da carta ampliada: cabe na largura e na altura da tela (razão 1024/1536)
+  const vw = typeof window !== "undefined" ? window.innerWidth : 380;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 720;
+  const cardW = Math.min(300, vw - 64, Math.floor((vh - 190) / 1.5));
+
+  return (
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
+        <span style={{ fontWeight: 800, letterSpacing: 2, color: "#fde68a", fontSize: 16 }}>𓂀 DUAT</span>
+        <span style={{ fontSize: 11, color: "#78716c" }}>Montagem de decks</span>
+        <button onClick={() => setForceView("desktop")} style={{ ...chip, marginLeft: "auto" }} title="Ver a interface desktop">🖥</button>
+      </div>
+
+      {/* abas de lado */}
+      <div style={{ display: "flex", gap: 6, padding: "8px 10px 4px" }}>
+        {[0, 1].map((s) => {
+          const a = s === 0 ? "#fcd34d" : "#7dd3fc";
+          const active = s === side;
+          const full = build[s].length === 12;
+          return (
+            <button key={s} onClick={() => setSide(s)} style={{
+              flex: "1 1 0", padding: "8px 6px", borderRadius: 9, cursor: "pointer",
+              border: active ? `2px solid ${a}` : "1px solid #44403c",
+              background: active ? "rgba(255,255,255,.04)" : "#1c1917", color: "#e7e5e4", fontSize: 13,
+            }}>
+              <b style={{ color: a }}>{SIDE_NAME[s]}</b>{" "}
+              <span style={{ color: full ? "#34d399" : build[s].length > 12 ? "#fb7185" : "#a8a29e", fontWeight: 700 }}>{build[s].length}/12</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* presets do lado atual */}
+      <div style={{ display: "flex", gap: 5, padding: "2px 10px 6px", overflowX: "auto" }}>
+        {Object.keys(PRESETS).map((name) => (
+          <button key={name} onClick={() => setDeck(side, PRESETS[name].slice())} style={chip}>{name}</button>
+        ))}
+        <button onClick={() => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
+        <button onClick={() => setDeck(side, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
+        {side === 1 && <button onClick={() => setDeck(1, build[0].slice())} style={chip}>Copiar A→B</button>}
+      </div>
+
+      {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
+
+      {/* grade de cartas — tocar abre a carta ampliada (não alterna) */}
+      <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          {COLLECTION.map((def) => {
+            const on = cur.includes(def.key);
+            return (
+              <button key={def.key} onClick={() => setDetail(def)} style={{
+                textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
+                background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
+              }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                  <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
+                  {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
+                </div>
+                <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* rodapé */}
+      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
+        <button onClick={() => setScreen("galeria")} style={{ ...chip, padding: "11px 12px" }}>Galeria</button>
+        <button onClick={startMatch} disabled={!ready} style={{
+          flex: "1 1 auto", padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
+          background: ready ? "#059669" : "#292524", color: ready ? "#0c0a09" : "#78716c", cursor: ready ? "pointer" : "not-allowed",
+        }}>Embaralhar e iniciar</button>
+      </div>
+
+      {/* carta ampliada */}
+      {detail && (() => {
+        const on = cur.includes(detail.key);
+        const full = cur.length >= 12;
+        return (
+          <div onClick={() => setDetail(null)} style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,.82)", zIndex: 50,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16,
+          }}>
+            <div style={{ width: "100%", maxWidth: cardW, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: accent }}>Editando: {SIDE_NAME[side]}{on ? " · nesta lista" : ""}</span>
+              <button onClick={(e) => { e.stopPropagation(); setDetail(null); }} aria-label="Fechar" style={{
+                fontSize: 20, color: "#e7e5e4", background: "rgba(255,255,255,.08)", border: "1px solid #57534e",
+                borderRadius: 8, lineHeight: 1, cursor: "pointer", padding: "4px 10px",
+              }}>✕</button>
+            </div>
+
+            <div onClick={(e) => e.stopPropagation()}>
+              <Carta nome={detail.nome} custo={detail.custo} poder={detail.poder} tipo={detail.tipo}
+                efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} width={cardW} />
+            </div>
+
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: cardW, display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={() => addCard(detail.key)} disabled={on || full} style={{
+                flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
+                background: on || full ? "#292524" : "#059669", color: on || full ? "#78716c" : "#0c0a09",
+                cursor: on || full ? "not-allowed" : "pointer",
+              }}>Adicionar ao deck</button>
+              <button onClick={() => removeCard(detail.key)} disabled={!on} style={{
+                flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
+                background: !on ? "#292524" : "#9f1239", color: !on ? "#78716c" : "#fecdd3",
+                cursor: !on ? "not-allowed" : "pointer",
+              }}>Retirar do deck</button>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+export { DeckMobile };

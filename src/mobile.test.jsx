@@ -45,3 +45,30 @@ describe("GameMobile smoke", () => {
     expect(html).toContain("Próxima rodada");
   });
 });
+
+import { DeckMobile } from "./App.jsx";
+import Carta from "./Carta.jsx";
+
+describe("DeckMobile smoke", () => {
+  const baseProps = {
+    build: [[], []], setDeck: () => {}, flash: () => {}, startMatch: () => {},
+    setScreen: () => {}, setForceView: () => {}, msg: "",
+  };
+  it("renderiza a grade de montagem de deck sem estourar", () => {
+    const html = renderToString(<DeckMobile {...baseProps} />);
+    expect(html).toContain("Montagem de decks");
+    expect(html).toContain("Embaralhar e iniciar");
+    expect(html).toContain("Lado A (ouro)");
+    // ao menos uma carta da coleção na grade
+    expect(html).toContain(CARDS[0].nome);
+  });
+  it("a carta ampliada (Carta) renderiza com efeito e lore", () => {
+    const def = CARDS.find((c) => c.texto && c.lore) || CARDS[0];
+    const html = renderToString(
+      <Carta nome={def.nome} custo={def.custo} poder={def.poder} tipo={def.tipo}
+        efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={300} />
+    );
+    expect(html).toContain(def.nome);
+    expect(html).toContain(def.texto);
+  });
+});
