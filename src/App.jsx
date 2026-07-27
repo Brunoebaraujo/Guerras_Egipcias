@@ -8,6 +8,7 @@ import {
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
   montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet, resolveAnubis,
 } from "./engine.js";
+import { freshMatch, applyAction } from "./match.js";
 
 /* ==========================================================================
    Guerras Egípcias — playtest (revelação simultânea com prioridade) sobre o tabuleiro
@@ -98,33 +99,16 @@ function useViewport() {
 
 // =================================== APP ===================================
 export default function App() {
-  function freshState(lists = [DECK_LIST, DECK_LIST]) {
-    const decks = [shuffled(lists[0]), shuffled(lists[1])];
-    const hand = [[], []];
-    for (let s = 0; s < 2; s++)
-      for (let i = 0; i < START_HAND; i++) {
-        const key = decks[s].shift();
-        hand[s].push({ hid: nextUid(), key, printed: byKey[key].poder, baked: 0 });
-      }
-    const pr = coin();
-    return {
-      round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
-      pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], blessings: [],
-      deck: decks, hand, seen: [START_HAND, START_HAND],
-      priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
-      lastReveal: null, effect: null, effectSeq: 0,
-      log: [`Rodada 1 — mão de ${START_HAND}. Prioridade: ${SIDE_NAME[pr]} (sorteio).`],
-      trace: [`Rodada 1 — mão de ${START_HAND}. Prioridade: ${SIDE_NAME[pr]} (sorteio).`],
-      finished: false,
-    };
-  }
+  // A orquestração da partida vive em match.js (redutor puro, compartilhado com
+  // o servidor). Aqui só delegamos — nada de regra duplicada.
+  const freshState = (lists = [DECK_LIST, DECK_LIST]) => freshMatch(lists);
 
   const [g, setG] = useState(() => freshState());
   const [screen, setScreen] = useState("deck");                 // "deck" | "game" | "galeria"
   const [build, setBuild] = useState([[...DECK_LIST], [...DECK_LIST]]);
   const [chosen, setChosen] = useState([DECK_LIST, DECK_LIST]);
   const [sel, setSel] = useState(null);       // {side, hid}
-  const [aim, setAim] = useState(null);       // alvo durante revelação
+  const aim = g.awaitingAim;                  // mira pendente vive no ESTADO (match.js)
   const [moving, setMoving] = useState(null); // {uid, side, lane} — Escaravelho
   const [zoom, setZoom] = useState(null);     // {def, printed, baked, current, sub}
   const [msg, setMsg] = useState("");
@@ -147,13 +131,22 @@ export default function App() {
 
   useEffect(() => {
     if (g.phase !== "revealing" || aim) return;
-    const t = setTimeout(() => stepReveal(), esperaRevelacao());
+    const t = setTimeout(() => dispatch({ t: "step" }), esperaRevelacao());
     return () => clearTimeout(t);
   });
 
   const clone = (s) => JSON.parse(JSON.stringify(s));
   const commit = (s) => setG(s);
   function flash(t) { setMsg(t); clearTimeout(flashRef.current); flashRef.current = setTimeout(() => setMsg(""), 2600); }
+
+  // Toda transição de partida passa por aqui: chama o redutor puro (match.js) e
+  // só aplica se for legal. Ações ilegais viram um aviso na tela (flash).
+  function dispatch(action) {
+    const r = applyAction(g, action);
+    if (r.error) { flash(r.error); return false; }
+    commit(r.state);
+    return true;
+  }
 
   const planning = g.phase === "plan" && !g.finished;
   const isMovable = (c) =>
@@ -177,38 +170,14 @@ export default function App() {
   // ----------------------------- PLANEJAR ----------------------------------
   function placeCard(side, lane) {
     if (!planning || aim || moving || !sel || sel.side !== side) return;
-    const idx = g.hand[side].findIndex((h) => h.hid === sel.hid);
-    if (idx < 0) { setSel(null); return; }
-    const h = g.hand[side][idx];
-    const def = byKey[h.key];
-    if (g.energy[side] < def.custo) { flash(`Sem energia: ${def.nome} custa ${def.custo}.`); return; }
-    if (g.board.filter((c) => c.lane === lane && c.owner === side).length >= 4) { flash(`Via ${lane + 1} cheia (4/4).`); return; }
-    const s = clone(g);
-    s.plays[side] += 1;
-    s.board.push({
-      uid: nextUid(), key: h.key, owner: side, lane,
-      printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
-      entryPlays: s.plays[side], enteredRound: s.round, moved: false,
-    });
-    s.energy[side] -= def.custo;
-    s.hand[side].splice(idx, 1);
-    pushLog(s, `${SIDE_NAME[side]} posicionou ${def.nome} na Via ${lane + 1} (por revelar).`);
-    setSel(null); commit(s);
+    if (dispatch({ t: "place", side, hid: sel.hid, lane })) setSel(null);
   }
 
   function pickUp(cardUid) {
     if (!planning || aim || moving) return;
-    const s = clone(g);
-    const idx = s.board.findIndex((c) => c.uid === cardUid);
-    const c = s.board[idx];
+    const c = g.board.find((x) => x.uid === cardUid);
     if (!c || c.revealed) return;
-    const def = byKey[c.key];
-    s.energy[c.owner] += def.custo;
-    s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
-    s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked });
-    s.board.splice(idx, 1);
-    pushLog(s, `${SIDE_NAME[c.owner]} recolheu ${def.nome} para a mão.`);
-    setSel(null); commit(s);
+    if (dispatch({ t: "pickup", side: c.owner, uid: cardUid })) setSel(null);
   }
 
   // ------------------------------ MOVIMENTO --------------------------------
@@ -220,111 +189,18 @@ export default function App() {
   function moveTo(side, lane) {
     if (!moving || moving.side !== side) return;
     if (lane === moving.lane) { setMoving(null); return; }
-    if (g.board.filter((c) => c.lane === lane && c.owner === side).length >= 4) { flash(`Via ${lane + 1} cheia (4/4).`); return; }
-    const s = clone(g);
-    const c = s.board.find((x) => x.uid === moving.uid);
-    c.lane = lane; c.moved = true;
-    pushLog(s, `${SIDE_NAME[side]} moveu ${byKey[c.key].nome} para a Via ${lane + 1}.`);
-    setMoving(null); commit(s);
+    if (dispatch({ t: "move", side, uid: moving.uid, lane })) setMoving(null);
   }
 
   // ------------------------------ REVELAR ----------------------------------
   function startReveal() {
     if (!planning) return;
     setMoving(null); setSel(null);
-    const s = clone(g);
-    const queue = buildRevealQueue(s);
-    s.queue = queue; s.lastReveal = null; s.effect = null;
-    // NÃO zeramos s.pendingBuff aqui: a reserva da Heka persiste entre rodadas,
-    // até a próxima carta do dono revelar e consumi-la (applyPendingBuff).
-    if (queue.length === 0) { s.phase = "revealed"; pushLog(s, `Nada a revelar nesta rodada.`); }
-    else { s.phase = "revealing"; pushLog(s, `Revelação — ${SIDE_NAME[s.priority]} primeiro (${s.priorityReason}).`); }
-    commit(s);
+    dispatch({ t: "startReveal" });
   }
 
-  function stepReveal() {
-    const s = clone(g);
-    if (s.phase !== "revealing") return;
-    s.blessings = [];
-    if (s.board.some((c) => c.dying)) s.board = s.board.filter((c) => !c.dying);
-    resolveBennuRebirth(s); // Bennu volta na MESMA rodada, em via sorteada
-    let card = null;
-    while (s.queue.length && !card) { const cu = s.queue.shift(); card = s.board.find((c) => c.uid === cu) || null; }
-    if (!card) { s.phase = "revealed"; s.lastReveal = null; s.effect = null; pushLog(s, `Revelação concluída.`); commit(s); return; }
-    card.revealed = true;
-    s.effectSeq = (s.effectSeq || 0) + 1;
-    s.lastReveal = { uid: card.uid, seq: s.effectSeq };
-    s.effect = null;
-    // Consome buff pendente (Heka) ANTES do bloqueio: receber um buff não é o
-    // "Ao Entrar" da carta, então o Selo do Silêncio não o impede.
-    const ganho = applyPendingBuff(s, card);
-    if (ganho) {
-      s.effect = { uid: card.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
-      pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
-    }
-    const def = byKey[card.key];
-    if (def.trigger === "entrar") {
-      if (onEnterBlocked(card, s.board)) {
-        card.pendentes = 0; // Selo: gatilhos acumulados sao perdidos, nao adiados.
-        s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
-        pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`); commit(s); return;
-      }
-      if (def.judgeLane) {
-        const { nivel, julgadas } = resolveAnubis(s, card);
-        s.effect = { uid: card.uid, text: nivel === null ? "⚖ —" : `⚖ =${nivel}`, kind: julgadas.length ? "debuff" : "block", seq: s.effectSeq };
-        commit(s); return;
-      }
-      if (def.scatterEnemies) {
-        const { movidas, presas } = resolveSet(s, card);
-        s.effect = { uid: card.uid, text: movidas.length ? `⇄ ${movidas.length}` : "⇄ —", kind: movidas.length ? "debuff" : "block", seq: s.effectSeq };
-        commit(s); return;
-      }
-      if (def.spreadOnBlessing) {
-        const { ondas, tocadas } = descarregarPendentes(s, card);
-        s.effect = ondas
-          ? { uid: card.uid, text: `✦ ${ondas}×`, kind: "buff", seq: s.effectSeq }
-          : null;
-        commit(s); return;
-      }
-      if (def.buffNext) { s.effect = resolveHeka(s, card); commit(s); return; }
-      if (def.key === "sobek") { s.effect = resolveSobek(s, card); commit(s); return; }
-      if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true); commit(s); return; }
-      if (def.sacrificeAll) { s.effect = resolveDestroyOwnLane(s, card, false); commit(s); return; }
-      if (def.fuse) { s.effect = resolveArmadura(s, card); commit(s); return; }
-      if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); commit(s); return; }
-      if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); commit(s); return; }
-      if (def.needs) {
-        const tg = validTargets(card, def.needs, s.board);
-        if (tg.length === 0) {
-          s.effect = { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
-          pushLog(s, `${def.nome}: sem alvo — efeito perdido.`); commit(s); return;
-        }
-        setAim({ uid: card.uid, side: card.owner, lane: card.lane, needs: def.needs, srcNome: def.nome, srcKey: def.key });
-        commit(s); return;
-      }
-    }
-    commit(s);
-  }
-
-  function applyAim(target) {
-    const s = clone(g);
-    const tgt = s.board.find((c) => c.uid === target.uid);
-    // Valor vem da definicao da carta (buffTarget), nao mais cravado aqui.
-    const def = byKey[aim.srcKey];
-    const mod = { src: def.nome, val: def.buffTarget };
-    s.effectSeq = (s.effectSeq || 0) + 1;
-    s.blessings = [];
-    aplicarBencao(s, tgt, mod.val, def.nome);
-    s.effect = { uid: tgt.uid, text: `${mod.val > 0 ? "+" : ""}${mod.val}`, kind: mod.val > 0 ? "buff" : "debuff", seq: s.effectSeq };
-    pushLog(s, `${aim.srcNome} deu ${mod.val > 0 ? "+" : ""}${mod.val} a ${byKey[tgt.key].nome} (${SIDE_NAME[tgt.owner]}).`);
-    setAim(null); commit(s);
-  }
-  function skipAim() {
-    const s = clone(g);
-    s.effectSeq = (s.effectSeq || 0) + 1;
-    s.effect = { uid: aim.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
-    pushLog(s, `${aim.srcNome} — alvo pulado.`); setAim(null); commit(s);
-  }
+  function applyAim(target) { dispatch({ t: "aim", targetUid: target.uid }); }
+  function skipAim() { dispatch({ t: "skipAim" }); }
   const isAimable = (c) => {
     if (!aim || c.dying || c.lane !== aim.lane) return false;
     if (aim.needs === "ally") return c.owner === aim.side && c.uid !== aim.uid;
@@ -335,35 +211,11 @@ export default function App() {
   // ------------------------------ RODADAS ----------------------------------
   function nextRound() {
     if (g.phase !== "revealed") { flash("Revele as cartas antes de avançar."); return; }
-    if (g.round >= 6) { finish(); return; }
-    const s = clone(g);
-    s.trace = [...(s.trace || []), snapshotTabuleiro(s, `--- fim da rodada ${s.round} ---`)];
-    s.round += 1;
-    s.energy = [s.round + s.pendingEnergy[0], s.round + s.pendingEnergy[1]];
-    const eBonus = [s.pendingEnergy[0], s.pendingEnergy[1]];
-    s.pendingEnergy = [0, 0];
-    for (let side = 0; side < 2; side++)
-      if (s.deck[side].length > 0) {
-        const key = s.deck[side].shift();
-        s.hand[side].push({ hid: nextUid(), key, printed: byKey[key].poder, baked: 0 }); s.seen[side] += 1;
-      }
-    const w = laneWins(s);
-    if (w[0] > w[1]) { s.priority = 0; s.priorityReason = `Lado A lidera ${w[0]} via(s)`; }
-    else if (w[1] > w[0]) { s.priority = 1; s.priorityReason = `Lado B lidera ${w[1]} via(s)`; }
-    else { s.priority = coin(); s.priorityReason = "empate → sorteio"; }
-    s.phase = "plan"; s.queue = [];
-    const eMsg = (eBonus[0] || eBonus[1]) ? ` Energia: A ${s.energy[0]}, B ${s.energy[1]} (bônus Bennu).` : ` ${s.round} de energia.`;
-    pushLog(s, `— Rodada ${s.round} —${eMsg} Compra 1. Prioridade: ${SIDE_NAME[s.priority]} (${s.priorityReason}).`);
-    setSel(null); setAim(null); setMoving(null); commit(s);
+    setSel(null); setMoving(null);
+    dispatch({ t: "nextRound" });
   }
-  function finish() {
-    const s = clone(g); s.finished = true; const w = laneWins(s);
-    const r = matchResult(s);
-    const fimTxt = r.side === -1 ? "Empate." : `Lado ${r.side === 0 ? "A" : "B"} vence!` + (r.tiebreak ? ` (desempate por saldo de pontos: +${r.margin})` : "");
-    pushLog(s, `Fim (${w[0]}×${w[1]} vias). ` + fimTxt);
-    commit(s);
-  }
-  function reset() { resetUid(); setSel(null); setAim(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); setG(freshState(chosen)); }
+  function finish() { dispatch({ t: "finish" }); }
+  function reset() { resetUid(); setSel(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); setG(freshState(chosen)); }
 
   // ---------------------------- SELEÇÃO DE DECK ----------------------------
   const setDeck = (side, arr) => setBuild((b) => { const n = [b[0].slice(), b[1].slice()]; n[side] = arr; return n; });
@@ -377,7 +229,7 @@ export default function App() {
   function startMatch() {
     if (build[0].length !== 12 || build[1].length !== 12) { flash("Cada deck precisa ter exatamente 12 cartas."); return; }
     setChosen([build[0].slice(), build[1].slice()]);
-    setG(freshState(build)); setSel(null); setAim(null); setMoving(null); setFast(false);
+    setG(freshState(build)); setSel(null); setMoving(null); setFast(false);
     setScreen("game");
   }
 
