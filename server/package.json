@@ -1,0 +1,14 @@
+{
+  "name": "guerras-egipcias-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Servidor multiplayer (lobby + partida autoritária) de Guerras Egípcias.",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
