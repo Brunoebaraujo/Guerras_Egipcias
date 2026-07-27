@@ -43,7 +43,8 @@ import {
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
 } from "./engine.js";
 
-export const START_HAND = 4;
+export const OPENING_DEAL = 3;   // cartas na mão de abertura
+export const START_HAND = OPENING_DEAL; // compat
 export const DECK_SIZE = 12;
 export const MAX_ROUND = 6;
 
@@ -64,25 +65,42 @@ const clone = (s) => JSON.parse(JSON.stringify(s));
 const err = (state, msg) => ({ state, error: msg });
 const ok = (state) => ({ state });
 
+/* Compra: shift do topo do deck para a mão. Devolve o hid comprado (ou null). */
+function drawOne(s, side) {
+  if (!s.deck[side] || s.deck[side].length === 0) return null;
+  const key = s.deck[side].shift();
+  const hid = nextUid();
+  s.hand[side].push({ hid, key, printed: byKey[key].poder, baked: 0 });
+  s.seen[side] += 1;
+  return hid;
+}
+/* Compra de início de rodada (ambos os lados), marcando os hids comprados em
+   `justDrew` para o cliente animar o fade dourado. Toda rodada tem compra —
+   inclusive a rodada 1, cuja compra é a 4ª carta. */
+function drawForRound(s) {
+  s.justDrew = [[], []];
+  for (const side of [0, 1]) {
+    const hid = drawOne(s, side);
+    if (hid != null) s.justDrew[side].push(hid);
+  }
+}
+
 /* ============================ ESTADO INICIAL ============================== */
-export function freshMatch(lists, { rng = Math.random, startHand = START_HAND } = {}) {
+export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEAL } = {}) {
   const decks = [shuffledR(lists[0], rng), shuffledR(lists[1], rng)];
-  const hand = [[], []];
-  for (let s = 0; s < 2; s++)
-    for (let i = 0; i < startHand; i++) {
-      const key = decks[s].shift();
-      hand[s].push({ hid: nextUid(), key, printed: byKey[key].poder, baked: 0 });
-    }
   const pr = coinR(rng);
-  const linha = `Rodada 1 — mão de ${startHand}. Prioridade: ${SIDE_NAME[pr]} (sorteio).`;
-  return {
+  const linha = `Rodada 1 — mão de abertura ${openingDeal}, compra a ${openingDeal + 1}ª. Prioridade: ${SIDE_NAME[pr]} (sorteio).`;
+  const s = {
     round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
     pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], blessings: [],
-    deck: decks, hand, seen: [startHand, startHand],
+    deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null,
     log: [linha], trace: [linha], finished: false,
   };
+  for (const side of [0, 1]) for (let i = 0; i < openingDeal; i++) drawOne(s, side);
+  drawForRound(s); // rodada 1: compra a 4ª (animada)
+  return s;
 }
 
 /* ============================== AÇÕES ==================================== */
@@ -285,12 +303,7 @@ const ACTIONS = {
     s.energy = [s.round + s.pendingEnergy[0], s.round + s.pendingEnergy[1]];
     const eBonus = [s.pendingEnergy[0], s.pendingEnergy[1]];
     s.pendingEnergy = [0, 0];
-    for (let side = 0; side < 2; side++)
-      if (s.deck[side].length > 0) {
-        const key = s.deck[side].shift();
-        s.hand[side].push({ hid: nextUid(), key, printed: byKey[key].poder, baked: 0 });
-        s.seen[side] += 1;
-      }
+    drawForRound(s); // compra 1 por lado, marcada para a animação de fade
     const w = laneWins(s);
     if (w[0] > w[1]) { s.priority = 0; s.priorityReason = `Lado A lidera ${w[0]} via(s)`; }
     else if (w[1] > w[0]) { s.priority = 1; s.priorityReason = `Lado B lidera ${w[1]} via(s)`; }

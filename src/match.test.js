@@ -29,12 +29,16 @@ const onBoard = (key, o = {}) => ({
 
 /* --------------------------- estado inicial ------------------------------ */
 describe("freshMatch", () => {
-  it("dá mão inicial, energia 1 e fase de planejamento", () => {
+  it("abre com 3 e compra a 4ª na rodada 1 (justDrew marcado)", () => {
     const lista = Array(12).fill("servo");
     const s = freshMatch([lista, lista], { rng: seeded(1) });
-    expect(s.hand[0]).toHaveLength(START_HAND);
-    expect(s.hand[1]).toHaveLength(START_HAND);
-    expect(s.deck[0]).toHaveLength(12 - START_HAND);
+    expect(s.hand[0]).toHaveLength(4);      // 3 de abertura + 1 comprada
+    expect(s.hand[1]).toHaveLength(4);
+    expect(s.deck[0]).toHaveLength(12 - 4); // 8 no deck
+    expect(s.justDrew[0]).toHaveLength(1);  // a 4ª carta, marcada para animar
+    expect(s.justDrew[1]).toHaveLength(1);
+    // o hid marcado corresponde à última carta da mão
+    expect(s.justDrew[0][0]).toBe(s.hand[0][3].hid);
     expect(s.energy).toEqual([1, 1]);
     expect(s.phase).toBe("plan");
     expect(s.round).toBe(1);
@@ -162,6 +166,7 @@ describe("rodadas e vitória", () => {
     expect(r.state.round).toBe(2);
     expect(r.state.energy).toEqual([2, 2]);
     expect(r.state.hand[0].map((h) => h.key)).toContain("colosso");
+    expect(r.state.justDrew[0]).toHaveLength(1); // compra da rodada, para animar
     expect(r.state.phase).toBe("plan");
   });
 

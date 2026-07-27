@@ -1,8 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { renderToString } from "react-dom/server";
 import React from "react";
-import { GameMobile } from "./App.jsx";
+import { GameMobile, OnlineGame } from "./App.jsx";
 import { CARDS, byKey, nextUid, shuffled, coin, ctxOf, laneWins, SIDE_NAME } from "./engine.js";
+import { freshMatch } from "./match.js";
 
 function freshMobileProps() {
   const deckList = CARDS.map((c) => c.key).slice(0, 12);
@@ -80,5 +81,30 @@ describe("Lobby smoke", () => {
     expect(html).toContain("Multiplayer");
     expect(html).toContain("Servidor");
     expect(html).toContain("Conectar");
+  });
+});
+
+describe("OnlineGame smoke", () => {
+  const noop = () => {};
+  function serverData(seat) {
+    const deckList = CARDS.map((c) => c.key).slice(0, 12);
+    const state = freshMatch([deckList, deckList]);
+    const opp = 1 - seat;
+    state.oppHand = state.hand[opp].length;
+    state.hand[opp] = [];                                  // servidor esconde a mão do adversário
+    state.board = state.board.filter((c) => c.owner === seat || c.revealed);
+    return { seat, state, ready: [false, false], oppConnected: true };
+  }
+  it("renderiza a mesa online (assento 0) sem estourar e mostra Pronto + mão oculta", () => {
+    const html = renderToString(<OnlineGame send={noop} data={serverData(0)} note="" onLeave={noop} />);
+    expect(html).toContain("Guerras Egípcias");
+    expect(html).toContain("Pronto");                      // botão de prontidão (não "Revelar")
+    expect(html).toContain("na mão (ocultas)");            // contagem da mão do adversário
+    expect(html).toContain("você:");                       // indicador de assento
+  });
+  it("renderiza para o assento 1 também", () => {
+    const html = renderToString(<OnlineGame send={noop} data={serverData(1)} note="" onLeave={noop} />);
+    expect(html).toContain("Guerras Égípcias".replace("É", "E")); // "Guerras Egípcias"
+    expect(html).toContain("na mão (ocultas)");
   });
 });

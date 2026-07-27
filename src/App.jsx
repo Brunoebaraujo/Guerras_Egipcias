@@ -61,7 +61,13 @@ const DUAT_KEYFRAMES = `
   .duat-bless-glow  { animation: duatBlessGlow 1.15s ease-out both; }
   .duat-bless-rise  { animation: duatBlessRise 1.5s ease-out both; }
   .duat-bless-fonte { animation: duatBlessFonte .95s ease-out both; }
-  @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise,.duat-bless-fonte { animation: none; } }
+  @keyframes duatDraw {
+    0%   { opacity:0; transform:translateY(9px) scale(.92); box-shadow:0 0 0 0 rgba(251,191,36,0); }
+    35%  { opacity:1; box-shadow:0 0 14px 5px rgba(251,191,36,.9), 0 0 28px 11px rgba(251,191,36,.45); }
+    100% { opacity:1; transform:translateY(0) scale(1); box-shadow:0 0 0 0 rgba(251,191,36,0); }
+  }
+  .duat-draw { animation: duatDraw .85s ease-out; }
+  @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-draw,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise,.duat-bless-fonte { animation: none; } }
 `;
 
 /* Largura de referência que alimenta as fontes proporcionais do MiniCard na
@@ -238,7 +244,7 @@ export default function App() {
 
   // ============================ TELA: LOBBY ================================
   if (screen === "lobby") {
-    return <Lobby onBack={() => setScreen("deck")} />;
+    return <Lobby onBack={() => setScreen("deck")} deck={build[0].length === 12 ? build[0] : PRESETS["Padrão"]} />;
   }
 
   // ============================ TELA: GALERIA ==============================
@@ -380,7 +386,7 @@ export default function App() {
             <h1 className="text-2xl font-bold tracking-widest text-amber-200">
               𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· playtest</span>
             </h1>
-            <p className="text-xs text-stone-400">Revelação por prioridade · mão 4 · compra 1/rodada · clique numa carta para ampliá-la</p>
+            <p className="text-xs text-stone-400">Revelação por prioridade · abre com 3 · compra 1/rodada · clique numa carta para ampliá-la</p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
             <Chip label="Rodada" value={`${g.round}/6`} />
@@ -729,8 +735,9 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
     const isSel = sel && sel.side === side && sel.hid === h.hid;
     const afford = g.energy[side] >= def.custo;
     const faixa = h.baked > 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
+    const drawn = g.justDrew?.[side]?.includes(h.hid);
     return (
-      <div className={`relative rounded border bg-stone-800 border-stone-700 ${selRing(isSel)} ${disabled ? "opacity-40" : afford ? "hover:border-stone-500" : "opacity-50"}`} style={{ width: 122 }}>
+      <div className={`relative rounded border bg-stone-800 border-stone-700 ${selRing(isSel)} ${drawn ? "duat-draw" : ""} ${disabled ? "opacity-40" : afford ? "hover:border-stone-500" : "opacity-50"}`} style={{ width: 122 }}>
         <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })} title={def.texto || "Carta base (sem efeito)"}
           className="text-left w-full p-1 pr-5">
           <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nome}</div>
@@ -867,8 +874,9 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const afford = g.energy[side] >= def.custo;
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const faixa = h.baked > 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
+  const drawn = g.justDrew?.[side]?.includes(h.hid);
   return (
-    <div style={{
+    <div className={drawn ? "duat-draw" : ""} style={{
       position: "relative", flex: "0 0 auto", width: 98, borderRadius: 7, background: "#292524",
       border: isSel ? `2px solid ${accent}` : "1px solid #44403c", opacity: disabled ? 0.45 : afford ? 1 : 0.5,
     }}>
@@ -883,7 +891,7 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   );
 }
 
-function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom }) {
+function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, online = false, isOpp = false, oppHand = 0 }) {
   const hand = g.hand[side];
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const isPrio = g.priority === side;
@@ -896,8 +904,12 @@ function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom }) {
         <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]}</span>
       </div>
       <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2 }}>
-        {hand.length === 0 && <span style={{ fontSize: 11, color: "#57534e" }}>Mão vazia.</span>}
-        {hand.map((h) => <MHandCard key={h.hid} h={h} side={side} tone={tone} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={onZoom} />)}
+        {online && isOpp
+          ? <span style={{ fontSize: 11, color: "#a8a29e", padding: "6px 2px" }}>🂠 {oppHand} carta{oppHand === 1 ? "" : "s"} na mão (ocultas)</span>
+          : <>
+              {hand.length === 0 && <span style={{ fontSize: 11, color: "#57534e" }}>Mão vazia.</span>}
+              {hand.map((h) => <MHandCard key={h.hid} h={h} side={side} tone={tone} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={onZoom} />)}
+            </>}
       </div>
     </div>
   );
@@ -909,6 +921,7 @@ function GameMobile(p) {
     startReveal, setFast, nextRound, reset, setScreen, setForceView,
     placeCard, pickUp, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
     zoomBoard, zoomHand,
+    online = false, seat = 0, myReady = false, oppReady = false, oppHand = 0,
   } = p;
   const disabled = !planning || !!aim || !!moving;
   const phaseLabel = planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado";
@@ -924,7 +937,9 @@ function GameMobile(p) {
         <span style={{ marginLeft: "auto", fontSize: 13 }}>
           <b style={{ color: "#fcd34d" }}>A {wins[0]}</b> <span style={{ color: "#57534e" }}>×</span> <b style={{ color: "#7dd3fc" }}>{wins[1]} B</b>
         </span>
-        <button onClick={() => setForceView("desktop")} style={mBtnGhost} title="Ver a interface desktop">🖥</button>
+        {online
+          ? <span style={{ fontSize: 11, color: seat === 0 ? "#fcd34d" : "#7dd3fc", flex: "0 0 auto", fontWeight: 700 }} title="Seu lado">você: {SIDE_NAME[seat]}</span>
+          : <button onClick={() => setForceView("desktop")} style={mBtnGhost} title="Ver a interface desktop">🖥</button>}
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 12, flexWrap: "wrap" }}>
@@ -944,27 +959,127 @@ function GameMobile(p) {
       )}
       {sel && planning && !aim && !moving && <MBanner tone="amber">Toque numa via do {SIDE_NAME[sel.side]} para posicionar {byKey[g.hand[sel.side].find((h) => h.hid === sel.hid)?.key]?.nome || "a carta"}.</MBanner>}
 
-      <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} />
+      <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 1} oppHand={oppHand} />
 
       <div style={{ flex: "1 1 auto", display: "flex", gap: 6, padding: "8px", minHeight: 0, alignItems: "flex-start" }}>
         {[0, 1, 2].map((lane) => <MobileLane key={lane} lane={lane} {...laneProps} />)}
       </div>
 
-      <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} />
+      <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 0} oppHand={oppHand} />
 
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
-        {planning && <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09" }}>Revelar</button>}
-        {g.phase === "revealing" && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4" }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
-        {g.phase === "revealed" && !g.finished && <button onClick={nextRound} style={{ ...mBtnBig, background: "#d97706", color: "#0c0a09" }}>{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>}
+        {planning && (online
+          ? <button onClick={startReveal} disabled={myReady} style={{ ...mBtnBig, background: myReady ? "#292524" : "#059669", color: myReady ? "#a8a29e" : "#0c0a09" }}>{myReady ? "Aguardando adversário…" : "Pronto ✓"}</button>
+          : <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09" }}>Revelar</button>)}
+        {g.phase === "revealing" && !online && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4" }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
+        {g.phase === "revealing" && online && <span style={{ ...mBtnBig, background: "#1e1b4b", color: "#c7d2fe", textAlign: "center" }}>Revelando…</span>}
+        {g.phase === "revealed" && !g.finished && (online
+          ? <button onClick={nextRound} disabled={myReady} style={{ ...mBtnBig, background: myReady ? "#292524" : "#d97706", color: myReady ? "#a8a29e" : "#0c0a09" }}>{myReady ? "Aguardando adversário…" : (g.round >= 6 ? "Pronto: finalizar ✓" : "Pronto: próxima ✓")}</button>
+          : <button onClick={nextRound} style={{ ...mBtnBig, background: "#d97706", color: "#0c0a09" }}>{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>)}
         {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{resultLabel(g)}</span>}
-        <button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
-        <button onClick={() => setScreen("deck")} style={mBtnSm}>Decks</button>
+        {online
+          ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏏</button>
+          : <><button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
+            <button onClick={() => setScreen("deck")} style={mBtnSm}>Decks</button></>}
       </div>
     </div>
   );
 }
 
 export { GameMobile };
+
+/* ==========================================================================
+   PARTIDA ONLINE (Fase 2 — cliente).
+   Componente fino: NÃO tem regra própria. Recebe do Lobby o `send` (WebSocket)
+   e o último `data` = { seat, state, ready, oppConnected } vindo do servidor,
+   e reaproveita a mesma UI mobile (GameMobile). Cada ação vira uma mensagem;
+   o estado exibido é o que o servidor devolve (já filtrado: sem a mão nem as
+   jogadas ocultas do adversário). Só interajo no MEU assento.
+   ========================================================================== */
+function OnlineGame({ send, data, note, onLeave }) {
+  const { seat, state: g, ready: readyArr = [false, false], oppConnected } = data;
+  const [sel, setSel] = useState(null);
+  const [moving, setMoving] = useState(null);
+  const [zoom, setZoom] = useState(null);
+
+  const myReady = !!readyArr[seat];
+  const oppReady = !!readyArr[1 - seat];
+  const planning = g.phase === "plan" && !g.finished;
+  const rawAim = g.awaitingAim;
+  const myAim = rawAim && rawAim.side === seat ? rawAim : null; // só resolvo a MINHA mira
+  const ctx = ctxOf(g);
+  const wins = laneWins(g);
+
+  useEffect(() => { if (!planning) { setSel(null); setMoving(null); } }, [planning]);
+
+  const sendAct = (action) => send({ t: "act", action });
+  const placeCard = (side, lane) => {
+    if (!planning || myAim || moving || side !== seat || !sel || sel.side !== seat) return;
+    sendAct({ t: "place", hid: sel.hid, lane }); setSel(null);
+  };
+  const pickUp = (uid) => {
+    if (!planning || myAim || moving) return;
+    const c = g.board.find((x) => x.uid === uid);
+    if (!c || c.revealed || c.owner !== seat) return;
+    sendAct({ t: "pickup", uid }); setSel(null);
+  };
+  const isMovable = (c) =>
+    planning && !myAim && !c.dying && c.revealed && c.owner === seat &&
+    byKey[c.key] && byKey[c.key].move && !c.moved && c.enteredRound < g.round;
+  const startMove = (c) => {
+    if (!isMovable(c)) return;
+    setSel(null);
+    setMoving(moving && moving.uid === c.uid ? null : { uid: c.uid, side: c.owner, lane: c.lane });
+  };
+  const moveTo = (side, lane) => {
+    if (!moving || side !== seat || moving.side !== seat) return;
+    if (lane === moving.lane) { setMoving(null); return; }
+    sendAct({ t: "move", uid: moving.uid, lane }); setMoving(null);
+  };
+  const startReveal = () => { if (!planning || myReady) return; setSel(null); setMoving(null); send({ t: "ready" }); };
+  const nextRound = () => { if (g.phase !== "revealed" || myReady) return; send({ t: "ready" }); };
+  const applyAim = (target) => { if (!myAim) return; send({ t: "aim", targetUid: target.uid }); };
+  const skipAim = () => { if (!myAim) return; send({ t: "skipAim" }); };
+  const isAimable = (c) => {
+    if (!myAim || c.dying || c.lane !== myAim.lane) return false;
+    if (myAim.needs === "ally") return c.owner === myAim.side && c.uid !== myAim.uid;
+    if (myAim.needs === "enemy") return c.owner !== myAim.side;
+    return false;
+  };
+  function zoomBoard(c) {
+    const def = byKey[c.key]; if (!def) return;
+    const cur = c.revealed ? power(c, ctx) : null;
+    setZoom({
+      def, printed: c.printed, baked: c.baked || 0, current: cur,
+      partes: c.revealed ? decomporPartes(c, ctx) : null,
+      sub: `Via ${c.lane + 1} · ${SIDE_NAME[c.owner]}` + (c.revealed ? "" : " · por revelar"),
+    });
+  }
+  function zoomHand(h) {
+    const def = byKey[h.key]; if (!def) return;
+    setZoom({ def, printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
+  }
+
+  const oppAiming = rawAim && rawAim.side !== seat;
+  const msg = !oppConnected ? "⚠ Adversário desconectado." : oppAiming ? "🎯 O adversário está escolhendo um alvo…" : (note || "");
+
+  return (
+    <>
+      <GameMobile
+        online seat={seat} myReady={myReady} oppReady={oppReady} oppHand={g.oppHand || 0} oppConnected={oppConnected}
+        g={g} ctx={ctx} wins={wins} planning={planning}
+        sel={sel} setSel={setSel} aim={myAim} moving={moving} msg={msg} fast={false}
+        startReveal={startReveal} setFast={() => {}} nextRound={nextRound} reset={onLeave}
+        setScreen={onLeave} setForceView={() => {}}
+        placeCard={placeCard} pickUp={pickUp} startMove={startMove} moveTo={moveTo}
+        applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
+        zoomBoard={zoomBoard} zoomHand={zoomHand} />
+      {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+    </>
+  );
+}
+
+export { OnlineGame };
 
 /* ==========================================================================
    MONTAGEM DE DECK — MOBILE.
@@ -1111,7 +1226,7 @@ export { DeckMobile };
    Conecta no servidor WebSocket, lista salas abertas, cria/entra em sala e
    mostra o emparelhamento. A partida em rede (Fase 2) entra depois.
    ========================================================================== */
-function Lobby({ onBack }) {
+function Lobby({ onBack, deck }) {
   const readLS = (k, d) => { try { return (typeof window !== "undefined" && localStorage.getItem(k)) || d; } catch { return d; } };
   const [serverUrl, setServerUrl] = useState(() => readLS("ge_server", LOBBY_SERVER_DEFAULT));
   const [name, setName] = useState(() => readLS("ge_name", ""));
@@ -1119,33 +1234,46 @@ function Lobby({ onBack }) {
   const [rooms, setRooms] = useState([]);
   const [myRoom, setMyRoom] = useState(null);
   const [match, setMatch] = useState(null); // { roomId, seat, opponent }
+  const [game, setGame] = useState(null);    // { seat, state, ready, oppConnected } — partida ao vivo
   const [note, setNote] = useState("");
   const wsRef = useRef(null);
+  const deckRef = useRef(deck);
+  useEffect(() => { deckRef.current = deck; }, [deck]);
   const connected = status === "conectado";
 
   function connect() {
     const nm = name.trim() || "Jogador";
     try { localStorage.setItem("ge_server", serverUrl); localStorage.setItem("ge_name", nm); } catch {}
-    setNote(""); setStatus("conectando"); setRooms([]); setMyRoom(null); setMatch(null);
+    setNote(""); setStatus("conectando"); setRooms([]); setMyRoom(null); setMatch(null); setGame(null);
     let ws;
     try { ws = new WebSocket(normalizeWs(serverUrl)); } catch { setStatus("erro"); setNote("URL inválida."); return; }
     wsRef.current = ws;
     ws.onopen = () => { setStatus("conectado"); ws.send(JSON.stringify({ t: "hello", name: nm })); };
-    ws.onclose = () => { setStatus((s) => (s === "erro" ? s : "desconectado")); setRooms([]); setMyRoom(null); setMatch(null); };
+    ws.onclose = () => { setStatus((s) => (s === "erro" ? s : "desconectado")); setRooms([]); setMyRoom(null); setMatch(null); setGame(null); };
     ws.onerror = () => { setStatus("erro"); setNote("Não consegui conectar. Confira a URL — e lembre que o servidor Free do Render pode levar ~1 min pra acordar; tente de novo."); };
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
       if (m.t === "rooms") setRooms(m.rooms || []);
       else if (m.t === "roomCreated") { setMyRoom(m.roomId); setNote(""); }
-      else if (m.t === "matchReady") { setMatch({ roomId: m.roomId, seat: m.seat, opponent: m.opponent }); setMyRoom(null); }
-      else if (m.t === "opponentLeft") { setMatch(null); setNote("O adversário saiu. Sua sala está aberta de novo."); }
-      else if (m.t === "roomClosed") { setMatch(null); setMyRoom(null); setNote("O anfitrião fechou a sala."); }
+      else if (m.t === "matchReady") {
+        setMatch({ roomId: m.roomId, seat: m.seat, opponent: m.opponent }); setMyRoom(null); setNote("");
+        try { ws.send(JSON.stringify({ t: "deckReady", deck: deckRef.current })); } catch {}
+      }
+      else if (m.t === "gameState") setGame({ seat: m.seat, state: m.state, ready: m.ready, oppConnected: m.oppConnected });
+      else if (m.t === "opponentLeft") { setMatch(null); setGame(null); setNote("O adversário saiu. Sua sala está aberta de novo."); }
+      else if (m.t === "roomClosed") { setMatch(null); setMyRoom(null); setGame(null); setNote("O anfitrião fechou a sala."); }
       else if (m.t === "error") setNote(m.msg || "Erro.");
     };
   }
   const send = (obj) => { try { wsRef.current?.send(JSON.stringify(obj)); } catch {} };
   const disconnect = () => { try { wsRef.current?.close(); } catch {} };
   useEffect(() => () => { try { wsRef.current?.close(); } catch {} }, []);
+
+  // Partida ao vivo: substitui todo o lobby pela mesa online.
+  if (game) {
+    return <OnlineGame send={send} data={game} note={note}
+      onLeave={() => { send({ t: "leaveRoom" }); setGame(null); setMatch(null); }} />;
+  }
 
   const visibleRooms = rooms.filter((r) => r.id !== myRoom);
   const box = { width: "100%", maxWidth: 460, margin: "0 auto" };
@@ -1188,7 +1316,7 @@ function Lobby({ onBack }) {
           <div style={{ padding: 14, borderRadius: 12, background: "#1c1917", border: "1px solid #4f46e5", textAlign: "center" }}>
             <div style={{ fontSize: 15, marginBottom: 6 }}>Emparelhado com <b>{match.opponent}</b>!</div>
             <div style={{ fontSize: 13, color: "#a8a29e" }}>Você é o <b style={{ color: match.seat === 0 ? "#fcd34d" : "#7dd3fc" }}>Lado {match.seat === 0 ? "A (ouro)" : "B (lápis)"}</b>.</div>
-            <div style={{ fontSize: 12, color: "#818cf8", marginTop: 8 }}>A partida em rede entra na próxima etapa.</div>
+            <div style={{ fontSize: 12, color: "#818cf8", marginTop: 8 }}>Preparando a partida… (enviando seu deck)</div>
             <button onClick={() => { send({ t: "leaveRoom" }); setMatch(null); }} style={{ ...btn("#292524", "#d6d3d1"), marginTop: 12 }}>Sair da sala</button>
           </div>
         )}
