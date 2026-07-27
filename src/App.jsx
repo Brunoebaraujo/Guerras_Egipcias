@@ -10,7 +10,7 @@ import {
 } from "./engine.js";
 
 /* ==========================================================================
-   DUAT — playtest (revelação simultânea com prioridade) sobre o tabuleiro
+   Guerras Egípcias — playtest (revelação simultânea com prioridade) sobre o tabuleiro
    ilustrado. O motor do jogo vive em engine.js (com testes); aqui fica só
    a orquestração e a interface.
    ========================================================================== */
@@ -371,7 +371,7 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <header className="flex flex-wrap items-center gap-3 justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 DUAT <span className="text-stone-500 text-base font-normal tracking-normal">· Galeria de cartas</span></h1>
+              <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· Galeria de cartas</span></h1>
               <p className="text-xs text-stone-400">Amon com arte final; as demais com placeholder (vamos completando).</p>
             </div>
             <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Voltar</button>
@@ -433,7 +433,7 @@ export default function App() {
         <div className="max-w-6xl mx-auto">
           <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
             <div>
-              <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 DUAT <span className="text-stone-500 text-base font-normal tracking-normal">· Montagem de decks</span></h1>
+              <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· Montagem de decks</span></h1>
               <p className="text-xs text-stone-400">Cada lado escolhe 12 cartas (sem repetição). Ao iniciar, os decks são embaralhados.</p>
             </div>
             <div className="flex items-center gap-2">
@@ -499,7 +499,7 @@ export default function App() {
         <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
           <div>
             <h1 className="text-2xl font-bold tracking-widest text-amber-200">
-              𓂀 DUAT <span className="text-stone-500 text-base font-normal tracking-normal">· playtest</span>
+              𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· playtest</span>
             </h1>
             <p className="text-xs text-stone-400">Revelação por prioridade · mão 4 · compra 1/rodada · clique numa carta para ampliá-la</p>
           </div>
@@ -1040,8 +1040,8 @@ function GameMobile(p) {
       <style>{DUAT_KEYFRAMES}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
-        <span style={{ fontWeight: 800, letterSpacing: 2, color: "#fde68a", fontSize: 16 }}>𓂀 DUAT</span>
-        <span style={{ fontSize: 11, color: "#78716c" }}>R {g.round}/6</span>
+        <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>𓂀 Guerras Egípcias</span>
+        <span style={{ fontSize: 11, color: "#78716c", flex: "0 0 auto" }}>R {g.round}/6</span>
         <span style={{ marginLeft: "auto", fontSize: 13 }}>
           <b style={{ color: "#fcd34d" }}>A {wins[0]}</b> <span style={{ color: "#57534e" }}>×</span> <b style={{ color: "#7dd3fc" }}>{wins[1]} B</b>
         </span>
@@ -1117,8 +1117,8 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
-        <span style={{ fontWeight: 800, letterSpacing: 2, color: "#fde68a", fontSize: 16 }}>𓂀 DUAT</span>
-        <span style={{ fontSize: 11, color: "#78716c" }}>Montagem de decks</span>
+        <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>𓂀 Guerras Egípcias</span>
+        <span style={{ fontSize: 11, color: "#78716c", flex: "0 0 auto" }}>Decks</span>
         <button onClick={() => setForceView("desktop")} style={{ ...chip, marginLeft: "auto" }} title="Ver a interface desktop">🖥</button>
       </div>
 

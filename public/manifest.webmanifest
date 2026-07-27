@@ -1,7 +1,7 @@
 {
-  "name": "Guerras Egípcias — DUAT",
-  "short_name": "DUAT",
-  "description": "DUAT — jogo de cartas de mitologia egípcia (playtest).",
+  "name": "Guerras Egípcias",
+  "short_name": "Guerras Egípcias",
+  "description": "Guerras Egípcias — jogo de cartas de mitologia egípcia (playtest).",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

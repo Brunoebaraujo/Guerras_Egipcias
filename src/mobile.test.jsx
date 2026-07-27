@@ -30,7 +30,7 @@ function freshMobileProps() {
 describe("GameMobile smoke", () => {
   it("renderiza a tela mobile de planejamento sem estourar", () => {
     const html = renderToString(<GameMobile {...freshMobileProps()} />);
-    expect(html).toContain("DUAT");
+    expect(html).toContain("Guerras Egípcias");
     expect(html).toContain("Planejar");
     expect(html).toContain("Revelar");
     expect(html).toContain("Lado A (ouro)");
@@ -56,7 +56,7 @@ describe("DeckMobile smoke", () => {
   };
   it("renderiza a grade de montagem de deck sem estourar", () => {
     const html = renderToString(<DeckMobile {...baseProps} />);
-    expect(html).toContain("Montagem de decks");
+    expect(html).toContain("Guerras Egípcias");
     expect(html).toContain("Embaralhar e iniciar");
     expect(html).toContain("Lado A (ouro)");
     // ao menos uma carta da coleção na grade

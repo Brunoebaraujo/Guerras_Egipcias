@@ -1,5 +1,5 @@
 /* ========================================================================== 
-   DUAT — Motor do jogo (puro, sem React).
+   Guerras Egípcias — Motor do jogo (puro, sem React).
    Tudo aqui opera sobre o objeto de estado `s` (plain object clonável) e
    é coberto por testes em engine.test.js. A UI (App.jsx) só orquestra.
    ========================================================================== */
@@ -359,7 +359,7 @@ export function snapshotTabuleiro(s, titulo) {
 
 export function montarLogPartida(s) {
   const cab = [
-    "===== DUAT — log de partida =====",
+    "===== Guerras Egípcias — log de partida =====",
     `gerado: ${new Date().toISOString()}`,
     `rodada ${s.round}/6 | fase ${s.phase}${s.finished ? " | ENCERRADA" : ""}`,
     `prioridade: ${SIDE_NAME[s.priority]} (${s.priorityReason})`,
