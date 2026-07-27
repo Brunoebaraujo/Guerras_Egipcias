@@ -194,6 +194,24 @@ export function laneWins(s) {
   return w;
 }
 
+/* Resultado da partida.
+   1) Vence quem controla mais vias.
+   2) Empatando em vias, decide o SALDO de pontos: a soma das diferenças de
+      poder entre os lados em cada via (vias empatadas contribuem 0). Ou seja,
+      a maior diferença de pontos nas vias não empatadas vence.
+   3) Persistindo a igualdade, é empate.
+   Retorna { side: 0|1|-1, tiebreak: bool, margin: number }. */
+export function matchResult(s) {
+  const w = laneWins(s);
+  if (w[0] !== w[1]) return { side: w[0] > w[1] ? 0 : 1, tiebreak: false, margin: 0 };
+  const ctx = ctxOf(s);
+  let a = 0, b = 0;
+  for (let l = 0; l < 3; l++) { a += laneScore(ctx, l, 0); b += laneScore(ctx, l, 1); }
+  const diff = a - b;
+  if (diff === 0) return { side: -1, tiebreak: false, margin: 0 };
+  return { side: diff > 0 ? 0 : 1, tiebreak: true, margin: Math.abs(diff) };
+}
+
 export const onEnterBlocked = (card, board) =>
   board.some((b) => b.revealed && !b.dying && byKey[b.key].block && b.lane === card.lane && b.owner !== card.owner);
 

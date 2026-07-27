@@ -663,3 +663,44 @@ describe("Anúbis (julgamento: nivela ao menor base)", () => {
     expect(P(tardia, ctxOf(s))).toBe(10);        // intacta
   });
 });
+
+/* ---------------------- Resultado e desempate por saldo ---------------------- */
+import { matchResult } from "./engine.js";
+describe("matchResult() — vencedor e desempate por saldo de pontos", () => {
+  it("vence quem controla mais vias (sem desempate)", () => {
+    // A vence via 0 e via 1; B vence via 2 -> A 2 x 1
+    const s = mkState([
+      mk("colosso", { owner: 0, lane: 0 }), // A 14
+      mk("colosso", { owner: 0, lane: 1 }), // A 14
+      mk("colosso", { owner: 1, lane: 2 }), // B 14
+    ]);
+    const r = matchResult(s);
+    expect(r.side).toBe(0);
+    expect(r.tiebreak).toBe(false);
+  });
+
+  it("empate de vias (1x1) é decidido pela MAIOR diferença de pontos", () => {
+    // via 0: B vence por 28 | via 1: empate 14x14 | via 2: A vence por 14
+    // vias 1x1 -> saldo A=28, B=42 -> B vence por 14
+    const s = mkState([
+      mk("colosso", { owner: 1, lane: 0 }), mk("colosso", { owner: 1, lane: 0 }), // B 28
+      mk("colosso", { owner: 0, lane: 1 }), mk("colosso", { owner: 1, lane: 1 }), // empate
+      mk("colosso", { owner: 0, lane: 2 }), // A 14
+    ]);
+    const r = matchResult(s);
+    expect(r.side).toBe(1);
+    expect(r.tiebreak).toBe(true);
+    expect(r.margin).toBe(14);
+  });
+
+  it("empate real: mesmas vias e mesmo saldo", () => {
+    // via 0: B por 14 | via 2: A por 14 | via 1 vazia -> saldo 0
+    const s = mkState([
+      mk("colosso", { owner: 1, lane: 0 }), // B 14
+      mk("colosso", { owner: 0, lane: 2 }), // A 14
+    ]);
+    const r = matchResult(s);
+    expect(r.side).toBe(-1);
+    expect(r.tiebreak).toBe(false);
+  });
+});

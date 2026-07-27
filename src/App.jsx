@@ -3,7 +3,7 @@ import Carta from "./Carta.jsx";
 import {
   CARDS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME,
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
-  power, laneScore, laneWins, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
+  power, laneScore, laneWins, matchResult, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
   montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet, resolveAnubis,
@@ -66,6 +66,13 @@ const DUAT_KEYFRAMES = `
 /* Largura de referência que alimenta as fontes proporcionais do MiniCard na
    grade mobile (MiniCard usa f(n)=max(8, bw*n/100)). */
 const MOBILE_BW = 780;
+
+/* Rótulo do resultado final, com o desempate por saldo de pontos. */
+function resultLabel(g) {
+  const r = matchResult(g);
+  if (r.side === -1) return "Empate";
+  return `Lado ${r.side === 0 ? "A" : "B"} venceu` + (r.tiebreak ? ` · saldo +${r.margin}` : "");
+}
 
 /* Largura de viewport, para escolher entre interface desktop e mobile. */
 function useViewport() {
@@ -340,7 +347,9 @@ export default function App() {
   }
   function finish() {
     const s = clone(g); s.finished = true; const w = laneWins(s);
-    pushLog(s, `Fim (${w[0]}×${w[1]} vias). ` + (w[0] > w[1] ? "Lado A vence!" : w[1] > w[0] ? "Lado B vence!" : "Empate."));
+    const r = matchResult(s);
+    const fimTxt = r.side === -1 ? "Empate." : `Lado ${r.side === 0 ? "A" : "B"} vence!` + (r.tiebreak ? ` (desempate por saldo de pontos: +${r.margin})` : "");
+    pushLog(s, `Fim (${w[0]}×${w[1]} vias). ` + fimTxt);
     commit(s);
   }
   function reset() { resetUid(); setSel(null); setAim(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); setG(freshState(chosen)); }
@@ -525,7 +534,7 @@ export default function App() {
           <span className="text-stone-500">({g.priorityReason})</span>
           <span className="ml-auto text-stone-400">Vias:</span>
           <span className="text-amber-300 font-bold">A {wins[0]}</span><span className="text-stone-600">×</span><span className="text-sky-300 font-bold">{wins[1]} B</span>
-          {g.finished && <span className="px-3 py-1 rounded bg-stone-800 border border-amber-600 text-amber-200 font-semibold">{wins[0] > wins[1] ? "Lado A venceu" : wins[1] > wins[0] ? "Lado B venceu" : "Empate"}</span>}
+          {g.finished && <span className="px-3 py-1 rounded bg-stone-800 border border-amber-600 text-amber-200 font-semibold">{resultLabel(g)}</span>}
         </div>
 
         {msg && <div className="mb-3 px-3 py-2 rounded bg-rose-950 border border-rose-800 text-rose-200 text-sm">{msg}</div>}
@@ -1077,7 +1086,7 @@ function GameMobile(p) {
         {planning && <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09" }}>Revelar</button>}
         {g.phase === "revealing" && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4" }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
         {g.phase === "revealed" && !g.finished && <button onClick={nextRound} style={{ ...mBtnBig, background: "#d97706", color: "#0c0a09" }}>{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>}
-        {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{wins[0] > wins[1] ? "Lado A venceu" : wins[1] > wins[0] ? "Lado B venceu" : "Empate"}</span>}
+        {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{resultLabel(g)}</span>}
         <button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
         <button onClick={() => setScreen("deck")} style={mBtnSm}>Decks</button>
       </div>
