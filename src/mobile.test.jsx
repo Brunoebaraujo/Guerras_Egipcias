@@ -72,3 +72,13 @@ describe("DeckMobile smoke", () => {
     expect(html).toContain(def.texto);
   });
 });
+
+import { Lobby } from "./App.jsx";
+describe("Lobby smoke", () => {
+  it("renderiza a tela de conexão sem estourar (sem window/WebSocket)", () => {
+    const html = renderToString(<Lobby onBack={() => {}} />);
+    expect(html).toContain("Multiplayer");
+    expect(html).toContain("Servidor");
+    expect(html).toContain("Conectar");
+  });
+});

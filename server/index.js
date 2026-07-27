@@ -111,6 +111,7 @@ wss.on("connection", (ws) => {
         const roomId = randomUUID().slice(0, 6);
         rooms.set(roomId, { id: roomId, host: id, guest: null, createdAt: Date.now() });
         c.roomId = roomId;
+        send(ws, { t: "roomCreated", roomId });
         broadcastRooms();
         break;
       }

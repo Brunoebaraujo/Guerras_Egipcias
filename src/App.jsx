@@ -67,6 +67,17 @@ const DUAT_KEYFRAMES = `
    grade mobile (MiniCard usa f(n)=max(8, bw*n/100)). */
 const MOBILE_BW = 780;
 
+/* Servidor multiplayer (Render). Pode ser sobrescrito no campo do lobby. */
+const LOBBY_SERVER_DEFAULT = "wss://guerras-egipcias-server.onrender.com";
+/* Aceita colar tanto a URL https:// (a que abre no navegador) quanto wss://. */
+function normalizeWs(u) {
+  let s = (u || "").trim().replace(/\/+$/, "");
+  if (s.startsWith("https://")) s = "wss://" + s.slice(8);
+  else if (s.startsWith("http://")) s = "ws://" + s.slice(7);
+  else if (!/^wss?:\/\//.test(s)) s = "wss://" + s;
+  return s;
+}
+
 /* Rótulo do resultado final, com o desempate por saldo de pontos. */
 function resultLabel(g) {
   const r = matchResult(g);
@@ -373,6 +384,11 @@ export default function App() {
   const ctx = ctxOf(g);
   const wins = laneWins(g);
 
+  // ============================ TELA: LOBBY ================================
+  if (screen === "lobby") {
+    return <Lobby onBack={() => setScreen("deck")} />;
+  }
+
   // ============================ TELA: GALERIA ==============================
   if (screen === "galeria") {
     return (
@@ -446,6 +462,8 @@ export default function App() {
               <p className="text-xs text-stone-400">Cada lado escolhe 12 cartas (sem repetição). Ao iniciar, os decks são embaralhados.</p>
             </div>
             <div className="flex items-center gap-2">
+              <button onClick={() => setScreen("lobby")}
+                className="px-3 py-2 rounded-md bg-indigo-700 hover:bg-indigo-600 text-sm text-indigo-50 font-semibold">⚔ Multiplayer</button>
               <button onClick={() => setScreen("galeria")}
                 className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Galeria</button>
               <button onClick={() => setForceView("mobile")} title="Ver a interface mobile"
@@ -1186,6 +1204,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
       {/* rodapé */}
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         <button onClick={() => setScreen("galeria")} style={{ ...chip, padding: "11px 12px" }}>Galeria</button>
+        <button onClick={() => setScreen("lobby")} style={{ ...chip, padding: "11px 12px", background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>⚔ Online</button>
         <button onClick={startMatch} disabled={!ready} style={{
           flex: "1 1 auto", padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
           background: ready ? "#059669" : "#292524", color: ready ? "#0c0a09" : "#78716c", cursor: ready ? "pointer" : "not-allowed",
@@ -1234,3 +1253,124 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
 }
 
 export { DeckMobile };
+
+/* ==========================================================================
+   LOBBY MULTIPLAYER (Fase 1 — cliente).
+   Conecta no servidor WebSocket, lista salas abertas, cria/entra em sala e
+   mostra o emparelhamento. A partida em rede (Fase 2) entra depois.
+   ========================================================================== */
+function Lobby({ onBack }) {
+  const readLS = (k, d) => { try { return (typeof window !== "undefined" && localStorage.getItem(k)) || d; } catch { return d; } };
+  const [serverUrl, setServerUrl] = useState(() => readLS("ge_server", LOBBY_SERVER_DEFAULT));
+  const [name, setName] = useState(() => readLS("ge_name", ""));
+  const [status, setStatus] = useState("desconectado"); // desconectado|conectando|conectado|erro
+  const [rooms, setRooms] = useState([]);
+  const [myRoom, setMyRoom] = useState(null);
+  const [match, setMatch] = useState(null); // { roomId, seat, opponent }
+  const [note, setNote] = useState("");
+  const wsRef = useRef(null);
+  const connected = status === "conectado";
+
+  function connect() {
+    const nm = name.trim() || "Jogador";
+    try { localStorage.setItem("ge_server", serverUrl); localStorage.setItem("ge_name", nm); } catch {}
+    setNote(""); setStatus("conectando"); setRooms([]); setMyRoom(null); setMatch(null);
+    let ws;
+    try { ws = new WebSocket(normalizeWs(serverUrl)); } catch { setStatus("erro"); setNote("URL inválida."); return; }
+    wsRef.current = ws;
+    ws.onopen = () => { setStatus("conectado"); ws.send(JSON.stringify({ t: "hello", name: nm })); };
+    ws.onclose = () => { setStatus((s) => (s === "erro" ? s : "desconectado")); setRooms([]); setMyRoom(null); setMatch(null); };
+    ws.onerror = () => { setStatus("erro"); setNote("Não consegui conectar. Confira a URL — e lembre que o servidor Free do Render pode levar ~1 min pra acordar; tente de novo."); };
+    ws.onmessage = (ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch { return; }
+      if (m.t === "rooms") setRooms(m.rooms || []);
+      else if (m.t === "roomCreated") { setMyRoom(m.roomId); setNote(""); }
+      else if (m.t === "matchReady") { setMatch({ roomId: m.roomId, seat: m.seat, opponent: m.opponent }); setMyRoom(null); }
+      else if (m.t === "opponentLeft") { setMatch(null); setNote("O adversário saiu. Sua sala está aberta de novo."); }
+      else if (m.t === "roomClosed") { setMatch(null); setMyRoom(null); setNote("O anfitrião fechou a sala."); }
+      else if (m.t === "error") setNote(m.msg || "Erro.");
+    };
+  }
+  const send = (obj) => { try { wsRef.current?.send(JSON.stringify(obj)); } catch {} };
+  const disconnect = () => { try { wsRef.current?.close(); } catch {} };
+  useEffect(() => () => { try { wsRef.current?.close(); } catch {} }, []);
+
+  const visibleRooms = rooms.filter((r) => r.id !== myRoom);
+  const box = { width: "100%", maxWidth: 460, margin: "0 auto" };
+  const field = { width: "100%", padding: "10px 12px", borderRadius: 9, background: "#1c1917", border: "1px solid #44403c", color: "#e7e5e4", fontSize: 14, boxSizing: "border-box" };
+  const btn = (bg, fg) => ({ padding: "11px 14px", borderRadius: 9, border: "none", background: bg, color: fg, fontWeight: 700, fontSize: 14, cursor: "pointer" });
+  const statusColor = { desconectado: "#78716c", conectando: "#fbbf24", conectado: "#34d399", erro: "#fb7185" }[status];
+
+  return (
+    <div style={{ minHeight: "100dvh", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif", padding: "14px" }}>
+      <div style={{ ...box, display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
+        <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>𓂀 Guerras Egípcias</span>
+        <span style={{ fontSize: 11, color: "#818cf8", flex: "0 0 auto" }}>Multiplayer · beta</span>
+        <button onClick={onBack} style={{ ...btn("#292524", "#d6d3d1"), marginLeft: "auto", padding: "7px 12px" }}>Voltar</button>
+      </div>
+
+      <div style={{ ...box, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+          <span style={{ width: 9, height: 9, borderRadius: 999, background: statusColor, display: "inline-block" }} />
+          <span style={{ color: "#a8a29e" }}>{status}</span>
+          {connected && <span style={{ color: "#78716c" }}>· como <b style={{ color: "#e7e5e4" }}>{name.trim() || "Jogador"}</b></span>}
+          {connected && <button onClick={disconnect} style={{ ...btn("#292524", "#d6d3d1"), marginLeft: "auto", padding: "6px 10px", fontSize: 12 }}>Desconectar</button>}
+        </div>
+
+        {!connected && (
+          <>
+            <label style={{ fontSize: 12, color: "#a8a29e" }}>Seu nome
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Bruno" maxLength={24} style={{ ...field, marginTop: 4 }} />
+            </label>
+            <label style={{ fontSize: 12, color: "#a8a29e" }}>Servidor
+              <input value={serverUrl} onChange={(e) => setServerUrl(e.target.value)} placeholder="wss://...onrender.com" style={{ ...field, marginTop: 4, fontSize: 12 }} />
+            </label>
+            <button onClick={connect} disabled={status === "conectando"} style={btn(status === "conectando" ? "#292524" : "#4f46e5", "#eef2ff")}>
+              {status === "conectando" ? "Conectando…" : "Conectar"}
+            </button>
+            <p style={{ fontSize: 11, color: "#78716c", margin: 0 }}>Se o servidor estiver dormindo (plano Free), a primeira conexão pode levar ~1 min. Se der erro, tente de novo.</p>
+          </>
+        )}
+
+        {connected && match && (
+          <div style={{ padding: 14, borderRadius: 12, background: "#1c1917", border: "1px solid #4f46e5", textAlign: "center" }}>
+            <div style={{ fontSize: 15, marginBottom: 6 }}>Emparelhado com <b>{match.opponent}</b>!</div>
+            <div style={{ fontSize: 13, color: "#a8a29e" }}>Você é o <b style={{ color: match.seat === 0 ? "#fcd34d" : "#7dd3fc" }}>Lado {match.seat === 0 ? "A (ouro)" : "B (lápis)"}</b>.</div>
+            <div style={{ fontSize: 12, color: "#818cf8", marginTop: 8 }}>A partida em rede entra na próxima etapa.</div>
+            <button onClick={() => { send({ t: "leaveRoom" }); setMatch(null); }} style={{ ...btn("#292524", "#d6d3d1"), marginTop: 12 }}>Sair da sala</button>
+          </div>
+        )}
+
+        {connected && !match && myRoom && (
+          <div style={{ padding: 14, borderRadius: 12, background: "#1c1917", border: "1px solid #44403c", textAlign: "center" }}>
+            <div style={{ fontSize: 14 }}>Sala criada. Aguardando um adversário entrar…</div>
+            <div style={{ fontSize: 12, color: "#78716c", marginTop: 4 }}>Quem abrir o site vai ver sua sala na lista.</div>
+            <button onClick={() => { send({ t: "leaveRoom" }); setMyRoom(null); }} style={{ ...btn("#292524", "#d6d3d1"), marginTop: 12 }}>Cancelar</button>
+          </div>
+        )}
+
+        {connected && !match && !myRoom && (
+          <>
+            <button onClick={() => send({ t: "createRoom" })} style={btn("#059669", "#052e16")}>Criar sala</button>
+            <div style={{ marginTop: 4 }}>
+              <div style={{ fontSize: 12, color: "#a8a29e", marginBottom: 6 }}>Salas abertas</div>
+              {visibleRooms.length === 0 && <div style={{ fontSize: 13, color: "#57534e", padding: "10px 0" }}>Nenhuma sala aberta. Crie uma e espere alguém entrar.</div>}
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {visibleRooms.map((r) => (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 9, background: "#1c1917", border: "1px solid #44403c" }}>
+                    <span style={{ fontSize: 14 }}>Sala de <b>{r.host}</b></span>
+                    <button onClick={() => send({ t: "joinRoom", roomId: r.id })} style={{ ...btn("#4f46e5", "#eef2ff"), marginLeft: "auto", padding: "8px 14px" }}>Entrar</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {note && <div style={{ fontSize: 12, color: "#fbbf24", padding: "8px 10px", borderRadius: 8, background: "#1c1917", border: "1px solid #44403c" }}>{note}</div>}
+      </div>
+    </div>
+  );
+}
+
+export { Lobby };
