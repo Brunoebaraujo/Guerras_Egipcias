@@ -245,7 +245,7 @@ export default function App() {
 
   // ============================ TELA: LOBBY ================================
   if (screen === "lobby") {
-    return <Lobby onBack={() => setScreen("deck")} deck={build[0].length === 12 ? build[0] : PRESETS["Padrão"]} />;
+    return <Lobby onBack={() => setScreen("mpdeck")} deck={build[0].length === 12 ? build[0] : PRESETS["Padrão"]} />;
   }
 
   // ============================ TELA: GALERIA ==============================
@@ -272,6 +272,54 @@ export default function App() {
   }
 
   // ============================ TELA: DECKS ================================
+  if (screen === "mpdeck") {
+    const cur = build[0];
+    const full = cur.length === 12;
+    return (
+      <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
+        <div className="max-w-3xl mx-auto">
+          <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold tracking-widest text-indigo-200">⚔ Multiplayer <span className="text-stone-500 text-sm sm:text-base font-normal tracking-normal">· monte seu deck</span></h1>
+              <p className="text-xs text-stone-400">Escolha suas 12 cartas (sem repetição). Depois avance para conectar.</p>
+            </div>
+            <span className={`text-lg font-bold ${full ? "text-emerald-400" : cur.length > 12 ? "text-rose-400" : "text-stone-300"}`}>{cur.length}/12</span>
+          </header>
+          {msg && <div className="mb-3 px-3 py-2 rounded bg-rose-950 border border-rose-800 text-rose-200 text-sm">{msg}</div>}
+          <div className="flex flex-wrap gap-1 mb-2">
+            {Object.keys(PRESETS).map((name) => (
+              <button key={name} onClick={() => setDeck(0, PRESETS[name].slice())}
+                className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">{name}</button>
+            ))}
+            <button onClick={() => randomDeck(0)} className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">Aleatório</button>
+            <button onClick={() => setDeck(0, [])} className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-xs text-stone-400">Limpar</button>
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
+            {COLLECTION.map((def) => {
+              const on = cur.includes(def.key);
+              const ring = on ? "border-indigo-400 ring-2 ring-indigo-400" : "border-stone-700 hover:border-stone-500";
+              return (
+                <button key={def.key} onClick={() => toggleCard(0, def.key)} title={def.texto || "Carta base (sem efeito)"}
+                  className={`text-left rounded border p-1 bg-stone-800 ${ring} ${on ? "" : "opacity-80"}`}>
+                  <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{on ? "✓ " : ""}{GLYPH[def.arch]} {def.nome}</div>
+                  <div className="text-xs text-stone-400 mt-0.5">{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex items-center gap-2 mt-4 sticky bottom-0 bg-stone-900/95 py-2">
+            <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">← Voltar</button>
+            <span className="text-xs text-stone-500">{full ? "Deck pronto." : `Faltam ${Math.max(0, 12 - cur.length)} carta(s).`}</span>
+            <button onClick={() => { if (build[0].length !== 12) { flash("Seu deck precisa ter exatamente 12 cartas."); return; } setScreen("lobby"); }} disabled={!full}
+              className={`ml-auto px-4 py-2 rounded-md font-semibold text-sm ${full ? "bg-indigo-600 hover:bg-indigo-500 text-indigo-50" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
+              Continuar → conectar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (screen === "deck") {
     if (isMobile) return (
       <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={startMatch}
@@ -321,7 +369,7 @@ export default function App() {
               <p className="text-xs text-stone-400">Cada lado escolhe 12 cartas (sem repetição). Ao iniciar, os decks são embaralhados.</p>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setScreen("lobby")}
+              <button onClick={() => setScreen("mpdeck")}
                 className="px-3 py-2 rounded-md bg-indigo-700 hover:bg-indigo-600 text-sm text-indigo-50 font-semibold">⚔ Multiplayer</button>
               <button onClick={() => setScreen("galeria")}
                 className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Galeria</button>
@@ -1197,7 +1245,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
       {/* rodapé */}
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         <button onClick={() => setScreen("galeria")} style={{ ...chip, padding: "11px 12px" }}>Galeria</button>
-        <button onClick={() => setScreen("lobby")} style={{ ...chip, padding: "11px 12px", background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>⚔ Online</button>
+        <button onClick={() => setScreen("mpdeck")} style={{ ...chip, padding: "11px 12px", background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>⚔ Online</button>
         <button onClick={startMatch} disabled={!ready} style={{
           flex: "1 1 auto", padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
           background: ready ? "#059669" : "#292524", color: ready ? "#0c0a09" : "#78716c", cursor: ready ? "pointer" : "not-allowed",
