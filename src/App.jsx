@@ -62,11 +62,12 @@ const DUAT_KEYFRAMES = `
   .duat-bless-rise  { animation: duatBlessRise 1.5s ease-out both; }
   .duat-bless-fonte { animation: duatBlessFonte .95s ease-out both; }
   @keyframes duatDraw {
-    0%   { opacity:0; transform:translateY(9px) scale(.92); box-shadow:0 0 0 0 rgba(251,191,36,0); }
-    35%  { opacity:1; box-shadow:0 0 14px 5px rgba(251,191,36,.9), 0 0 28px 11px rgba(251,191,36,.45); }
+    0%   { opacity:0; transform:translateY(10px) scale(.9); box-shadow:0 0 0 0 rgba(251,191,36,0); }
+    30%  { opacity:1; box-shadow:0 0 16px 6px rgba(251,191,36,.95), 0 0 34px 14px rgba(251,191,36,.5); }
+    65%  { box-shadow:0 0 12px 4px rgba(251,191,36,.7), 0 0 24px 9px rgba(251,191,36,.32); }
     100% { opacity:1; transform:translateY(0) scale(1); box-shadow:0 0 0 0 rgba(251,191,36,0); }
   }
-  .duat-draw { animation: duatDraw .85s ease-out; }
+  .duat-draw { animation: duatDraw 1.15s ease-out; }
   @media (prefers-reduced-motion: reduce) { .duat-pop,.duat-badge,.duat-vanish,.duat-zoom,.duat-charge,.duat-draw,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise,.duat-bless-fonte { animation: none; } }
 `;
 
@@ -795,13 +796,14 @@ function MBanner({ tone, children }) {
 
 function MScore({ v, tone, lead }) {
   const ring = tone === "amber" ? "#fcd34d" : "#7dd3fc";
-  const bg = tone === "amber" ? "rgba(251,191,36,.14)" : "rgba(56,189,248,.14)";
+  const bg = tone === "amber" ? "rgba(251,191,36,.16)" : "rgba(56,189,248,.16)";
+  const col = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   return (
     <div style={{
-      alignSelf: "center", minWidth: 26, textAlign: "center", padding: "1px 8px", borderRadius: 999,
-      background: bg, border: lead ? `1.5px solid ${ring}` : "1px solid rgba(120,113,108,.4)",
-      color: "#f5f5f4", fontWeight: 800, fontSize: 13, fontFamily: "Georgia, serif",
-      boxShadow: lead ? `0 0 7px ${ring}` : "none", transition: "box-shadow .3s ease",
+      minWidth: 30, textAlign: "center", padding: "2px 9px", borderRadius: 999,
+      background: bg, border: lead ? `2px solid ${ring}` : "1px solid rgba(120,113,108,.4)",
+      color: lead ? col : "#f5f5f4", fontWeight: 800, fontSize: 16, fontFamily: "Georgia, serif",
+      boxShadow: lead ? `0 0 8px ${ring}` : "none", transition: "box-shadow .3s ease", lineHeight: 1.15,
     }}>{v}</div>
   );
 }
@@ -855,38 +857,59 @@ function MobileLane({ lane, g, ctx, planning, sel, aim, moving, placeCard, moveT
   const zprops = { lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard };
   return (
     <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-      <MScore v={sB} tone="sky" lead={winner === 1} />
       <MobileZone side={1} {...zprops} />
-      <div style={{
-        textAlign: "center", fontSize: 10, color: "#f7e9c0", fontFamily: "Georgia, serif", letterSpacing: 0.5,
-        background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.3)", borderRadius: 999,
-        padding: "1px 4px", whiteSpace: "nowrap", overflow: "hidden",
-      }}>VIA {lane + 1}{maat ? " · ⚖" : winner >= 0 ? ` · ♛${winner === 0 ? "A" : "B"}` : ""}</div>
+      {/* Placar CENTRAL: os dois valores frente a frente, com a via no meio. */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "1px 0" }}>
+        <MScore v={sB} tone="sky" lead={winner === 1} />
+        <div style={{
+          textAlign: "center", fontSize: 9.5, color: "#f7e9c0", fontFamily: "Georgia, serif", letterSpacing: 0.3,
+          background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.3)", borderRadius: 999,
+          padding: "1px 6px", whiteSpace: "nowrap", lineHeight: 1.3,
+        }}>VIA {lane + 1}{maat ? " ⚖" : winner >= 0 ? ` ♛${winner === 0 ? "A" : "B"}` : ""}</div>
+        <MScore v={sA} tone="amber" lead={winner === 0} />
+      </div>
       <MobileZone side={0} {...zprops} />
-      <MScore v={sA} tone="amber" lead={winner === 0} />
     </div>
   );
 }
 
 function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
+  const base = import.meta.env.BASE_URL;
   const def = byKey[h.key];
   const isSel = sel && sel.side === side && sel.hid === h.hid;
   const afford = g.energy[side] >= def.custo;
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const faixa = h.baked > 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
+  const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
+  const ref = useRef(null);
+  // Rola a carta recém-comprada para dentro da vista, para o halo dourado ser visto.
+  useEffect(() => {
+    if (drawn && ref.current) {
+      try { ref.current.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }); } catch {}
+    }
+  }, [drawn]);
   return (
-    <div className={drawn ? "duat-draw" : ""} style={{
-      position: "relative", flex: "0 0 auto", width: 98, borderRadius: 7, background: "#292524",
-      border: isSel ? `2px solid ${accent}` : "1px solid #44403c", opacity: disabled ? 0.45 : afford ? 1 : 0.5,
+    <div ref={ref} className={drawn ? "duat-draw" : ""} style={{
+      position: "relative", flex: "0 0 auto", width: 88, borderRadius: 8, background: "#1c1917",
+      border: isSel ? `2px solid ${accent}` : "1px solid #44403c", opacity: disabled ? 0.5 : afford ? 1 : 0.55,
+      overflow: "hidden",
     }}>
       <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
-        style={{ display: "block", textAlign: "left", width: "100%", padding: "5px 18px 5px 6px", background: "none", border: "none", cursor: disabled ? "default" : "pointer" }}>
-        <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 11, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{GLYPH[def.arch]} {def.nome}</div>
-        <div style={{ fontSize: 10, color: "#a8a29e", marginTop: 2 }}>{def.custo}⚡ · {faixa}</div>
+        style={{ display: "block", textAlign: "left", width: "100%", padding: 0, background: "none", border: "none", cursor: disabled ? "default" : "pointer" }}>
+        <div style={{ position: "relative", width: "100%", height: 52, background: "#000" }}>
+          {artSrc
+            ? <img src={artSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: afford ? 1 : 0.7 }} />
+            : <div className={ARCH_COLOR[def.arch]} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{GLYPH[def.arch]}</div>}
+          <span style={{ position: "absolute", top: 2, left: 3, fontSize: 11, fontWeight: 800, color: "#fde68a", textShadow: "0 1px 2px #000" }}>{def.custo}⚡</span>
+        </div>
+        <div style={{ padding: "3px 5px 4px" }}>
+          <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 10.5, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{def.nome}</div>
+          <div style={{ fontSize: 9.5, color: "#a8a29e", marginTop: 1 }}>{faixa}</div>
+        </div>
       </button>
       <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar"
-        style={{ position: "absolute", top: 2, right: 2, fontSize: 11, color: "#78716c", background: "none", border: "none", cursor: "pointer", lineHeight: 1, padding: 2 }}>🔍</button>
+        style={{ position: "absolute", top: 2, right: 2, fontSize: 11, color: "#e7e5e4", background: "rgba(0,0,0,.5)", borderRadius: 5, border: "none", cursor: "pointer", lineHeight: 1, padding: "2px 3px" }}>🔍</button>
     </div>
   );
 }
@@ -928,8 +951,10 @@ function GameMobile(p) {
   const phaseBg = planning ? "#1c1917" : g.phase === "revealing" ? "#1e1b4b" : "#064e3b";
   const laneProps = { g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp: planning ? pickUp : null, zoomBoard };
   return (
-    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+    <div style={{ minHeight: "100dvh", background: "#0c0a09", display: "flex", justifyContent: "center" }}>
+    <div style={{ width: "100%", maxWidth: 720, minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif", borderLeft: "1px solid #1c1917", borderRight: "1px solid #1c1917" }}>
       <style>{DUAT_KEYFRAMES}</style>
+      <style>{"body{background:#0c0a09;margin:0}"}</style>
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
         <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>𓂀 Guerras Egípcias</span>
@@ -961,7 +986,7 @@ function GameMobile(p) {
 
       <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 1} oppHand={oppHand} />
 
-      <div style={{ flex: "1 1 auto", display: "flex", gap: 6, padding: "8px", minHeight: 0, alignItems: "flex-start" }}>
+      <div style={{ flex: "1 1 auto", display: "flex", gap: 5, padding: "6px 6px", minHeight: 0, alignItems: "flex-start" }}>
         {[0, 1, 2].map((lane) => <MobileLane key={lane} lane={lane} {...laneProps} />)}
       </div>
 
@@ -982,6 +1007,7 @@ function GameMobile(p) {
           : <><button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
             <button onClick={() => setScreen("deck")} style={mBtnSm}>Decks</button></>}
       </div>
+    </div>
     </div>
   );
 }
