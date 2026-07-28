@@ -273,51 +273,7 @@ export default function App() {
 
   // ============================ TELA: DECKS ================================
   if (screen === "mpdeck") {
-    const cur = build[0];
-    const full = cur.length === 12;
-    return (
-      <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
-        <div className="max-w-3xl mx-auto">
-          <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
-            <div>
-              <h1 className="text-xl sm:text-2xl font-bold tracking-widest text-indigo-200">⚔ Multiplayer <span className="text-stone-500 text-sm sm:text-base font-normal tracking-normal">· monte seu deck</span></h1>
-              <p className="text-xs text-stone-400">Escolha suas 12 cartas (sem repetição). Depois avance para conectar.</p>
-            </div>
-            <span className={`text-lg font-bold ${full ? "text-emerald-400" : cur.length > 12 ? "text-rose-400" : "text-stone-300"}`}>{cur.length}/12</span>
-          </header>
-          {msg && <div className="mb-3 px-3 py-2 rounded bg-rose-950 border border-rose-800 text-rose-200 text-sm">{msg}</div>}
-          <div className="flex flex-wrap gap-1 mb-2">
-            {Object.keys(PRESETS).map((name) => (
-              <button key={name} onClick={() => setDeck(0, PRESETS[name].slice())}
-                className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">{name}</button>
-            ))}
-            <button onClick={() => randomDeck(0)} className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">Aleatório</button>
-            <button onClick={() => setDeck(0, [])} className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-xs text-stone-400">Limpar</button>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
-            {COLLECTION.map((def) => {
-              const on = cur.includes(def.key);
-              const ring = on ? "border-indigo-400 ring-2 ring-indigo-400" : "border-stone-700 hover:border-stone-500";
-              return (
-                <button key={def.key} onClick={() => toggleCard(0, def.key)} title={def.texto || "Carta base (sem efeito)"}
-                  className={`text-left rounded border p-1 bg-stone-800 ${ring} ${on ? "" : "opacity-80"}`}>
-                  <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{on ? "✓ " : ""}{GLYPH[def.arch]} {def.nome}</div>
-                  <div className="text-xs text-stone-400 mt-0.5">{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-2 mt-4 sticky bottom-0 bg-stone-900/95 py-2">
-            <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">← Voltar</button>
-            <span className="text-xs text-stone-500">{full ? "Deck pronto." : `Faltam ${Math.max(0, 12 - cur.length)} carta(s).`}</span>
-            <button onClick={() => { if (build[0].length !== 12) { flash("Seu deck precisa ter exatamente 12 cartas."); return; } setScreen("lobby"); }} disabled={!full}
-              className={`ml-auto px-4 py-2 rounded-md font-semibold text-sm ${full ? "bg-indigo-600 hover:bg-indigo-500 text-indigo-50" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
-              Continuar → conectar
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    return <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} />;
   }
 
   if (screen === "deck") {
@@ -912,8 +868,8 @@ const BOARD_MOBILE = {
   laneX: [20.5, 50, 79.5],    // % X do centro de cada via
   colDX: 6.4,                 // % de afastamento das colunas esquerda/direita
   cardW: 11.5,                // % da largura de um slot
-  rowY: { 1: [21, 34], 0: [64, 77] }, // % Y das duas linhas — [topo, baixo] por lado
-  scoreY: { 1: 42.5, 0: 56 }, // % Y dos discos de placar (B em cima, A embaixo)
+  rowY: { 1: [17.9, 32.0], 0: [67.9, 82.2] }, // % Y das duas linhas — [topo, baixo] por lado (medido pelos divisores da arte)
+  scoreY: { 1: 43, 0: 56.5 }, // % Y dos discos de placar (B em cima, A embaixo)
 };
 
 function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
@@ -1393,6 +1349,117 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
 }
 
 export { DeckMobile };
+
+/* ==========================================================================
+   MONTAGEM DO DECK — MULTIPLAYER (deck único, antes de conectar).
+   Mesma UX do single-player: tocar numa carta abre a versão ampliada com
+   Adicionar/Retirar do deck e um X para fechar. Funciona em desktop e mobile.
+   O deck do multiplayer é o Lado A (build[0]).
+   ========================================================================== */
+function MpDeck({ build, setDeck, flash, setScreen, msg }) {
+  const [detail, setDetail] = useState(null);
+  const cur = build[0];
+  const full = cur.length === 12;
+  const accent = "#818cf8";
+
+  const addCard = (k) => {
+    if (cur.includes(k)) return;
+    if (cur.length >= 12) { flash("Deck cheio — 12 cartas (retire uma antes)."); return; }
+    setDeck(0, [...cur, k]);
+  };
+  const removeCard = (k) => setDeck(0, cur.filter((x) => x !== k));
+
+  const chip = { flex: "0 0 auto", padding: "5px 9px", borderRadius: 7, border: "1px solid #44403c", background: "#292524", color: "#d6d3d1", fontSize: 12, cursor: "pointer" };
+  const vw = typeof window !== "undefined" ? window.innerWidth : 380;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 720;
+  const cardW = Math.min(300, vw - 64, Math.floor((vh - 190) / 1.5));
+
+  return (
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
+        <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#c7d2fe", fontSize: 14 }}>⚔ Multiplayer</span>
+        <span style={{ fontSize: 11, color: "#78716c" }}>monte seu deck</span>
+        <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 800, color: full ? "#34d399" : cur.length > 12 ? "#fb7185" : "#d6d3d1" }}>{cur.length}/12</span>
+      </div>
+
+      <div style={{ display: "flex", gap: 5, padding: "8px 10px 6px", overflowX: "auto" }}>
+        {Object.keys(PRESETS).map((name) => (
+          <button key={name} onClick={() => setDeck(0, PRESETS[name].slice())} style={chip}>{name}</button>
+        ))}
+        <button onClick={() => setDeck(0, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
+        <button onClick={() => setDeck(0, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
+      </div>
+
+      {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
+
+      <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
+          {COLLECTION.map((def) => {
+            const on = cur.includes(def.key);
+            return (
+              <button key={def.key} onClick={() => setDetail(def)} style={{
+                textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
+                background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
+              }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                  <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
+                  {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
+                </div>
+                <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
+        <button onClick={() => setScreen("deck")} style={{ ...chip, padding: "11px 12px" }}>← Voltar</button>
+        <span style={{ fontSize: 11, color: "#78716c" }}>{full ? "Deck pronto." : `Faltam ${Math.max(0, 12 - cur.length)}.`}</span>
+        <button onClick={() => { if (cur.length !== 12) { flash("Seu deck precisa ter exatamente 12 cartas."); return; } setScreen("lobby"); }} disabled={!full} style={{
+          marginLeft: "auto", flex: "1 1 auto", maxWidth: 260, padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
+          background: full ? "#4f46e5" : "#292524", color: full ? "#e0e7ff" : "#78716c", cursor: full ? "pointer" : "not-allowed",
+        }}>Continuar → conectar</button>
+      </div>
+
+      {detail && (() => {
+        const on = cur.includes(detail.key);
+        const cheio = cur.length >= 12;
+        return (
+          <div onClick={() => setDetail(null)} style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,.82)", zIndex: 50,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16,
+          }}>
+            <div style={{ width: "100%", maxWidth: cardW, display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontSize: 12, color: accent }}>Seu deck{on ? " · nesta lista" : ""}</span>
+              <button onClick={(e) => { e.stopPropagation(); setDetail(null); }} aria-label="Fechar" style={{
+                fontSize: 20, color: "#e7e5e4", background: "rgba(255,255,255,.08)", border: "1px solid #57534e",
+                borderRadius: 8, lineHeight: 1, cursor: "pointer", padding: "4px 10px",
+              }}>✕</button>
+            </div>
+            <div onClick={(e) => e.stopPropagation()}>
+              <Carta nome={detail.nome} custo={detail.custo} poder={detail.poder} tipo={detail.tipo}
+                efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} width={cardW} />
+            </div>
+            <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: cardW, display: "flex", gap: 8, marginTop: 12 }}>
+              <button onClick={() => addCard(detail.key)} disabled={on || cheio} style={{
+                flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
+                background: on || cheio ? "#292524" : "#059669", color: on || cheio ? "#78716c" : "#0c0a09",
+                cursor: on || cheio ? "not-allowed" : "pointer",
+              }}>Adicionar ao deck</button>
+              <button onClick={() => removeCard(detail.key)} disabled={!on} style={{
+                flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
+                background: !on ? "#292524" : "#9f1239", color: !on ? "#78716c" : "#fecdd3",
+                cursor: !on ? "not-allowed" : "pointer",
+              }}>Retirar do deck</button>
+            </div>
+          </div>
+        );
+      })()}
+    </div>
+  );
+}
+
+export { MpDeck };
 
 /* ==========================================================================
    LOBBY MULTIPLAYER (Fase 1 — cliente).
