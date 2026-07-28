@@ -898,6 +898,105 @@ function MobileZone({ side, lane, g, ctx, planning, sel, aim, moving, placeCard,
   );
 }
 
+/* ==========================================================================
+   TABULEIRO COM ARTE (sobreposição).
+   Renderiza a arte do tabuleiro (via <img>, que preserva proporção e cabe na
+   tela) e posiciona por cima, em coordenadas percentuais, os 24 slots de carta
+   (3 vias × 2 lados × 2×2) e os 6 placares (nos discos do rio, frente a frente).
+   O `config` guarda as coordenadas — é o que se ajusta no render-and-inspect.
+   Lados: topo = B (azul, side 1); base = A (âmbar, side 0).
+   ========================================================================== */
+const BOARD_MOBILE = {
+  art: "tabuleiro-mobile.webp",
+  ar: 1086 / 1448,            // largura/altura da arte
+  laneX: [20.5, 50, 79.5],    // % X do centro de cada via
+  colDX: 6.4,                 // % de afastamento das colunas esquerda/direita
+  cardW: 11.5,                // % da largura de um slot
+  rowY: { 1: [21, 34], 0: [64, 77] }, // % Y das duas linhas — [topo, baixo] por lado
+  scoreY: { 1: 42.5, 0: 56 }, // % Y dos discos de placar (B em cima, A embaixo)
+};
+
+function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
+  const base = import.meta.env.BASE_URL;
+  const cardHpct = config.cardW * config.ar * (7 / 5); // altura do slot em % (mantém 5:7)
+  return (
+    <div style={{ position: "relative", display: "inline-block", maxWidth: "100%", maxHeight: "100%", lineHeight: 0 }}>
+      <img src={`${base}${config.art}`} alt="" style={{ display: "block", maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", borderRadius: 10 }} />
+      <div style={{ position: "absolute", inset: 0 }}>
+        {[0, 1, 2].map((lane) =>
+          [0, 1].map((side) => {
+            const cards = g.board.filter((c) => c.lane === lane && c.owner === side);
+            const canDrop = planning && sel && sel.side === side && !moving && !aim;
+            const canMoveHere = moving && moving.side === side && moving.lane !== lane;
+            const active = canDrop || canMoveHere;
+            const ring = side === 0 ? "rgba(251,191,36,.9)" : "rgba(56,189,248,.9)";
+            const zoneClick = canMoveHere ? () => moveTo(side, lane) : canDrop ? () => placeCard(side, lane) : undefined;
+            const rows = config.rowY[side];
+            const boxLeft = config.laneX[lane] - (config.colDX + config.cardW / 2);
+            const boxW = config.colDX * 2 + config.cardW;
+            const boxTop = Math.min(rows[0], rows[1]) - cardHpct / 2;
+            const boxH = Math.abs(rows[1] - rows[0]) + cardHpct;
+            return (
+              <React.Fragment key={`${lane}-${side}`}>
+                {/* zona de soltura (posicionar / mover para cá) */}
+                <div onClick={zoneClick} style={{
+                  position: "absolute", left: `${boxLeft}%`, top: `${boxTop}%`, width: `${boxW}%`, height: `${boxH}%`,
+                  borderRadius: 8, border: active ? `2px solid ${ring}` : "none",
+                  boxShadow: active ? `0 0 12px ${ring}` : "none", cursor: active ? "pointer" : "default",
+                  transition: "box-shadow .2s ease", zIndex: active ? 3 : 1,
+                }} />
+                {/* cartas nos slots */}
+                {[0, 1, 2, 3].map((slot) => {
+                  const c = cards[slot];
+                  if (!c) return null;
+                  const col = slot % 2, row = slot < 2 ? 0 : 1;
+                  const x = config.laneX[lane] + (col === 0 ? -config.colDX : config.colDX);
+                  const y = rows[row];
+                  const canTarget = aim && isAimable(c);
+                  const movable = isMovable(c);
+                  const isMoving = moving && moving.uid === c.uid;
+                  const reveal = g.lastReveal && g.lastReveal.uid === c.uid ? g.lastReveal.seq : null;
+                  const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
+                  const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
+                  const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
+                  let onClick;
+                  if (c.dying) onClick = undefined;
+                  else if (canTarget) onClick = (e) => { e.stopPropagation(); applyAim(c); };
+                  else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); startMove(c); };
+                  else onClick = (e) => { e.stopPropagation(); zoomBoard(c); };
+                  const onRemove = pickUp && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
+                  return (
+                    <div key={c.uid} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${config.cardW}%`, aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 4 }}>
+                      <MiniCard c={c} ctx={ctx} bw={MOBILE_BW} canTarget={canTarget} movable={movable} isMoving={isMoving}
+                        reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging}
+                        onClick={onClick} onRemove={onRemove} />
+                    </div>
+                  );
+                })}
+                {/* placar no disco do rio */}
+                {(() => {
+                  const s = laneScore(ctx, lane, side);
+                  const other = laneScore(ctx, lane, 1 - side);
+                  const lead = s > other;
+                  const col = side === 0 ? "#fcd34d" : "#7dd3fc";
+                  return (
+                    <div style={{
+                      position: "absolute", left: `${config.laneX[lane]}%`, top: `${config.scoreY[side]}%`, transform: "translate(-50%,-50%)",
+                      zIndex: 5, minWidth: 22, textAlign: "center", fontFamily: "Georgia, serif", fontWeight: 800,
+                      fontSize: "clamp(13px, 2.4vw, 20px)", color: lead ? col : "#3a2f1a",
+                      textShadow: lead ? `0 0 6px ${col}, 0 1px 2px rgba(0,0,0,.6)` : "0 1px 1px rgba(255,255,255,.4)",
+                    }}>{s}</div>
+                  );
+                })()}
+              </React.Fragment>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 function MobileLane({ lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
   const sA = laneScore(ctx, lane, 0), sB = laneScore(ctx, lane, 1);
   const winner = sA > sB ? 0 : sB > sA ? 1 : -1;
@@ -1034,8 +1133,8 @@ function GameMobile(p) {
 
       <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 1} oppHand={oppHand} />
 
-      <div style={{ flex: "1 1 auto", display: "flex", gap: 5, padding: "6px 6px", minHeight: 0, alignItems: "flex-start" }}>
-        {[0, 1, 2].map((lane) => <MobileLane key={lane} lane={lane} {...laneProps} />)}
+      <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
+        <BoardArt config={BOARD_MOBILE} {...laneProps} />
       </div>
 
       <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 0} oppHand={oppHand} />
