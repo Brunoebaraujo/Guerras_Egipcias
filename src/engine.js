@@ -116,6 +116,10 @@ export const CARDS = [
     trigger: "entrar", judgeLane: true, arte: "anubis", arteFoco: "center 0%",
     lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
     texto: "Ao Entrar: todas as outras cartas desta via têm o Poder base nivelado ao menor entre elas. Buffs permanentes somem; auras permanecem. O julgamento persiste." },
+  { key: "amheh", nome: "Am-heh, o Devorador de Milhões", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio",
+    trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
+    lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
+    texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
 ];
 export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
 export const SIDE_NAME = ["Lado A (ouro)", "Lado B (lápis)"];
@@ -131,7 +135,7 @@ export const shuffled = (arr) => {
   return a;
 };
 export const coin = () => (Math.random() < 0.5 ? 0 : 1);
-export const ctxOf = (s) => ({ board: s.board, deaths: s.deaths, plays: s.plays });
+export const ctxOf = (s) => ({ board: s.board, deaths: s.deaths, plays: s.plays, destroyedPower: s.destroyedPower || [0, 0] });
 export const pushLog = (s, m) => {
   s.log = [m, ...s.log].slice(0, 80);           // painel: recente primeiro, 80 linhas
   s.trace = [...(s.trace || []), m];            // exportacao: tudo, em ordem
@@ -144,7 +148,7 @@ export const laneHasMaat = (board, lane) =>
 // Decompoe o poder em parcelas nomeadas. O power() abaixo e a SOMA disto, para
 // que o numero exibido e a explicacao nunca possam divergir.
 export function decomporPartes(card, ctx) {
-  const { board, deaths, plays } = ctx;
+  const { board, deaths, plays, destroyedPower } = ctx;
   // Anúbis grava card.judged: o base foi nivelado e os buffs permanentes caíram.
   const julgado = typeof card.judged === "number";
   const base = julgado ? card.judged : card.printed;
@@ -168,6 +172,12 @@ export function decomporPartes(card, ctx) {
   if (card.key === "osiris") {
     const totalMortes = deaths[0] + deaths[1];
     if (totalMortes) partes.push({ label: "Osíris — mortes na partida", val: 2 * totalMortes, tipo: "continuo" });
+  }
+
+  if (card.key === "amheh") {
+    const dp = destroyedPower || [0, 0];
+    const absorvido = (dp[0] || 0) + (dp[1] || 0);
+    if (absorvido) partes.push({ label: "Am-heh — Poder absorvido dos destruídos", val: absorvido, tipo: "continuo" });
   }
 
   if (card.key === "ammit") {
@@ -246,14 +256,23 @@ export function buildRevealQueue(s) {
 // ------------------------------ destruição ----------------------------------
 export function destroyList(s, victims) {
   const mumias = [];
-  for (const v of victims) {
-    if (v.key === "mumia") mumias.push({ owner: v.owner, val: power(v, ctxOf(s)) * 2 });
+  // Snapshot do Poder no momento da morte — ANTES de marcar 'dying', pois as
+  // auras deixam de contar quem está morrendo. Alimenta o acumulador do Am-heh
+  // (que absorve o Poder real de cada destruída, positivo ou negativo).
+  const powerAtDeath = victims.map((v) => power(v, ctxOf(s)));
+  victims.forEach((v, i) => {
+    if (v.key === "mumia") mumias.push({ owner: v.owner, val: powerAtDeath[i] * 2 });
     if (v.key === "bennu") {
       s.pendingEnergy[v.owner] += 1;
       s.pendingReturn.push({ owner: v.owner, lane: v.lane, printed: v.printed, baked: (v.baked || 0) + 1 });
     }
-  }
-  for (const v of victims) { v.dying = s.effectSeq; s.deaths[v.owner] += 1; }
+  });
+  if (!s.destroyedPower) s.destroyedPower = [0, 0];
+  victims.forEach((v, i) => {
+    v.dying = s.effectSeq;
+    s.deaths[v.owner] += 1;
+    s.destroyedPower[v.owner] += powerAtDeath[i];
+  });
   for (const r of mumias) s.hand[r.owner].push({ hid: nextUid(), key: "mumia", printed: 2, baked: r.val - 2 });
   return mumias;
 }

@@ -14,7 +14,7 @@ const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], baked = 0, .
 });
 const mkState = (board = []) => ({
   board, deaths: [0, 0], plays: [0, 0], hand: [[], []], round: 1,
-  pendingEnergy: [0, 0], pendingReturn: [], effectSeq: 1, log: [],
+  pendingEnergy: [0, 0], pendingReturn: [], effectSeq: 1, log: [], destroyedPower: [0, 0],
 });
 
 beforeEach(resetUid);
@@ -702,5 +702,41 @@ describe("matchResult() — vencedor e desempate por saldo de pontos", () => {
     const r = matchResult(s);
     expect(r.side).toBe(-1);
     expect(r.tiebreak).toBe(false);
+  });
+});
+
+/* ------------------------------ Am-heh (absorve Poder dos destruídos) -------- */
+describe("Am-heh, o Devorador de Milhões", () => {
+  it("absorve o Poder real de cada carta destruída (0 base + soma)", () => {
+    const amheh = mk("amheh", { owner: 0, lane: 0 });
+    const alvo5 = mk("guardareal", { owner: 1, lane: 1 }); // P8 impresso... usamos um P5
+    const s = mkState([amheh, alvo5]);
+    expect(power(amheh, ctxOf(s))).toBe(0); // nada destruído ainda
+    destroyList(s, [alvo5]);
+    // guardareal é P8 → Am-heh deve valer 0 + 8
+    expect(power(amheh, ctxOf(s))).toBe(8);
+  });
+
+  it("soma acumula de vários lados e é mais forte que o Osíris", () => {
+    const amheh = mk("amheh", { owner: 0, lane: 0 });
+    const osiris = mk("osiris", { owner: 0, lane: 2 });
+    const a = mk("colosso", { owner: 1, lane: 1 }); // P14
+    const b = mk("servo", { owner: 0, lane: 1 });    // P1
+    const s = mkState([amheh, osiris, a, b]);
+    destroyList(s, [a, b]);
+    // Am-heh: 14 + 1 = 15 ; Osíris: 4 + 2*2 mortes = 8
+    expect(power(amheh, ctxOf(s))).toBe(15);
+    expect(power(osiris, ctxOf(s))).toBe(8);
+    expect(power(amheh, ctxOf(s))).toBeGreaterThan(power(osiris, ctxOf(s)));
+  });
+
+  it("também recebe valores negativos (carta com Poder efetivo negativo)", () => {
+    const amheh = mk("amheh", { owner: 0, lane: 0 });
+    // servo P1 com uma maldição de -4 → Poder efetivo -3
+    const maldito = mk("servo", { owner: 1, lane: 1, mods: [{ src: "Maldição", val: -4 }] });
+    const s = mkState([amheh, maldito]);
+    expect(power(maldito, ctxOf(s))).toBe(-3);
+    destroyList(s, [maldito]);
+    expect(power(amheh, ctxOf(s))).toBe(-3); // absorve o negativo
   });
 });

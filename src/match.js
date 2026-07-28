@@ -93,7 +93,7 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
   const s = {
     round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
     pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], blessings: [],
-    deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []],
+    deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null,
     log: [linha], trace: [linha], finished: false,
