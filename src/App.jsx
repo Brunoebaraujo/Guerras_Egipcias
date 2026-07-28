@@ -25,8 +25,8 @@ const START_HAND = 4;
 
 const PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
-  "Exército":   ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "colosso", "montu", "amon", "hathor", "assassino-medjay", "escaravelho"],
-  "Sacrifício": ["mumia", "sobek", "osiris", "sekhmet", "ammit", "apofis", "diluvio", "bennu", "hathor", "set", "maat", "selo"],
+  "Exército":   ["servo", "arqueiro", "escaravelho", "heka", "lanceiro", "carruagem", "enxame", "montu", "guardareal", "amon", "general", "colosso"],
+  "Sacrifício": ["servo", "bennu", "mumia", "armadura", "hathor", "sobek", "enxame", "sekhmet", "apofis", "osiris", "diluvio", "set"],
   "Controle":   ["anubis", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "set"],
   "Bênção":     ["renenutet", "hathor", "heka", "armadura", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "escaravelho", "montu", "amon"],
 };
