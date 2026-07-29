@@ -252,16 +252,16 @@ export default function App() {
   if (screen === "galeria") {
     return (
       <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <header className="flex flex-wrap items-center gap-3 justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· Galeria de cartas</span></h1>
-              <p className="text-xs text-stone-400">Amon com arte final; as demais com placeholder (vamos completando).</p>
+              <p className="text-xs text-stone-400">{COLLECTION.length} cartas na coleção, ordenadas por custo.</p>
             </div>
             <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Voltar</button>
           </header>
-          <div className="flex flex-wrap gap-4 justify-center">
-            {CARDS.map((def) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
+            {COLLECTION.map((def) => (
               <Carta key={def.key} nome={def.nome} custo={def.custo} poder={def.poder}
                 tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={240} />
             ))}

@@ -122,6 +122,11 @@ export const CARDS = [
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
 ];
 export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
+
+// Set ao qual a carta pertence. Cartas antigas não declaram nada e são "base";
+// o Set das Pragas declarará set: "pragas". Existe para os filtros da Galeria
+// sem precisar tocar nas 26 definições já escritas.
+export const setDe = (def) => def.set || "base";
 export const SIDE_NAME = ["Lado A (ouro)", "Lado B (lápis)"];
 
 // ------------------------------- utilidades --------------------------------
