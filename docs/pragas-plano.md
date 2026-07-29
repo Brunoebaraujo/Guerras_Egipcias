@@ -149,9 +149,19 @@ Em vez de testar Moisés contra um efeito falso, as 10 Pragas entraram como **ca
 
 Detalhe que caiu de graça: como Moisés é custo 1, ele morre para a **Sekhmet** e para a **Chuva de Granizo e Fogo** do adversário. E dobrar um Poder negativo piora a carta, então **debuffar Moisés é resposta legítima** — tem teste.
 
-### Fase 3 — As sete Pragas simples
-Sangue, Piolhos, Moscas, Peste, Granizo, Nuvem de Gafanhotos, Morte dos Primogênitos.
-Todas reusam verbos existentes: `aplicarBencao` com valor negativo, `resolveDestroyAllOfTypeInLane` ganhando escopo de lado.
+### Fase 3 — As sete Pragas simples ✅ concluída
+- **`PRAGA_EFEITOS`** em `engine.js`: mapa `key → resolvedor`, exposto por `resolvePraga(s, praga, rng)`. O `match.js` não sabe o que cada Praga faz — ele só garante a ordem do PDF (efeito → consumo → Sinal).
+- **Sangue (-1)** e **Nuvem de Gafanhotos (-2)** compartilham `debuffPorVia`: uma vítima sorteada **por via**, e via vazia não desperdiça o efeito das outras. Debuff é `mods`, permanente.
+- **Piolhos** e a segunda metade do **Granizo** compartilham `agravarCartaNaMao`: `custoMod += 1` na instância, que viaja para o tabuleiro e muda o que a Sekhmet e a Morte dos Primogênitos alcançam.
+- **Moscas**: duas `token-mosca` inseridas em posições sorteadas independentes do deck inimigo.
+- **Peste**: `resolveDestroyAllOfTypeInLane` ganhou a opção `{ escopo: "inimigos" }`. O padrão segue `"todos"`, então o **Assassino Medjay não mudou**.
+- **Granizo**: destrói uma inimiga de custo **efetivo** 1 — alcança o Moisés adversário — e depois agrava a mão.
+- **Morte dos Primogênitos**: maior custo efetivo, empate por sorteio.
+- **37 testes novos** em `src/pragas-efeitos.test.js`. Suíte: 154 → **191**.
+
+**Decisão de alcance registrada:** as Pragas atingem cartas **ainda por revelar**, filtrando apenas `!c.dying`. Não é uma escolha nova — é o critério que a Sekhmet, o Assassino Medjay e o `validTargets` já usavam; o motor nunca exigiu `revealed` para efeito nenhum. Consequência tática: quem tem prioridade acerta o que o oponente acabou de posicionar. Se algum dia isso for revisto, precisa ser revisto **no motor inteiro**, não só no set.
+
+**Reversão da decisão sobre o tipo do Moisés:** ele é **Divindade**, não Profeta. O objetivo é justamente que o **Assassino Medjay** o alcance.
 
 ### Fase 4 — As três estruturais
 - **Rãs** — criar token em slot inimigo vazio, via sorteada entre as que têm espaço
@@ -173,7 +183,7 @@ Custo, tipo, arquétipo e set.
 
 | # | Carta | Custo | Poder | Efeito |
 |---|-------|-------|-------|--------|
-| — | **Moisés, Portador das Pragas** | 1 | 0 | Começa na mão inicial. A 1ª Praga diferente enquanto em campo dá +1 de Poder. Cada Praga diferente seguinte **dobra** o Poder atual |
+| — | **Moisés, Portador das Pragas** (Divindade) | 1 | 0 | Começa na mão inicial. A 1ª Praga diferente enquanto em campo dá +1 de Poder. Cada Praga diferente seguinte **dobra** o Poder atual |
 | 1 | Águas Transformadas em Sangue | 1 | — | Uma carta inimiga aleatória em cada via ocupada recebe **-1** de Poder |
 | 2 | Praga das Rãs | 2 | — | Crie uma **Rã (1/1, Animal)** num espaço vazio de uma via inimiga aleatória. A Rã pertence ao oponente |
 | 3 | Praga dos Piolhos | 1 | — | Aumente em 1 o custo de uma carta aleatória na mão do adversário |

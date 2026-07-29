@@ -121,7 +121,7 @@ export const CARDS = [
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
   // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
-  { key: "moises", nome: "Moisés, Portador das Pragas", tipo: "Profeta", custo: 1, poder: 0, arch: "crescimento",
+  { key: "moises", nome: "Moisés, Portador das Pragas", tipo: "Divindade", custo: 1, poder: 0, arch: "crescimento",
     set: "pragas", abertura: true, outorga: "pragas",
     lore: "Criado na corte que depois desafiaria, recebeu antes um nome egípcio — mose, \"filho\" — do que uma missão. Diante do faraó não apresentou exército algum: apresentou o Nilo, virado contra o Egito.",
     texto: "Começa na mão. A 1ª Praga diferente que resolver enquanto ele estiver em campo dá +1 de Poder; cada Praga diferente seguinte dobra seu Poder atual. Escolhê-lo adiciona as 10 Pragas ao seu deck." },
@@ -493,6 +493,121 @@ export function registrarPraga(s, pragaKey) {
   return sinais;
 }
 
+/* ==========================================================================
+   EFEITOS DAS PRAGAS
+
+   Um mapa key → resolvedor. match.js chama resolvePraga() e não precisa saber
+   de nada: a ordem do documento de design (efeito → consumo → Sinal do Moisés)
+   fica lá; o QUE cada Praga faz fica aqui.
+
+   Alcance: as Pragas atingem cartas ainda por revelar, filtrando apenas
+   `!c.dying`. É o mesmo critério que a Sekhmet, o Assassino Medjay e o
+   validTargets já usam — o motor nunca exigiu `revealed` para efeito nenhum.
+   Consequência tática: quem tem prioridade acerta as cartas que o oponente
+   acabou de posicionar.
+   ========================================================================== */
+
+const sorteioUm = (arr, rng) => (arr.length ? arr[Math.floor(rng() * arr.length)] : null);
+
+// Cartas do lado oposto ainda no tabuleiro, opcionalmente de uma via só.
+const inimigasNoCampo = (s, praga, lane = null) =>
+  s.board.filter((c) => c.owner !== praga.owner && !c.dying && (lane === null || c.lane === lane));
+
+const semAlvo = (s, praga, motivo) => {
+  pushLog(s, `${byKey[praga.key].nome}: ${motivo}`);
+  return { uid: praga.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+};
+
+// Águas em Sangue (-1) e Nuvem de Gafanhotos (-2): uma vítima sorteada POR VIA.
+// Vias sem carta inimiga simplesmente não têm alvo — não desperdiçam o efeito
+// das outras. Valor negativo não dispara gatilho de bênção.
+function debuffPorVia(s, praga, val, rng) {
+  const def = byKey[praga.key];
+  const tocadas = [];
+  for (let lane = 0; lane < 3; lane++) {
+    const alvo = sorteioUm(inimigasNoCampo(s, praga, lane), rng);
+    if (!alvo) continue;
+    aplicarBencao(s, alvo, val, def.nome);
+    tocadas.push(alvo);
+  }
+  if (tocadas.length === 0) return semAlvo(s, praga, "nenhuma carta inimiga em campo.");
+  pushLog(s, `${def.nome}: ${val} em ${tocadas.map((c) => `${byKey[c.key].nome} (Via ${c.lane + 1})`).join(", ")}.`);
+  return { uid: praga.uid, text: `☾ ${val}×${tocadas.length}`, kind: "debuff", seq: s.effectSeq };
+}
+
+// Agrava em 1 o custo de uma carta sorteada na mão do adversário. O agravo mora
+// na INSTÂNCIA (custoMod) e viaja com ela para o tabuleiro, então também muda o
+// que a Sekhmet e a Morte dos Primogênitos alcançam.
+function agravarCartaNaMao(s, praga, rng) {
+  const oponente = 1 - praga.owner;
+  const alvo = sorteioUm(s.hand[oponente] || [], rng);
+  if (!alvo) return null;
+  alvo.custoMod = (alvo.custoMod || 0) + 1;
+  pushLog(s, `${byKey[praga.key].nome}: ${byKey[alvo.key].nome} na mão do ${SIDE_NAME[oponente]} passa a custar ${custoDe(alvo)}.`);
+  return alvo;
+}
+
+const PRAGA_EFEITOS = {
+  sangue: (s, praga, rng) => debuffPorVia(s, praga, -1, rng),
+
+  gafanhotos: (s, praga, rng) => debuffPorVia(s, praga, -2, rng),
+
+  piolhos: (s, praga, rng) => {
+    const alvo = agravarCartaNaMao(s, praga, rng);
+    if (!alvo) return semAlvo(s, praga, "a mão do adversário está vazia.");
+    return { uid: praga.uid, text: "☾ +1⚡", kind: "debuff", seq: s.effectSeq };
+  },
+
+  // Duas Moscas 1/0 embaralhadas no deck inimigo: cada compra dele passa a ter
+  // chance de vir morta. Posição sorteada de forma independente.
+  moscas: (s, praga, rng) => {
+    const oponente = 1 - praga.owner;
+    const deck = s.deck[oponente] || (s.deck[oponente] = []);
+    for (let i = 0; i < 2; i++) deck.splice(Math.floor(rng() * (deck.length + 1)), 0, "token-mosca");
+    pushLog(s, `${byKey[praga.key].nome}: 2 Moscas embaralhadas no deck do ${SIDE_NAME[oponente]} (${deck.length} cartas).`);
+    return { uid: praga.uid, text: "☾ 2 moscas", kind: "debuff", seq: s.effectSeq };
+  },
+
+  peste: (s, praga) => resolveDestroyAllOfTypeInLane(s, praga, "Animal", { escopo: "inimigos" }),
+
+  // Destrói uma inimiga de custo EFETIVO 1 e depois agrava a mão. Alcança o
+  // Moisés adversário, que é custo 1.
+  granizo: (s, praga, rng) => {
+    const alvo = sorteioUm(inimigasNoCampo(s, praga).filter((c) => custoDe(c) === 1), rng);
+    if (alvo) {
+      const retornos = destroyList(s, [alvo]);
+      pushLog(s, `${byKey[praga.key].nome} destruiu ${byKey[alvo.key].nome} (custo 1) na Via ${alvo.lane + 1}.`
+        + (retornos.length ? ` Múmia(s): ${retornos.map((r) => r.val).join(", ")}.` : ""));
+    } else {
+      pushLog(s, `${byKey[praga.key].nome}: nenhuma carta inimiga de custo 1 em jogo.`);
+    }
+    const agravada = agravarCartaNaMao(s, praga, rng);
+    if (!alvo && !agravada) return semAlvo(s, praga, "sem alvo em jogo e sem cartas na mão do adversário.");
+    return { uid: praga.uid, text: alvo ? "☥ 1✕ +1⚡" : "☾ +1⚡", kind: alvo ? "sac" : "debuff", seq: s.effectSeq };
+  },
+
+  // Destrói a inimiga de maior custo efetivo. Empate resolve por sorteio.
+  primogenitos: (s, praga, rng) => {
+    const pool = inimigasNoCampo(s, praga);
+    if (pool.length === 0) return semAlvo(s, praga, "nenhuma carta inimiga em campo.");
+    const teto = Math.max(...pool.map(custoDe));
+    const empatadas = pool.filter((c) => custoDe(c) === teto);
+    const alvo = sorteioUm(empatadas, rng);
+    const retornos = destroyList(s, [alvo]);
+    pushLog(s, `${byKey[praga.key].nome} destruiu ${byKey[alvo.key].nome} (custo ${teto}) na Via ${alvo.lane + 1}`
+      + (empatadas.length > 1 ? ` — sorteada entre ${empatadas.length} empatadas.` : ".")
+      + (retornos.length ? ` Múmia(s): ${retornos.map((r) => r.val).join(", ")}.` : ""));
+    return { uid: praga.uid, text: `☥ custo ${teto}`, kind: "sac", seq: s.effectSeq };
+  },
+};
+
+// Resolve o efeito de uma Praga. Devolve o badge da animação, ou null quando a
+// Praga ainda não tem efeito implementado (Rãs, Úlceras e Trevas — Fase 4).
+export function resolvePraga(s, praga, rng = Math.random) {
+  const fn = PRAGA_EFEITOS[praga.key];
+  return fn ? fn(s, praga, rng) : null;
+}
+
 // ------------------------ diagnostico / log de partida -----------------------
 // Decompoe o poder de uma carta. E o que torna um bug visivel: mostra a origem
 // de cada parcela em vez de so o total. Bonus marcados com * sao inertes.
@@ -672,18 +787,22 @@ export function resolveArmadura(s, arm) {
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
 }
 
-export function resolveDestroyAllOfTypeInLane(s, card, tipo) {
+// `escopo` decide de quem são as vítimas: "todos" (padrão — é o Assassino Medjay,
+// que limpa a via inteira, inclusive as suas) ou "inimigos" (a Peste nos Animais).
+export function resolveDestroyAllOfTypeInLane(s, card, tipo, { escopo = "todos" } = {}) {
   const victims = s.board.filter((c) => {
     if (c.dying) return false;
     if (c.lane !== card.lane) return false;
     if (c.uid === card.uid) return false;
+    if (escopo === "inimigos" && c.owner === card.owner) return false;
 
     const def = byKey[c.key];
     return def.tipo === tipo;
   });
 
   if (victims.length === 0) {
-    pushLog(s, `${byKey[card.key].nome}: nenhuma ${tipo} encontrada na Via ${card.lane + 1}.`);
+    const alcance = escopo === "inimigos" ? `${tipo} inimiga` : tipo;
+    pushLog(s, `${byKey[card.key].nome}: nenhuma ${alcance} encontrada na Via ${card.lane + 1}.`);
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
   }
 

@@ -54,8 +54,8 @@ describe("Pragas fora da coleção escolhível", () => {
     for (const k of PRAGA_KEYS) expect(outras).not.toContain(k);
   });
 
-  it("Moisés é tipo Profeta — o Assassino Medjay caça Divindades, não ele", () => {
-    expect(byKey.moises.tipo).toBe("Profeta");
+  it("Moisés é Divindade — o Assassino Medjay o alcança junto com a via", () => {
+    expect(byKey.moises.tipo).toBe("Divindade");
     expect(byKey["assassino-medjay"].destroyAllOfTypeInLane).toBe("Divindade");
   });
 

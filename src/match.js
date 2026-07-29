@@ -35,7 +35,7 @@
    ========================================================================== */
 
 import {
-  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, consumirCarta, registrarPraga,
+  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, consumirCarta, registrarPraga, resolvePraga,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
@@ -268,13 +268,15 @@ const ACTIONS = {
         pushLog(s, `⊘ ${def.nome}: bloqueado na Via ${card.lane + 1} — gasta sem efeito e sem Sinal.`);
         return ok(s);
       }
-      // (Fases 3 e 4) — o efeito de cada Praga entra aqui, antes do consumo.
+      const badge = resolvePraga(s, card, rng);
       consumirCarta(s, card);
       pushLog(s, `${def.nome} resolveu e deixou o campo.`);
+      // O Sinal do Moisés é o que o olho precisa ver; o badge da própria Praga
+      // só aparece quando nenhum Moisés estava em campo para registrá-la.
       const sinais = registrarPraga(s, card.key);
       s.effect = sinais.length
         ? { uid: sinais[0].uid, text: `✧ ${sinais[0].depois}`, kind: "buff", seq: s.effectSeq }
-        : { uid: card.uid, text: "✧ —", kind: "block", seq: s.effectSeq };
+        : badge || { uid: card.uid, text: "✧ —", kind: "block", seq: s.effectSeq };
       return ok(s);
     }
 
