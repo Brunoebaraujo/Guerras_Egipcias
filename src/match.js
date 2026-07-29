@@ -35,7 +35,7 @@
    ========================================================================== */
 
 import {
-  byKey, SIDE_NAME, nextUid, pushLog,
+  byKey, SIDE_NAME, nextUid, pushLog, custoDe,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
@@ -122,7 +122,8 @@ const ACTIONS = {
     if (idx < 0) return err(g, "Carta não está na mão.");
     const h = g.hand[side][idx];
     const def = byKey[h.key];
-    if (g.energy[side] < def.custo) return err(g, `Sem energia: ${def.nome} custa ${def.custo}.`);
+    const custo = custoDe(h);   // impresso + agravos (Piolhos, Granizo)
+    if (g.energy[side] < custo) return err(g, `Sem energia: ${def.nome} custa ${custo}.`);
     if (g.board.filter((c) => c.lane === lane && c.owner === side).length >= 4)
       return err(g, `Via ${lane + 1} cheia (4/4).`);
     const s = clone(g);
@@ -130,9 +131,10 @@ const ACTIONS = {
     s.board.push({
       uid: nextUid(), key: h.key, owner: side, lane,
       printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
+      custoMod: h.custoMod || 0,
       entryPlays: s.plays[side], enteredRound: s.round, moved: false,
     });
-    s.energy[side] -= def.custo;
+    s.energy[side] -= custo;
     s.hand[side].splice(idx, 1);
     pushLog(s, `${SIDE_NAME[side]} posicionou ${def.nome} na Via ${lane + 1} (por revelar).`);
     return ok(s);
@@ -148,9 +150,9 @@ const ACTIONS = {
     if (c.owner !== side) return err(g, "Carta não é sua.");
     if (c.revealed) return err(g, "Carta já revelada não pode ser recolhida.");
     const def = byKey[c.key];
-    s.energy[c.owner] += def.custo;
+    s.energy[c.owner] += custoDe(c);   // devolve o que foi realmente pago
     s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
-    s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked });
+    s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0 });
     s.board.splice(idx, 1);
     pushLog(s, `${SIDE_NAME[c.owner]} recolheu ${def.nome} para a mão.`);
     return ok(s);

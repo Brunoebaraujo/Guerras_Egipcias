@@ -106,11 +106,14 @@ Parar entre cada fase, com testes verdes e push. As fases 1 e 2 são as que pode
 ### Fase 0 — Galeria e metadados
 Ordenação por custo, 4 colunas, helper `setDe(def)` (`"base"` por padrão) para destravar os filtros futuros sem tocar nas 26 cartas existentes.
 
-### Fase 1 — Fundação efêmera (`engine.js` + `match.js`)
-- `consumirCarta()` — saída sem morte
-- `TOKENS` separado de `CARDS`; tipo **Animal**
-- Helper `custoDe()` substituindo os ~12 usos de `.custo`
-- **Testes de regressão obrigatórios:** Osíris e Am-heh **não** podem reagir a Praga consumida
+### Fase 1 — Fundação efêmera (`engine.js` + `match.js`) ✅ concluída
+- `consumirCarta(s, card)` — saída de campo sem morte. Reusa a marca `dying` (que os filtros e a animação já entendem) mas **não passa por `destroyList()`**. A garantia contra Osíris/Am-heh/Múmia/Bennu é **estrutural**, não uma varredura de call sites.
+- `TOKENS` separado de `CARDS`: `token-ra` (1/1) e `token-mosca` (1/0), ambos tipo **Animal**. `byKey` une os dois; Galeria e deckbuilder continuam lendo só `CARDS`. Chaves prefixadas para não colidirem com um futuro **Rá**, o deus-sol.
+- `custoDe(instancia)` — custo impresso + `custoMod`. Aplicado em: energia paga (`place`), devolução (`pickup`), **Sekhmet**, e nos 4 pontos de exibição da UI (mão desktop, mão mobile, MiniCard do tabuleiro, zoom). O `custoMod` viaja mão → tabuleiro → mão.
+- `snapshotTabuleiro` distingue `(consumida)` de `(morrendo)` no log de partida.
+- **27 testes novos** em `src/pragas.test.js`. Suíte: 93 → **120**.
+
+Armadilha encontrada e corrigida: `dying = s.effectSeq` vira **falsy quando `effectSeq` é 0**. O motor só escapava disso porque `step` sempre incrementa antes de resolver. `consumirCarta` usa `s.effectSeq || 1`.
 
 ### Fase 2 — Moisés isolado
 Registro `pragasVistas`, gravação por snapshot, regra de "só em campo", preservação do registro para ressurreição futura. **Sem nenhuma Praga ainda** — Moisés testado contra um efeito falso.

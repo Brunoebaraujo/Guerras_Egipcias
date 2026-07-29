@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Carta from "./Carta.jsx";
 import {
-  CARDS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME,
+  CARDS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
   power, laneScore, laneWins, matchResult, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
@@ -164,14 +164,14 @@ export default function App() {
     const def = byKey[c.key];
     const cur = c.revealed ? power(c, ctxOf(g)) : null;
     setZoom({
-      def, printed: c.printed, baked: c.baked || 0, current: cur,
+      def, custo: custoDe(c), printed: c.printed, baked: c.baked || 0, current: cur,
       partes: c.revealed ? decomporPartes(c, ctxOf(g)) : null,
       sub: `Via ${c.lane + 1} · ${SIDE_NAME[c.owner]}` + (c.revealed ? "" : " · por revelar"),
     });
   }
   function zoomHand(h) {
     const def = byKey[h.key];
-    setZoom({ def, printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
+    setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
   }
 
   // ----------------------------- PLANEJAR ----------------------------------
@@ -665,7 +665,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
         {artSrc && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,.65) 100%)" }} />}
         <div style={{ position: "relative", display: "flex", justifyContent: "space-between", padding: `${f(0.25)}px ${f(0.35)}px 0` }}>
           <span className={ARCH_COLOR[def.arch]} style={{ fontSize: f(1.0), lineHeight: 1 }}>{GLYPH[def.arch]}</span>
-          <span style={{ color: "#d6d3d1", fontSize: f(0.8), lineHeight: 1 }}>{movable ? "⇄" : `${def.custo}⚡`}</span>
+          <span style={{ color: custoDe(c) > byKey[c.key].custo ? "#fda4af" : "#d6d3d1", fontSize: f(0.8), lineHeight: 1 }}>{movable ? "⇄" : `${custoDe(c)}⚡`}</span>
         </div>
         <div style={{ position: "relative", color: "#e7e5e4", fontSize: f(0.82), lineHeight: 1.08, textAlign: "center", padding: `0 ${f(0.25)}px`, overflow: "hidden", textShadow: "0 1px 2px rgba(0,0,0,.9)" }}>{def.nome}</div>
         <div style={{ position: "relative", textAlign: "center", paddingBottom: f(0.2) }}>
@@ -684,13 +684,13 @@ const PART_COLOR = {
 };
 
 function ZoomModal({ zoom, onClose }) {
-  const { def, printed, baked, current, sub, partes } = zoom;
+  const { def, printed, baked, current, sub, partes } = zoom;   // zoom.custo = custo efetivo
   const shown = current != null ? current : printed + (baked || 0);
   const w = Math.min(320, typeof window !== "undefined" ? window.innerWidth * 0.78 : 320);
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, cursor: "zoom-out" }}>
       <div className="duat-zoom" onClick={(e) => e.stopPropagation()} style={{ cursor: "default" }}>
-        <Carta nome={def.nome} custo={def.custo} poder={shown} tipo={def.tipo}
+        <Carta nome={def.nome} custo={zoom.custo != null ? zoom.custo : def.custo} poder={shown} tipo={def.tipo}
           efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={w} />
         <div className="text-center mt-2 text-sm text-stone-300" style={{ maxWidth: w }}>
           <div>{sub}</div>
@@ -738,7 +738,9 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
   const CardBtn = ({ h }) => {
     const def = byKey[h.key];
     const isSel = sel && sel.side === side && sel.hid === h.hid;
-    const afford = g.energy[side] >= def.custo;
+    const custo = custoDe(h);
+    const afford = g.energy[side] >= custo;
+    const agravada = custo > def.custo;
     const faixa = h.baked > 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
     const drawn = g.justDrew?.[side]?.includes(h.hid);
     return (
@@ -746,7 +748,7 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
         <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })} title={def.texto || "Carta base (sem efeito)"}
           className="text-left w-full p-1 pr-5">
           <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nome}</div>
-          <div className="text-xs text-stone-400 mt-0.5">{def.custo}⚡{faixa}</div>
+          <div className="text-xs text-stone-400 mt-0.5"><span className={agravada ? "text-rose-300 font-semibold" : ""}>{custo}⚡</span>{faixa}</div>
         </button>
         <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar carta"
           className="absolute top-0.5 right-0.5 text-stone-500 hover:text-amber-300 text-xs leading-none p-0.5">🔍</button>
@@ -980,7 +982,8 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const base = import.meta.env.BASE_URL;
   const def = byKey[h.key];
   const isSel = sel && sel.side === side && sel.hid === h.hid;
-  const afford = g.energy[side] >= def.custo;
+  const custo = custoDe(h);
+  const afford = g.energy[side] >= custo;
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const faixa = h.baked > 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
@@ -1004,7 +1007,7 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
           {artSrc
             ? <img src={artSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: afford ? 1 : 0.7 }} />
             : <div className={ARCH_COLOR[def.arch]} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{GLYPH[def.arch]}</div>}
-          <span style={{ position: "absolute", top: 2, left: 3, fontSize: 11, fontWeight: 800, color: "#fde68a", textShadow: "0 1px 2px #000" }}>{def.custo}⚡</span>
+          <span style={{ position: "absolute", top: 2, left: 3, fontSize: 11, fontWeight: 800, color: custo > def.custo ? "#fda4af" : "#fde68a", textShadow: "0 1px 2px #000" }}>{custo}⚡</span>
         </div>
         <div style={{ padding: "3px 5px 4px" }}>
           <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 10.5, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{def.nome}</div>
@@ -1179,14 +1182,14 @@ function OnlineGame({ send, data, note, onLeave }) {
     const def = byKey[c.key]; if (!def) return;
     const cur = c.revealed ? power(c, ctx) : null;
     setZoom({
-      def, printed: c.printed, baked: c.baked || 0, current: cur,
+      def, custo: custoDe(c), printed: c.printed, baked: c.baked || 0, current: cur,
       partes: c.revealed ? decomporPartes(c, ctx) : null,
       sub: `Via ${c.lane + 1} · ${SIDE_NAME[c.owner]}` + (c.revealed ? "" : " · por revelar"),
     });
   }
   function zoomHand(h) {
     const def = byKey[h.key]; if (!def) return;
-    setZoom({ def, printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
+    setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
   }
 
   const oppAiming = rawAim && rawAim.side !== seat;

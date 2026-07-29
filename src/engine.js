@@ -121,7 +121,27 @@ export const CARDS = [
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
 ];
-export const byKey = Object.fromEntries(CARDS.map((c) => [c.key, c]));
+/* ---------------------------------- TOKENS ---------------------------------
+   Cartas que NUNCA entram em deck nem aparecem na Galeria: só existem porque um
+   efeito as criou. Ficam FORA de CARDS (que é a coleção jogável, lida pela
+   Galeria e pelo deckbuilder) e DENTRO de byKey, que é a tabela de consulta de
+   todo o motor. Ambas são custo 1 de propósito: a Sekhmet tem que alcançá-las. */
+export const TOKENS = [
+  { key: "token-ra", nome: "Rã", tipo: "Animal", custo: 1, poder: 1, arch: "base", set: "pragas", token: true,
+    lore: "A segunda praga subiu do Nilo e entrou nos fornos, nas camas e nas amassadeiras. Não matava ninguém: apenas ocupava cada palmo até não haver onde pisar." },
+  { key: "token-mosca", nome: "Mosca", tipo: "Animal", custo: 1, poder: 0, arch: "base", set: "pragas", token: true,
+    lore: "O enxame da quarta praga não devorava nem picava — apenas estava em toda parte, num zumbido que não deixava pensar. O Egito aprendeu que atrapalhar basta." },
+];
+
+export const byKey = Object.fromEntries([...CARDS, ...TOKENS].map((c) => [c.key, c]));
+
+// Custo efetivo de uma INSTÂNCIA (item de mão ou carta de tabuleiro): o custo
+// impresso mais os agravos gravados nela (Praga dos Piolhos, Chuva de Granizo).
+// Todo lugar que DECIDE algo por custo — energia paga, devolução ao recolher,
+// Sekhmet, Morte dos Primogênitos — tem que passar por aqui. Quem só EXIBE a
+// coleção (Galeria, deckbuilder) pode continuar lendo def.custo, porque lá não
+// existe instância.
+export const custoDe = (c) => Math.max(0, byKey[c.key].custo + (c.custoMod || 0));
 
 // Set ao qual a carta pertence. Cartas antigas não declaram nada e são "base";
 // o Set das Pragas declarará set: "pragas". Existe para os filtros da Galeria
@@ -258,6 +278,19 @@ export function buildRevealQueue(s) {
   return queue;
 }
 
+// --------------------- saída de campo SEM morte (Pragas) ---------------------
+// Uma carta CONSUMIDA deixa o tabuleiro depois de fazer o que veio fazer — ela
+// não foi destruída. Reusa a marca `dying`, que é a saída de campo que o resto
+// do motor e a animação já entendem (filtros de via cheia, laneScore, alvos),
+// mas NÃO passa por destroyList(). É isso que garante, POR CONSTRUÇÃO e não por
+// varredura, que nada de morte dispare: deaths[], destroyedPower[] (Am-heh),
+// Osíris, Múmia e Bennu ficam intocados. É assim que as Pragas saem do campo.
+export function consumirCarta(s, card) {
+  card.dying = s.effectSeq || 1;   // nunca 0: dying é lido como booleano nos filtros
+  card.spent = true;
+  return card;
+}
+
 // ------------------------------ destruição ----------------------------------
 export function destroyList(s, victims) {
   const mumias = [];
@@ -391,7 +424,7 @@ export function snapshotTabuleiro(s, titulo) {
     for (let lane = 0; lane < 3; lane++) {
       const cs = s.board.filter((c) => c.owner === side && c.lane === lane);
       const desc = cs.length
-        ? cs.map((c) => `${byKey[c.key].nome}${c.revealed ? "" : " (oculta)"}${c.dying ? " (morrendo)" : ""} ${decompor(c, ctx)}`).join(" | ")
+        ? cs.map((c) => `${byKey[c.key].nome}${c.revealed ? "" : " (oculta)"}${c.spent ? " (consumida)" : c.dying ? " (morrendo)" : ""} ${decompor(c, ctx)}`).join(" | ")
         : "—";
       linhas.push(`    Via ${lane + 1} [${laneScore(ctx, lane, side)}]: ${desc}`);
     }
@@ -572,7 +605,7 @@ export function resolveDestroyAllOfTypeInLane(s, card, tipo) {
 }
 
 export function resolveSekhmet(s, card, cost) {
-  const victims = s.board.filter((c) => byKey[c.key].custo === cost && c.uid !== card.uid);
+  const victims = s.board.filter((c) => custoDe(c) === cost && c.uid !== card.uid);
   if (victims.length === 0) { pushLog(s, `Sekhmet: nenhuma carta de custo ${cost} em jogo.`); return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq }; }
   const returns = destroyList(s, victims);
   pushLog(s, `Sekhmet destruiu ${victims.length} carta(s) de custo ${cost}.` + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
