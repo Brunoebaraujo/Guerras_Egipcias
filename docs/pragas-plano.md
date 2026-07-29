@@ -33,6 +33,9 @@ Serve para retomar o trabalho de qualquer ponto sem reabrir as mesmas perguntas.
 | 10 | Selo do Silêncio vs. Praga | **Bloqueia.** O efeito de uma Praga é um "Ao Entrar" para todos os efeitos. A Praga é consumida mesmo assim (sai do campo), e **Moisés não recebe o Sinal** — praga sem efeito é praga que não aconteceu |
 | 11 | Rã e o contador `plays` | **Incrementa** `plays` do oponente, alimentando a Ammit dele. É consequência de uma decisão do jogador que lançou a Praga, e faz parte do preço |
 | 12 | Mão de abertura | **Confirmado:** Moisés + 3 aleatórias = 4 cartas, o tamanho atual (3 da abertura + a compra da rodada 1) |
+| 13 | As Pragas são escolhíveis? | **Não.** Ficam fora da coleção. O jogador escolhe Moisés + 11 cartas = 12; ao começar a partida o jogo **acrescenta as 10 Pragas e embaralha** |
+| 14 | Como o jogador as consulta? | Botão **Pragas** na Galeria — visualização apenas, sem seleção |
+| 15 | Pragas não consomem a reserva da Heka | Uma carta sem Poder que deixa o campo comeria o +3 sem interação nenhuma. A reserva **espera** a próxima carta que fica — normalmente o Moisés, e aí as Pragas seguintes dobram o bônus. É o combo que o PDF descreve |
 
 ---
 
@@ -88,14 +91,31 @@ Vive no objeto da carta no `board`, então qualquer ressurreição futura preser
 
 ## 4. Matemática do arquétipo
 
-Números medidos contra o motor atual (energia **não acumula**: `energy = round`).
+Energia **não acumula** (`energy = round`), então o orçamento é 1, 2, 3, 4, 5, 6 por rodada — 21 no total. O custo somado das 10 Pragas é **26**: jogar todas é impossível por construção.
 
-- Energia total nas 6 rodadas: `1+2+3+4+5+6 = 21`
-- Custo somado das 10 Pragas: **26** (+1 de Moisés = 27) → **impossível jogar todas**
-- Cartas vistas: 3 de abertura + 6 compras = **9 de 12**
-- Teto teórico com curva perfeita: até 8 Pragas diferentes → **128 de Poder em uma via só**
+### O que a outorga mudou
 
-Com 128 numa via e nada nas outras duas, o jogador **perde de 2×1**. Confirma a decisão #9: o set é um **pacote** (Moisés + 5–6 Pragas + 5–6 guerreiros), com Moisés parando realisticamente em **16–32**. Isso precisa estar escrito no documento de design, senão o primeiro playtest vai parecer que o arquétipo está quebrado quando na verdade está sem vias.
+Com o deck de 12, a curva era quebrada: 9 cartas vistas de 12, controle quase total da compra, e um teto teórico de **128 de Poder numa via só** — que perdia de 2×1 justamente por concentrar tudo numa via.
+
+A decisão #13 (deck de 12 → 22) **resolveu isso**. Agora são 9 cartas vistas de 22, com a compra fora do controle do jogador.
+
+Simulação de 200.000 partidas, compra guloso-ótima (Praga inédita mais barata primeiro, para maximizar Sinais), Moisés na rodada 1, sem outros buffs:
+
+| Poder final do Moisés | Frequência |
+|---|---|
+| 1 | 0,7% |
+| 2 | 6,1% |
+| 4 | 22,2% |
+| **8** | **35,3%** |
+| 16 | 26,8% |
+| 32 | 8,1% |
+| 64 | 0,7% |
+
+- Média de Pragas compradas: **4,28**
+- Média das suas 11 cartas escolhidas que aparecem: **4,72** — o suficiente para contestar as outras duas vias
+- Mediana do Poder do Moisés: **8**
+
+O arquétipo passou a ter variância real sem teto absurdo, e o custo dele deixou de ser só "concentrar numa via": passou a ser **perder o controle da própria compra**. Continua valendo a decisão #9 — as 11 vagas precisam de um segundo arquétipo.
 
 ---
 
@@ -115,8 +135,19 @@ Ordenação por custo, 4 colunas, helper `setDe(def)` (`"base"` por padrão) par
 
 Armadilha encontrada e corrigida: `dying = s.effectSeq` vira **falsy quando `effectSeq` é 0**. O motor só escapava disso porque `step` sempre incrementa antes de resolver. `consumirCarta` usa `s.effectSeq || 1`.
 
-### Fase 2 — Moisés isolado
-Registro `pragasVistas`, gravação por snapshot, regra de "só em campo", preservação do registro para ressurreição futura. **Sem nenhuma Praga ainda** — Moisés testado contra um efeito falso.
+### Fase 2 — Moisés, a outorga e as 10 Pragas como cartas ✅ concluída
+Em vez de testar Moisés contra um efeito falso, as 10 Pragas entraram como **cartas completas com efeito ainda vazio**. Isso torna a fase inteira jogável no navegador: a outorga, a diluição, o consumo e os Sinais já funcionam, e as Fases 3 e 4 só preenchem os efeitos.
+
+- **Moisés** em `CARDS` (custo 1, Poder 0, tipo **Profeta** — de propósito: o Assassino Medjay caça Divindades, não profetas). Declara `abertura: true` e `outorga: "pragas"`.
+- **`PRAGAS`** — as 10, fora de `CARDS`, com nome, custo, tipo `Praga`, texto e lore. `byKey` une coleção + pragas + tokens.
+- **`expandirDeck(list)`** e o mapa `OUTORGAS` — genérico: qualquer arquétipo futuro que entregue um sub-deck só declara a sua outorga.
+- **`puxarParaAbertura(deck)`** — cartas com `abertura: true` sobem ao topo depois do embaralhamento.
+- **`registrarPraga(s, key)`** — os Sinais, por snapshot. Progressão 1, 2, 4, 8, 16, 32 verificada em teste.
+- **Ramo das Pragas no `step`** — ordem do PDF: efeito → `consumirCarta` → Sinal. Selo do Silêncio bloqueia e a Praga é gasta sem Sinal.
+- **UI** — aba "Pragas" na Galeria (só visualização, com nota explicativa), aviso `+10 Pragas outorgadas` nos três deckbuilders, e preset **"Pragas"** para playtest.
+- **34 testes novos** em `src/moises.test.js`. Suíte: 120 → **154**.
+
+Detalhe que caiu de graça: como Moisés é custo 1, ele morre para a **Sekhmet** e para a **Chuva de Granizo e Fogo** do adversário. E dobrar um Poder negativo piora a carta, então **debuffar Moisés é resposta legítima** — tem teste.
 
 ### Fase 3 — As sete Pragas simples
 Sangue, Piolhos, Moscas, Peste, Granizo, Nuvem de Gafanhotos, Morte dos Primogênitos.

@@ -120,7 +120,60 @@ export const CARDS = [
     trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
+  // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
+  { key: "moises", nome: "Moisés, Portador das Pragas", tipo: "Profeta", custo: 1, poder: 0, arch: "crescimento",
+    set: "pragas", abertura: true, outorga: "pragas",
+    lore: "Criado na corte que depois desafiaria, recebeu antes um nome egípcio — mose, \"filho\" — do que uma missão. Diante do faraó não apresentou exército algum: apresentou o Nilo, virado contra o Egito.",
+    texto: "Começa na mão. A 1ª Praga diferente que resolver enquanto ele estiver em campo dá +1 de Poder; cada Praga diferente seguinte dobra seu Poder atual. Escolhê-lo adiciona as 10 Pragas ao seu deck." },
 ];
+
+/* ======================= SET DAS PRAGAS — cartas outorgadas ==================
+   As 10 Pragas NÃO são escolhíveis: ficam fora de CARDS, então nem a Galeria
+   principal nem o deckbuilder as oferecem. Quem as traz é o Moisés — ele declara
+   `outorga`, e ao começar a partida as 10 entram no deck e vão para o
+   embaralhamento. Escolher Moisés custa 1 das 12 vagas e infla o deck para 22:
+   é esse o preço do arquétipo, e é por isso que a curva dele é imprevisível.
+
+   Reusam os arquétipos existentes (debuff, sacrificio, silencio) em vez de criar
+   um glifo novo — a identidade visual do set virá da moldura em medalhão. */
+export const PRAGAS = [
+  { key: "sangue", nome: "Águas em Sangue", tipo: "Praga", custo: 1, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    texto: "Uma carta inimiga aleatória em cada via ocupada recebe -1 de Poder.",
+    lore: "Tudo no Egito media-se pelo Nilo: a colheita, o calendário, o imposto. Quando a água deixou de ser água, não faltou apenas bebida — faltou a régua com que o país se entendia." },
+  { key: "ras", nome: "Praga das Rãs", tipo: "Praga", custo: 2, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    texto: "Crie uma Rã (1/1) num espaço vazio de uma via inimiga aleatória. A Rã pertence ao oponente.",
+    lore: "Heket tinha cabeça de rã e presidia o nascimento: o animal era sinal de vida que se multiplica. A praga não trouxe nada de novo ao Egito — só devolveu o próprio símbolo em quantidade insuportável." },
+  { key: "piolhos", nome: "Praga dos Piolhos", tipo: "Praga", custo: 1, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    texto: "Aumente em 1 o custo de uma carta aleatória na mão do adversário.",
+    lore: "O sacerdote egípcio raspava o corpo inteiro e se lavava quatro vezes ao dia; impureza no corpo era impureza no rito. A terceira praga não feriu ninguém: apenas tornou todo o clero incapaz de servir." },
+  { key: "moscas", nome: "Praga das Moscas", tipo: "Praga", custo: 2, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    texto: "Embaralhe duas Moscas (1/0) no deck do adversário.",
+    lore: "O faraó condecorava seus bravos com a Mosca de Ouro, pingente entregue a quem não recuava em combate. Foi essa insígnia que a quarta praga cobriu de escárnio, enchendo o Egito de moscas que ninguém quis." },
+  { key: "peste", nome: "Peste nos Animais", tipo: "Praga", custo: 3, poder: 0, arch: "sacrificio", set: "pragas", praga: true,
+    texto: "Destrua todos os Animais inimigos na via em que esta Praga foi jogada.",
+    lore: "Rebanho era riqueza contável: os escribas registravam cabeça por cabeça, e o touro Ápis era adorado vivo em Mênfis. Matar o gado do Egito esvaziava ao mesmo tempo o celeiro e o altar." },
+  { key: "ulceras", nome: "Praga das Úlceras", tipo: "Praga", custo: 2, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    texto: "Escolha uma via. Uma carta inimiga aleatória nela recebe Úlceras: -1 de Poder no início de cada rodada enquanto permanecer em jogo.",
+    lore: "O Papiro de Ebers dedica dezenas de receitas às feridas de pele — mel, gordura, malaquita moída. Contra a sexta praga nenhuma serviu, e a medicina mais antiga do mundo assistiu de mãos vazias." },
+  { key: "granizo", nome: "Chuva de Granizo e Fogo", tipo: "Praga", custo: 3, poder: 0, arch: "sacrificio", set: "pragas", praga: true,
+    texto: "Destrua uma carta inimiga aleatória de custo 1 em jogo. Depois, aumente em 1 o custo de uma carta aleatória na mão do adversário.",
+    lore: "No Egito quase não chove, e granizo era coisa de que só se ouvia falar em terras estrangeiras. Cair gelo do céu não foi só destruição: foi a prova de que o céu havia trocado de dono." },
+  { key: "gafanhotos", nome: "Nuvem de Gafanhotos", tipo: "Praga", custo: 3, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    texto: "Uma carta inimiga aleatória em cada via ocupada recebe -2 de Poder.",
+    lore: "O Egito guardava grão para os anos magros, e era essa reserva que o tornava a potência do mundo antigo. A oitava praga não roubou o celeiro: comeu a safra que ainda estava de pé, antes que houvesse o que guardar." },
+  { key: "trevas", nome: "Trevas sobre o Egito", tipo: "Praga", custo: 3, poder: 0, arch: "silencio", set: "pragas", praga: true,
+    texto: "Na próxima rodada, as cartas dos dois lados permanecem ocultas. Na rodada seguinte, revele primeiro as atrasadas.",
+    lore: "Todas as manhãs Rá vencia a serpente e o sol subia; era esse combate que garantia que o mundo continuasse existindo. Três dias de escuridão dispensaram qualquer discurso: diziam que Rá havia perdido." },
+  { key: "primogenitos", nome: "Morte dos Primogênitos", tipo: "Praga", custo: 6, poder: 0, arch: "sacrificio", set: "pragas", praga: true,
+    texto: "Destrua a carta inimiga de maior custo em jogo. Em caso de empate, escolha aleatória.",
+    lore: "Era o filho mais velho que abria a boca do morto e lhe servia pão e cerveja pela eternidade; sem ele, o ka do pai passava fome para sempre. A décima praga não matou apenas herdeiros — condenou uma geração de pais à segunda morte." },
+];
+
+export const PRAGA_KEYS = PRAGAS.map((p) => p.key);
+
+// Sub-decks outorgados por carta. `outorga: "pragas"` no Moisés significa: ao
+// montar a partida, acrescente estas chaves ao deck de quem o escolheu.
+export const OUTORGAS = { pragas: PRAGA_KEYS };
 /* ---------------------------------- TOKENS ---------------------------------
    Cartas que NUNCA entram em deck nem aparecem na Galeria: só existem porque um
    efeito as criou. Ficam FORA de CARDS (que é a coleção jogável, lida pela
@@ -133,7 +186,7 @@ export const TOKENS = [
     lore: "O enxame da quarta praga não devorava nem picava — apenas estava em toda parte, num zumbido que não deixava pensar. O Egito aprendeu que atrapalhar basta." },
 ];
 
-export const byKey = Object.fromEntries([...CARDS, ...TOKENS].map((c) => [c.key, c]));
+export const byKey = Object.fromEntries([...CARDS, ...PRAGAS, ...TOKENS].map((c) => [c.key, c]));
 
 // Custo efetivo de uma INSTÂNCIA (item de mão ou carta de tabuleiro): o custo
 // impresso mais os agravos gravados nela (Praga dos Piolhos, Chuva de Granizo).
@@ -400,6 +453,44 @@ export function descarregarPendentes(s, card, rng = Math.random) {
   let tocadas = 0;
   for (let i = 0; i < n; i++) tocadas += espalharBencao(s, card, rng, i).length;
   return { ondas: n, tocadas };
+}
+
+// --------------------------- Moisés e os Sinais ------------------------------
+// Moisés registra cada Praga DIFERENTE que resolver enquanto ele estiver
+// efetivamente em campo (revelado e não morrendo). A primeira dá +1; cada
+// diferente seguinte DOBRA o Poder atual.
+//
+// Dobrar aqui é gravar uma parcela igual ao total atual. Assim a duplicação sai
+// de graça do modelo aditivo e power() continua sendo exatamente a soma de
+// decomporPartes() — a invariante que impede o número exibido de divergir da
+// explicação. O preço aceito: auras (Amon, Montu) entram CONGELADAS na parcela;
+// se a fonte morrer depois, a aura viva some mas a metade congelada fica. É o
+// mesmo que o Enxame e o Apófis já fazem, e é fiel ao texto: a praga dobrou o
+// Poder daquele instante.
+//
+// O registro vive no objeto da carta (`pragasVistas`), então qualquer
+// ressurreição futura preserva Poder e Sinais sem precisar de um cemitério.
+//
+// Dobrar um Poder NEGATIVO piora a carta — é fiel a "dobra o Poder atual", e faz
+// de debuffar Moisés uma resposta legítima ao arquétipo.
+export function registrarPraga(s, pragaKey) {
+  const nome = byKey[pragaKey].nome;
+  const sinais = [];
+  for (const m of s.board.filter((c) => c.key === "moises" && c.revealed && !c.dying)) {
+    m.pragasVistas = m.pragasVistas || [];
+    if (m.pragasVistas.includes(pragaKey)) {
+      pushLog(s, `Moisés já presenciou ${nome} — o efeito resolve, mas não há novo Sinal.`);
+      continue;
+    }
+    m.pragasVistas.push(pragaKey);
+    const antes = power(m, ctxOf(s));
+    const ganho = m.pragasVistas.length === 1 ? 1 : antes;   // 1º Sinal: +1. Depois: dobra.
+    if (ganho !== 0) aplicarBencao(s, m, ganho, `Sinal: ${nome}`);
+    const depois = power(m, ctxOf(s));
+    pushLog(s, `\u2727 Moisés presenciou ${nome} (${m.pragasVistas.length}\u00ba Sinal): Poder ${antes} \u2192 ${depois}.`);
+    sinais.push({ uid: m.uid, antes, depois });
+  }
+  return sinais;
 }
 
 // ------------------------ diagnostico / log de partida -----------------------

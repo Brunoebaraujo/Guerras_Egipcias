@@ -35,7 +35,7 @@
    ========================================================================== */
 
 import {
-  byKey, SIDE_NAME, nextUid, pushLog, custoDe,
+  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, consumirCarta, registrarPraga,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
@@ -60,6 +60,30 @@ const shuffledR = (arr, rng = Math.random) => {
   return a;
 };
 const coinR = (rng = Math.random) => (rng() < 0.5 ? 0 : 1);
+
+/* --- outorga: sub-decks que vêm de brinde com uma carta escolhida -----------
+   Moisés declara `outorga: "pragas"`. Escolhê-lo custa 1 das 12 vagas e enfia as
+   10 Pragas no deck, que passa de 12 para 22 cartas. A diluição É o custo do
+   arquétipo: você ganha 26 de energia em efeitos, mas perde o controle da compra.
+   Genérico de propósito — qualquer arquétipo futuro que entregue um sub-deck só
+   precisa declarar sua outorga em OUTORGAS. */
+export function expandirDeck(list) {
+  const extras = [];
+  for (const key of list) {
+    const nome = byKey[key]?.outorga;
+    if (nome && OUTORGAS[nome]) extras.push(...OUTORGAS[nome]);
+  }
+  return extras.length ? [...list, ...extras] : [...list];
+}
+
+/* Cartas com `abertura: true` sobem para o topo DEPOIS do embaralhamento, o que
+   garante que caiam na mão inicial. Moisés é a primeira: um Moisés que não vem
+   na abertura é um deck de 22 cartas sem plano. */
+function puxarParaAbertura(deck) {
+  const fixas = deck.filter((k) => byKey[k]?.abertura);
+  if (fixas.length === 0) return deck;
+  return [...fixas, ...deck.filter((k) => !byKey[k]?.abertura)];
+}
 
 const clone = (s) => JSON.parse(JSON.stringify(s));
 const err = (state, msg) => ({ state, error: msg });
@@ -87,7 +111,8 @@ function drawForRound(s) {
 
 /* ============================ ESTADO INICIAL ============================== */
 export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEAL } = {}) {
-  const decks = [shuffledR(lists[0], rng), shuffledR(lists[1], rng)];
+  const listas = [expandirDeck(lists[0]), expandirDeck(lists[1])];
+  const decks = listas.map((l) => puxarParaAbertura(shuffledR(l, rng)));
   const pr = coinR(rng);
   const linha = `Rodada 1 — mão de abertura ${openingDeal}, compra a ${openingDeal + 1}ª. Prioridade: ${SIDE_NAME[pr]} (sorteio).`;
   const s = {
@@ -98,6 +123,10 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null,
     log: [linha], trace: [linha], finished: false,
   };
+  for (const side of [0, 1]) {
+    const extras = listas[side].length - lists[side].length;
+    if (extras > 0) pushLog(s, `${SIDE_NAME[side]} recebeu ${extras} carta(s) outorgada(s) — deck de ${listas[side].length}.`);
+  }
   for (const side of [0, 1]) for (let i = 0; i < openingDeal; i++) drawOne(s, side);
   drawForRound(s); // rodada 1: compra a 4ª (animada)
   return s;
@@ -213,15 +242,42 @@ const ACTIONS = {
     s.lastReveal = { uid: card.uid, seq: s.effectSeq };
     s.effect = null;
 
+    const def0 = byKey[card.key];
     // Consome buff pendente (Heka) ANTES do bloqueio: receber um buff não é o
     // "Ao Entrar" da carta, então o Selo do Silêncio não o impede.
-    const ganho = applyPendingBuff(s, card);
+    // Pragas NÃO consomem a reserva: elas não têm Poder e deixam o campo, então
+    // o +3 seria perda pura, sem interação. Assim a reserva espera o Moisés — e
+    // aí sim as Pragas seguintes dobram o bônus da Heka, que é o combo do set.
+    const ganho = def0.praga ? 0 : applyPendingBuff(s, card);
     if (ganho) {
       s.effect = { uid: card.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
       pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
     }
 
     const def = byKey[card.key];
+
+    /* ---------------------------- PRAGAS ----------------------------------
+       Ordem do documento de design: (1) o efeito resolve; (2) a Praga deixa o
+       campo sem ocupar espaço; (3) só então Moisés ativa. O efeito de uma Praga
+       é um "Ao Entrar" para todos os fins, então o Selo do Silêncio o bloqueia —
+       e Praga bloqueada é Praga que não aconteceu: gasta-se sem gerar Sinal. */
+    if (def.praga) {
+      if (onEnterBlocked(card, s.board)) {
+        consumirCarta(s, card);
+        s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
+        pushLog(s, `⊘ ${def.nome}: bloqueado na Via ${card.lane + 1} — gasta sem efeito e sem Sinal.`);
+        return ok(s);
+      }
+      // (Fases 3 e 4) — o efeito de cada Praga entra aqui, antes do consumo.
+      consumirCarta(s, card);
+      pushLog(s, `${def.nome} resolveu e deixou o campo.`);
+      const sinais = registrarPraga(s, card.key);
+      s.effect = sinais.length
+        ? { uid: sinais[0].uid, text: `✧ ${sinais[0].depois}`, kind: "buff", seq: s.effectSeq }
+        : { uid: card.uid, text: "✧ —", kind: "block", seq: s.effectSeq };
+      return ok(s);
+    }
+
     if (def.trigger === "entrar") {
       if (onEnterBlocked(card, s.board)) {
         card.pendentes = 0; // Selo: gatilhos acumulados são perdidos, não adiados.

@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Carta from "./Carta.jsx";
 import {
-  CARDS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
+  CARDS, PRAGAS, OUTORGAS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
   power, laneScore, laneWins, matchResult, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
@@ -29,8 +29,25 @@ const PRESETS = {
   "Sacrifício": ["servo", "bennu", "mumia", "armadura", "hathor", "sobek", "enxame", "sekhmet", "apofis", "osiris", "diluvio", "set"],
   "Controle":   ["anubis", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "set"],
   "Bênção":     ["renenutet", "hathor", "heka", "armadura", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "escaravelho", "montu", "amon"],
+  // Moisés traz +10 Pragas: 12 escolhidas viram 22 embaralhadas. As outras 11
+  // vagas seguram as duas vias que o Moisés não ocupa.
+  "Pragas":     ["moises", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "armadura", "hathor", "escaravelho", "selo"],
 };
 const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
+
+/* Quantas cartas o deck ganha de brinde (Moisés → 10 Pragas). O deckbuilder
+   precisa avisar: o jogador escolhe 12, mas joga com 22. */
+const contarOutorgadas = (deck) =>
+  deck.reduce((n, k) => n + (byKey[k]?.outorga ? (OUTORGAS[byKey[k].outorga] || []).length : 0), 0);
+
+function AvisoOutorga({ deck, estilo = "web" }) {
+  const extras = contarOutorgadas(deck);
+  if (!extras) return null;
+  const txt = `+${extras} Pragas outorgadas pelo Moisés — a partida começa com ${deck.length + extras} cartas embaralhadas.`;
+  if (estilo === "web") return <div className="text-xs text-amber-300/90 mb-2">{txt}</div>;
+  return <div style={{ fontSize: 11, color: "#fcd34d", padding: "0 10px 6px" }}>{txt}</div>;
+}
+const PRAGAS_ORDENADAS = [...PRAGAS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
 
 /* Geometria do tabuleiro (tabuleiro.webp, 1535×1024) — tudo em % da imagem.
    Medido por análise de pixels; ajuste fino aqui se algo não cair no lugar. */
@@ -120,6 +137,7 @@ export default function App() {
   const [zoom, setZoom] = useState(null);     // {def, printed, baked, current, sub}
   const [msg, setMsg] = useState("");
   const [fast, setFast] = useState(false);
+  const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
   const flashRef = useRef(null);
 
   // Interface: "auto" segue a largura da tela; o usuário pode forçar uma delas.
@@ -256,12 +274,32 @@ export default function App() {
           <header className="flex flex-wrap items-center gap-3 justify-between mb-4">
             <div>
               <h1 className="text-2xl font-bold tracking-widest text-amber-200">𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· Galeria de cartas</span></h1>
-              <p className="text-xs text-stone-400">{COLLECTION.length} cartas na coleção, ordenadas por custo.</p>
+              <p className="text-xs text-stone-400">
+                {galeriaAba === "colecao"
+                  ? `${COLLECTION.length} cartas escolhíveis, ordenadas por custo.`
+                  : `${PRAGAS.length} Pragas — não se escolhem: vêm de brinde com o Moisés e entram embaralhadas no deck.`}
+              </p>
             </div>
-            <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Voltar</button>
+            <div className="flex items-center gap-2">
+              <div className="flex rounded-md overflow-hidden border border-stone-700">
+                {[["colecao", "Coleção"], ["pragas", "Pragas"]].map(([id, rotulo]) => (
+                  <button key={id} onClick={() => setGaleriaAba(id)}
+                    className={`px-3 py-2 text-sm ${galeriaAba === id ? "bg-amber-700 text-amber-100" : "bg-stone-800 hover:bg-stone-700 text-stone-300"}`}>{rotulo}</button>
+                ))}
+              </div>
+              <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Voltar</button>
+            </div>
           </header>
+          {galeriaAba === "pragas" && (
+            <div className="mb-4 rounded-md border border-amber-800/60 bg-amber-950/30 p-3 text-xs text-amber-200/90">
+              As Pragas são <strong>cartas outorgadas</strong>: não ocupam vaga no deck e não podem ser escolhidas aqui.
+              Ao colocar <strong>Moisés, Portador das Pragas</strong> no seu deck de 12, as 10 entram automaticamente no
+              início da partida e o deck passa a ter 22 cartas embaralhadas. Cada Praga resolve seu efeito e deixa o
+              campo sem ocupar espaço.
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
-            {COLLECTION.map((def) => (
+            {(galeriaAba === "colecao" ? COLLECTION : PRAGAS_ORDENADAS).map((def) => (
               <Carta key={def.key} nome={def.nome} custo={def.custo} poder={def.poder}
                 tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={240} />
             ))}
@@ -291,6 +329,7 @@ export default function App() {
             <h3 className={`text-sm font-semibold tracking-wide ${side === 0 ? "text-amber-200" : "text-sky-200"}`}>{SIDE_NAME[side]}</h3>
             <span className={`text-sm font-bold ${full ? "text-emerald-400" : cur.length > 12 ? "text-rose-400" : "text-stone-300"}`}>{cur.length}/12</span>
           </div>
+          <AvisoOutorga deck={cur} />
           <div className="flex flex-wrap gap-1 mb-2">
             {Object.keys(PRESETS).map((name) => (
               <button key={name} onClick={() => setDeck(side, PRESETS[name].slice())}
@@ -1276,6 +1315,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
         <button onClick={() => setDeck(side, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
         {side === 1 && <button onClick={() => setDeck(1, build[0].slice())} style={chip}>Copiar A→B</button>}
       </div>
+      <AvisoOutorga deck={cur} estilo="mobile" />
 
       {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
 
@@ -1392,6 +1432,7 @@ function MpDeck({ build, setDeck, flash, setScreen, msg }) {
         <button onClick={() => setDeck(0, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(0, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
       </div>
+      <AvisoOutorga deck={cur} estilo="mobile" />
 
       {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
 
