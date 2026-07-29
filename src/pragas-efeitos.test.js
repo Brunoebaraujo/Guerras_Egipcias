@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
-  byKey, custoDe, power, ctxOf, resolvePraga, resolveDestroyAllOfTypeInLane,
-  resetUid, nextUid,
+  byKey, custoDe, power, ctxOf, laneScore, resolvePraga, resolveDestroyAllOfTypeInLane,
+  aplicarUlceras, resetUid, nextUid,
 } from "./engine.js";
 
 const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], baked = 0, ...rest } = {}) => ({
@@ -356,14 +356,138 @@ describe("Morte dos Primogênitos", () => {
 });
 
 /* ==========================================================================
-   As três da Fase 4 continuam sem efeito, de propósito.
+   Praga das Rãs — entulha um slot do adversário com uma carta dele.
    ========================================================================== */
-describe("Pragas ainda sem efeito (Fase 4)", () => {
-  it("Rãs, Úlceras e Trevas devolvem null sem quebrar o fluxo", () => {
-    for (const k of ["ras", "ulceras", "trevas"]) {
-      const praga = mk(k);
-      const s = mkState([praga, mk("colosso", { owner: 1 })]);
-      expect(resolvePraga(s, praga, primeiro)).toBeNull();
-    }
+describe("Praga das Rãs", () => {
+  it("cria uma Rã 1/1 numa via do adversário, e ela pertence a ele", () => {
+    const praga = mk("ras", { owner: 0, lane: 2 });
+    const s = mkState([praga]);
+    resolvePraga(s, praga, primeiro);
+    const ra = s.board.find((c) => c.key === "token-ra");
+    expect(ra.owner).toBe(1);
+    expect(ra.revealed).toBe(true);
+    expect(power(ra, ctxOf(s))).toBe(1);
+  });
+
+  it("a Rã pontua para o adversário — o ganho dele é o preço do slot perdido", () => {
+    const praga = mk("ras", { owner: 0 });
+    const s = mkState([praga]);
+    resolvePraga(s, praga, primeiro);
+    const ra = s.board.find((c) => c.key === "token-ra");
+    expect(laneScore(ctxOf(s), ra.lane, 1)).toBe(1);
+  });
+
+  it("só nasce em via com espaço", () => {
+    const praga = mk("ras", { owner: 0, lane: 0 });
+    const cheias = [];
+    for (const lane of [0, 1]) for (let i = 0; i < 4; i++) cheias.push(mk("servo", { owner: 1, lane }));
+    const s = mkState([praga, ...cheias]);
+    resolvePraga(s, praga, primeiro);
+    const ra = s.board.find((c) => c.key === "token-ra");
+    expect(ra.lane).toBe(2);
+  });
+
+  it("todas as vias do adversário cheias: bloqueio", () => {
+    const praga = mk("ras", { owner: 0 });
+    const cheias = [];
+    for (const lane of [0, 1, 2]) for (let i = 0; i < 4; i++) cheias.push(mk("servo", { owner: 1, lane }));
+    const s = mkState([praga, ...cheias]);
+    expect(resolvePraga(s, praga, primeiro).kind).toBe("block");
+    expect(s.board.find((c) => c.key === "token-ra")).toBeUndefined();
+  });
+
+  it("incrementa plays do adversário — alimenta a Ammit dele (decisão de projeto)", () => {
+    const praga = mk("ras", { owner: 0 });
+    const ammit = mk("ammit", { owner: 1, lane: 1, entryPlays: 0 });
+    const s = mkState([praga, ammit], { plays: [0, 0] });
+    expect(power(ammit, ctxOf(s))).toBe(1);
+    resolvePraga(s, praga, primeiro);
+    expect(s.plays[1]).toBe(1);
+    expect(power(ammit, ctxOf(s))).toBe(2);
+  });
+
+  it("a Rã é Animal e custo 1: cai para a Peste e para a Sekhmet", () => {
+    expect(byKey["token-ra"].tipo).toBe("Animal");
+    expect(custoDe({ key: "token-ra" })).toBe(1);
+  });
+});
+
+/* ==========================================================================
+   Praga das Úlceras — a marca e o tique de início de rodada.
+   ========================================================================== */
+describe("Praga das Úlceras", () => {
+  it("marca uma carta inimiga da via onde a Praga foi jogada", () => {
+    const praga = mk("ulceras", { owner: 0, lane: 1 });
+    const alvo = mk("colosso", { owner: 1, lane: 1 });
+    const s = mkState([praga, alvo]);
+    resolvePraga(s, praga, primeiro);
+    expect(alvo.ulceras).toBe(true);
+  });
+
+  it("não alcança outra via nem as próprias cartas", () => {
+    const praga = mk("ulceras", { owner: 0, lane: 1 });
+    const outraVia = mk("colosso", { owner: 1, lane: 2 });
+    const minha = mk("colosso", { owner: 0, lane: 1 });
+    const s = mkState([praga, outraVia, minha]);
+    resolvePraga(s, praga, primeiro);
+    expect(outraVia.ulceras).toBeUndefined();
+    expect(minha.ulceras).toBeUndefined();
+  });
+
+  it("NÃO desconta Poder na hora — o primeiro tique é na rodada seguinte", () => {
+    const praga = mk("ulceras", { owner: 0, lane: 0 });
+    const alvo = mk("colosso", { owner: 1, lane: 0 });
+    const s = mkState([praga, alvo]);
+    resolvePraga(s, praga, primeiro);
+    expect(power(alvo, ctxOf(s))).toBe(14);
+  });
+
+  it("cada início de rodada cobra -1, e o dano acumula", () => {
+    const alvo = mk("colosso", { owner: 1, ulceras: true });
+    const s = mkState([alvo]);
+    aplicarUlceras(s);
+    expect(power(alvo, ctxOf(s))).toBe(13);
+    aplicarUlceras(s);
+    aplicarUlceras(s);
+    expect(power(alvo, ctxOf(s))).toBe(11);
+  });
+
+  it("carta que saiu do campo para de apodrecer", () => {
+    const alvo = mk("colosso", { owner: 1, ulceras: true, dying: 3 });
+    const s = mkState([alvo]);
+    expect(aplicarUlceras(s)).toHaveLength(0);
+  });
+
+  it("a marca acompanha a carta quando ela muda de via", () => {
+    const alvo = mk("escaravelho", { owner: 1, lane: 0, ulceras: true });
+    const s = mkState([alvo]);
+    alvo.lane = 2;
+    aplicarUlceras(s);
+    expect(power(alvo, ctxOf(s))).toBe(2);   // 3 impresso - 1
+  });
+
+  it("não empilha duas marcas na mesma carta", () => {
+    const praga = mk("ulceras", { owner: 0, lane: 0 });
+    const alvo = mk("colosso", { owner: 1, lane: 0 });
+    const s = mkState([praga, alvo]);
+    resolvePraga(s, praga, primeiro);
+    const badge = resolvePraga(s, praga, primeiro);
+    expect(badge.kind).toBe("block");
+    aplicarUlceras(s);
+    expect(power(alvo, ctxOf(s))).toBe(13);   // um tique, não dois
+  });
+
+  it("via inimiga vazia: bloqueio", () => {
+    const praga = mk("ulceras", { owner: 0, lane: 0 });
+    const s = mkState([praga, mk("colosso", { owner: 1, lane: 2 })]);
+    expect(resolvePraga(s, praga, primeiro).kind).toBe("block");
+  });
+
+  it("cada tique aparece como parcela separada na decomposição do Poder", () => {
+    const alvo = mk("colosso", { owner: 1, ulceras: true });
+    const s = mkState([alvo]);
+    aplicarUlceras(s);
+    aplicarUlceras(s);
+    expect(alvo.mods.filter((m) => m.src === "Úlceras")).toHaveLength(2);
   });
 });

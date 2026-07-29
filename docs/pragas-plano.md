@@ -163,10 +163,18 @@ Detalhe que caiu de graça: como Moisés é custo 1, ele morre para a **Sekhmet*
 
 **Reversão da decisão sobre o tipo do Moisés:** ele é **Divindade**, não Profeta. O objetivo é justamente que o **Assassino Medjay** o alcance.
 
-### Fase 4 — As três estruturais
-- **Rãs** — criar token em slot inimigo vazio, via sorteada entre as que têm espaço
-- **Úlceras** — hook de início de rodada; marca sobrevive a mudança de via, morre com a carta; não tica na rodada em que foi aplicada
-- **Trevas** — fila de revelação em duas ondas; atraso ignorado na rodada 6
+### Fase 4 — As três estruturais ✅ concluída
+- **Rãs** — token criado em via inimiga sorteada entre as que têm espaço. Entra revelada, pertence ao oponente e **incrementa o `plays` dele** (decisão #11), alimentando a Ammit adversária.
+- **Úlceras** — marca `c.ulceras` no objeto da carta, então acompanha mudança de via e morre com a carta, sem código extra. `aplicarUlceras(s)` roda no fim do `nextRound`: um mod `-1` por rodada, para cada tique aparecer separado na decomposição do Poder.
+- **Trevas** — `buildRevealQueue` ganhou uma **regra 0**: ondas por `enteredRound`, antes de prioridade e ordem de colocação. Com todas as pendentes na mesma rodada — o caso normal — há uma onda só e o resultado é byte a byte o de antes.
+- **UI** — marca ☠ na carta ulcerada (o -1 silencioso por rodada precisava ser visível) e aviso da rodada escurecida no desktop e no mobile.
+- **20 testes** em `src/trevas.test.js` + 14 em `pragas-efeitos.test.js`. Suíte: 191 → **225**.
+
+**Simplificação registrada:** o PDF diz "Escolha uma via" nas Úlceras, mas a Praga **já é posicionada numa via** — a colocação da carta *é* a escolha. Adotei "na via em que esta Praga foi jogada", igual à Peste, e o texto da carta foi ajustado. Evita inventar uma pausa de mira de via, que o motor não tem.
+
+**Bug de fronteira encontrado e fechado:** carta atrasada pelas Trevas continua `revealed: false` na rodada seguinte, e o `pickup` só exigia `!c.revealed` — o jogador poderia **recolher e reembolsar** cartas pagas na rodada anterior. `pickup` agora recusa quando `c.enteredRound < s.round`.
+
+**Trevas na rodada 6:** a Praga agenda `s.trevas = round + 1`, que nunca casa. E se ela cair na rodada 5, o `startReveal` da rodada 6 ignora o atraso — é a "regra global de encerramento" do PDF, escrita assim para não forçar uma revelação dentro do `finish` e quebrar a animação passo a passo do cliente.
 
 ### Fase 5 — Moldura de medalhão
 Variante no `Carta.jsx` + mapa `POS` novo. **Render-and-inspect antes de subir.** As Pragas não têm disco de Poder.

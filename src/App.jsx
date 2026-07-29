@@ -452,6 +452,11 @@ export default function App() {
           <span className="text-stone-400">Prioridade:</span>
           <span className={`font-bold ${g.priority === 0 ? "text-amber-300" : "text-sky-300"}`}>{SIDE_NAME[g.priority]}</span>
           <span className="text-stone-500">({g.priorityReason})</span>
+          {g.trevas === g.round && (
+            <span className="px-2 py-1 rounded bg-indigo-950 border border-indigo-700 text-indigo-200 text-xs">
+              ⊘ Trevas — as cartas desta rodada permanecem ocultas
+            </span>
+          )}
           <span className="ml-auto text-stone-400">Vias:</span>
           <span className="text-amber-300 font-bold">A {wins[0]}</span><span className="text-stone-600">×</span><span className="text-sky-300 font-bold">{wins[1]} B</span>
           {g.finished && <span className="px-3 py-1 rounded bg-stone-800 border border-amber-600 text-amber-200 font-semibold">{resultLabel(g)}</span>}
@@ -710,6 +715,11 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
         <div style={{ position: "relative", textAlign: "center", paddingBottom: f(0.2) }}>
           <span style={{ fontWeight: 800, fontSize: f(1.7), lineHeight: 1, color: pColor, textShadow: "0 1px 3px rgba(0,0,0,.95)" }}>{p}</span>
         </div>
+        {/* Úlceras: o -1 por rodada não pode ser invisível */}
+        {c.ulceras && (
+          <span title="Ulcerada — perde 1 de Poder no início de cada rodada"
+            style={{ position: "absolute", bottom: f(0.15), left: f(0.3), fontSize: f(0.9), lineHeight: 1, color: "#fda4af", textShadow: "0 1px 2px #000" }}>☠</span>
+        )}
       </div>
     </div>
   );
@@ -1120,6 +1130,7 @@ function GameMobile(p) {
       </div>
 
       {msg && <MBanner tone="rose">{msg}</MBanner>}
+      {g.trevas === g.round && <MBanner tone="indigo">⊘ Trevas — as cartas desta rodada permanecem ocultas e só revelam na próxima.</MBanner>}
       {moving && <MBanner tone="sky">⇄ Movendo o Escaravelho — toque numa via do {SIDE_NAME[moving.side]}.</MBanner>}
       {aim && (
         <MBanner tone="indigo">

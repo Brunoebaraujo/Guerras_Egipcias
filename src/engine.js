@@ -153,7 +153,7 @@ export const PRAGAS = [
     texto: "Destrua todos os Animais inimigos na via em que esta Praga foi jogada.",
     lore: "Rebanho era riqueza contável: os escribas registravam cabeça por cabeça, e o touro Ápis era adorado vivo em Mênfis. Matar o gado do Egito esvaziava ao mesmo tempo o celeiro e o altar." },
   { key: "ulceras", nome: "Praga das Úlceras", tipo: "Praga", custo: 2, poder: 0, arch: "debuff", set: "pragas", praga: true,
-    texto: "Escolha uma via. Uma carta inimiga aleatória nela recebe Úlceras: -1 de Poder no início de cada rodada enquanto permanecer em jogo.",
+    texto: "Uma carta inimiga aleatória na via em que esta Praga foi jogada recebe Úlceras: -1 de Poder no início de cada rodada enquanto permanecer em jogo.",
     lore: "O Papiro de Ebers dedica dezenas de receitas às feridas de pele — mel, gordura, malaquita moída. Contra a sexta praga nenhuma serviu, e a medicina mais antiga do mundo assistiu de mãos vazias." },
   { key: "granizo", nome: "Chuva de Granizo e Fogo", tipo: "Praga", custo: 3, poder: 0, arch: "sacrificio", set: "pragas", praga: true,
     texto: "Destrua uma carta inimiga aleatória de custo 1 em jogo. Depois, aumente em 1 o custo de uma carta aleatória na mão do adversário.",
@@ -322,12 +322,20 @@ export const validTargets = (card, needs, board) => {
 // jogo do jogador. Como a revelação também é a ordem de resolução dos efeitos,
 // isso permite cadeias intencionais — p.ex. colocar um buff na Via 3 ANTES do
 // Enxame na Via 1 para que o Enxame copie o Poder já buffado.
+// TREVAS acrescentou uma TERCEIRA regra, ANTES das outras duas:
+//   0. RODADA DE ENTRADA — cartas atrasadas por Trevas (de uma rodada anterior)
+//      revelam em uma onda própria, inteira, antes das jogadas nesta rodada.
+// Quando todas as pendentes são da mesma rodada — o caso normal — há uma única
+// onda e o resultado é idêntico ao de antes.
 export function buildRevealQueue(s) {
   const order = [s.priority, 1 - s.priority];
+  const pendentes = s.board.filter((x) => !x.revealed);
+  const ondas = [...new Set(pendentes.map((c) => c.enteredRound))].sort((a, b) => a - b);
   const queue = [];
-  for (const side of order)
-    for (const c of s.board.filter((x) => x.owner === side && !x.revealed))
-      queue.push(c.uid);
+  for (const rodada of ondas)
+    for (const side of order)
+      for (const c of pendentes.filter((x) => x.enteredRound === rodada && x.owner === side))
+        queue.push(c.uid);
   return queue;
 }
 
@@ -586,6 +594,51 @@ const PRAGA_EFEITOS = {
     return { uid: praga.uid, text: alvo ? "☥ 1✕ +1⚡" : "☾ +1⚡", kind: alvo ? "sac" : "debuff", seq: s.effectSeq };
   },
 
+  // Cria uma Rã 1/1 num slot vazio de uma via inimiga sorteada. A Rã é DO
+  // OPONENTE: Poder 1 irrisório em troca de entupir um dos quatro espaços dele.
+  // Ela incrementa `plays` do oponente e portanto alimenta a Ammit dele — é
+  // consequência da decisão de quem lançou a Praga, e faz parte do preço.
+  ras: (s, praga, rng) => {
+    const oponente = 1 - praga.owner;
+    const livres = [0, 1, 2].filter(
+      (lane) => s.board.filter((c) => c.owner === oponente && c.lane === lane && !c.dying).length < 4
+    );
+    if (livres.length === 0) return semAlvo(s, praga, `todas as vias do ${SIDE_NAME[oponente]} estão cheias.`);
+    const lane = livres[Math.floor(rng() * livres.length)];
+    s.plays[oponente] += 1;
+    const ra = {
+      uid: nextUid(), key: "token-ra", owner: oponente, lane,
+      printed: byKey["token-ra"].poder, baked: 0, mods: [], revealed: true, dying: false,
+      entryPlays: s.plays[oponente], enteredRound: s.round, moved: false, token: true,
+    };
+    s.board.push(ra);
+    pushLog(s, `${byKey[praga.key].nome}: uma Rã brotou na Via ${lane + 1} do ${SIDE_NAME[oponente]}.`);
+    return { uid: ra.uid, text: "＋Rã", kind: "debuff", seq: s.effectSeq };
+  },
+
+  // Marca uma inimiga da via ONDE A PRAGA FOI JOGADA. A colocação da carta é a
+  // escolha da via — não precisa de uma pausa de mira nova para isso.
+  // O primeiro tique é na rodada seguinte: aplicarUlceras() roda no nextRound.
+  ulceras: (s, praga, rng) => {
+    const alvo = sorteioUm(inimigasNoCampo(s, praga, praga.lane), rng);
+    if (!alvo) return semAlvo(s, praga, `nenhuma carta inimiga na Via ${praga.lane + 1}.`);
+    if (alvo.ulceras) {
+      pushLog(s, `${byKey[praga.key].nome}: ${byKey[alvo.key].nome} já está ulcerada.`);
+      return { uid: alvo.uid, text: "já ulcerada", kind: "block", seq: s.effectSeq };
+    }
+    alvo.ulceras = true;
+    pushLog(s, `${byKey[praga.key].nome}: ${byKey[alvo.key].nome} (Via ${alvo.lane + 1}) recebeu Úlceras — perde 1 de Poder no início de cada rodada.`);
+    return { uid: alvo.uid, text: "\u2620 úlceras", kind: "debuff", seq: s.effectSeq };
+  },
+
+  // Agenda o atraso da PRÓXIMA rodada, para os dois lados. Quem consome
+  // `s.trevas` é o startReveal do match.js — a Praga só marca a data.
+  trevas: (s, praga) => {
+    s.trevas = s.round + 1;
+    pushLog(s, `${byKey[praga.key].nome}: na rodada ${s.trevas} as cartas dos dois lados permanecem ocultas.`);
+    return { uid: praga.uid, text: `\u2298 R${s.trevas}`, kind: "debuff", seq: s.effectSeq };
+  },
+
   // Destrói a inimiga de maior custo efetivo. Empate resolve por sorteio.
   primogenitos: (s, praga, rng) => {
     const pool = inimigasNoCampo(s, praga);
@@ -606,6 +659,21 @@ const PRAGA_EFEITOS = {
 export function resolvePraga(s, praga, rng = Math.random) {
   const fn = PRAGA_EFEITOS[praga.key];
   return fn ? fn(s, praga, rng) : null;
+}
+
+// --------------------------- Úlceras: início de rodada -----------------------
+// A marca `ulceras` vive no objeto da carta, então acompanha mudanças de via e
+// desaparece com a carta — exatamente o que o documento pede. O desconto é um
+// mod negativo por rodada, o que deixa cada tique visível na decomposição do
+// Poder em vez de escondido num acumulador.
+// Nota: Anúbis limpa `mods` e portanto cura o dano já acumulado, mas NÃO remove a
+// marca — a carta volta a apodrecer na rodada seguinte.
+export function aplicarUlceras(s) {
+  const afetadas = s.board.filter((c) => c.ulceras && !c.dying);
+  for (const c of afetadas) aplicarBencao(s, c, -1, "Úlceras");
+  if (afetadas.length)
+    pushLog(s, `\u2620 Úlceras: -1 em ${afetadas.map((c) => `${byKey[c.key].nome} (Via ${c.lane + 1}, ${SIDE_NAME[c.owner]})`).join(", ")}.`);
+  return afetadas;
 }
 
 // ------------------------ diagnostico / log de partida -----------------------

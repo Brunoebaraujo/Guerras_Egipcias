@@ -35,7 +35,7 @@
    ========================================================================== */
 
 import {
-  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, consumirCarta, registrarPraga, resolvePraga,
+  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
@@ -120,7 +120,7 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
     pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], blessings: [],
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
-    lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null,
+    lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
     log: [linha], trace: [linha], finished: false,
   };
   for (const side of [0, 1]) {
@@ -178,6 +178,9 @@ const ACTIONS = {
     if (!c) return err(g, "Carta não está no tabuleiro.");
     if (c.owner !== side) return err(g, "Carta não é sua.");
     if (c.revealed) return err(g, "Carta já revelada não pode ser recolhida.");
+    // Atrasada pelas Trevas: foi paga e posicionada numa rodada anterior, então
+    // já não pertence ao planejamento desta.
+    if (c.enteredRound < s.round) return err(g, "Carta atrasada pelas Trevas não pode ser recolhida.");
     const def = byKey[c.key];
     s.energy[c.owner] += custoDe(c);   // devolve o que foi realmente pago
     s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
@@ -210,6 +213,23 @@ const ACTIONS = {
   startReveal(g, _a, _rng) {
     if (!planning(g)) return err(g, "Não é fase de planejamento.");
     const s = clone(g);
+    /* TREVAS — a rodada agendada não revela nada: as cartas dos DOIS lados ficam
+       ocultas no tabuleiro (sem Poder e sem gatilho) e entram na fila da rodada
+       seguinte, numa onda própria e anterior.
+       Na última rodada o atraso é IGNORADO: é a "regra global de encerramento"
+       do documento, que garante que nada fique oculto na apuração. Escrever
+       assim, em vez de forçar uma revelação dentro do finish, preserva a
+       animação passo a passo do cliente. */
+    if (s.trevas === s.round && s.round < MAX_ROUND) {
+      s.trevas = null;
+      s.queue = []; s.lastReveal = null; s.effect = null; s.phase = "revealed";
+      pushLog(s, `⊘ Trevas sobre o Egito — nada se revela na rodada ${s.round}. As cartas esperam a rodada ${s.round + 1}.`);
+      return ok(s);
+    }
+    if (s.trevas === s.round) {
+      s.trevas = null;
+      pushLog(s, `⊘ As Trevas caíram na última rodada e são ignoradas — tudo se revela antes da apuração.`);
+    }
     const queue = buildRevealQueue(s);
     s.queue = queue; s.lastReveal = null; s.effect = null;
     // NÃO zeramos s.pendingBuff: a reserva da Heka persiste entre rodadas.
@@ -371,6 +391,7 @@ const ACTIONS = {
     s.phase = "plan"; s.queue = []; s.awaitingAim = null;
     const eMsg = (eBonus[0] || eBonus[1]) ? ` Energia: A ${s.energy[0]}, B ${s.energy[1]} (bônus Bennu).` : ` ${s.round} de energia.`;
     pushLog(s, `— Rodada ${s.round} —${eMsg} Compra 1. Prioridade: ${SIDE_NAME[s.priority]} (${s.priorityReason}).`);
+    aplicarUlceras(s);   // início de rodada: cada carta ulcerada perde 1 de Poder
     return ok(s);
   },
 
