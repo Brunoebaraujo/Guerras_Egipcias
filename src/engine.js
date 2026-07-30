@@ -160,7 +160,7 @@ export const PRAGAS = [
     lore: "Rebanho era riqueza contável: os escribas registravam cabeça por cabeça, e o touro Ápis era adorado vivo em Mênfis. Matar o gado do Egito esvaziava ao mesmo tempo o celeiro e o altar." },
   { key: "ulceras", ordem: 6, nome: "Praga das Úlceras", tipo: "Praga", custo: 2, poder: 0, arch: "debuff", set: "pragas", praga: true,
     arte: "ulceras",
-    texto: "Uma carta inimiga aleatória na via em que esta Praga foi jogada recebe Úlceras: -1 de Poder no início de cada rodada enquanto permanecer em jogo.",
+    texto: "Uma carta inimiga aleatória na via em que esta Praga foi jogada recebe Úlceras: -1 de Poder imediatamente e -1 no início de cada rodada enquanto permanecer em jogo.",
     lore: "O Papiro de Ebers dedica dezenas de receitas às feridas de pele — mel, gordura, malaquita moída. Contra a sexta praga nenhuma serviu, e a medicina mais antiga do mundo assistiu de mãos vazias." },
   { key: "granizo", ordem: 7, nome: "Chuva de Granizo e Fogo", tipo: "Praga", custo: 3, poder: 0, arch: "sacrificio", set: "pragas", praga: true,
     arte: "granizo",
@@ -649,7 +649,10 @@ const PRAGA_EFEITOS = {
 
   // Marca uma inimiga da via ONDE A PRAGA FOI JOGADA. A colocação da carta é a
   // escolha da via — não precisa de uma pausa de mira nova para isso.
-  // O primeiro tique é na rodada seguinte: aplicarUlceras() roda no nextRound.
+  // O primeiro tique é IMEDIATO, no próprio reveal, e os seguintes vêm de
+  // aplicarUlceras() no nextRound. Sem o tique imediato a Praga não fazia nada
+  // visível na rodada em que era jogada (lê como bug) e era lixo puro na
+  // rodada 6, onde não existe rodada seguinte para cobrar.
   ulceras: (s, praga, rng) => {
     const alvo = sorteioUm(inimigasNoCampo(s, praga, praga.lane), rng);
     if (!alvo) return semAlvo(s, praga, `nenhuma carta inimiga na Via ${praga.lane + 1}.`);
@@ -658,8 +661,9 @@ const PRAGA_EFEITOS = {
       return { uid: alvo.uid, text: "já ulcerada", kind: "block", seq: s.effectSeq };
     }
     alvo.ulceras = true;
-    pushLog(s, `${byKey[praga.key].nome}: ${byKey[alvo.key].nome} (Via ${alvo.lane + 1}) recebeu Úlceras — perde 1 de Poder no início de cada rodada.`);
-    return { uid: alvo.uid, text: "\u2620 úlceras", kind: "debuff", seq: s.effectSeq };
+    aplicarBencao(s, alvo, -1, "Úlceras");
+    pushLog(s, `${byKey[praga.key].nome}: ${byKey[alvo.key].nome} (Via ${alvo.lane + 1}) recebeu Úlceras — -1 agora e -1 no início de cada rodada.`);
+    return { uid: alvo.uid, text: "\u2620 -1 úlceras", kind: "debuff", seq: s.effectSeq };
   },
 
   // Agenda o atraso da PRÓXIMA rodada, para os dois lados. Quem consome

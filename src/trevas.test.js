@@ -207,14 +207,24 @@ describe("Úlceras no nextRound", () => {
     expect(power(g.board[0], ctxOf(g))).toBe(12);
   });
 
-  it("a Praga jogada na rodada N só cobra o primeiro tique na rodada N+1", () => {
+  it("cobra -1 já no reveal e -1 de novo na rodada seguinte", () => {
     const h = naMao("ulceras");
     let g = mkMatch({ round: 2, hand: [[h], []], board: [mk("colosso", { owner: 1, lane: 0 })] });
     g = jogar(g, 0, h, 0);
     g = revelar(g);
     const alvo = g.board.find((c) => c.key === "colosso");
-    expect(power(alvo, ctxOf(g))).toBe(14);
+    expect(power(alvo, ctxOf(g))).toBe(13);
     g = applyAction(g, { t: "nextRound" }).state;
+    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(12);
+  });
+
+  /* A razão de existir do tique imediato: na rodada 6 não há rodada seguinte,
+     então a versão antiga da Praga não fazia absolutamente nada. */
+  it("jogada na última rodada ainda cobra o tique imediato", () => {
+    const h = naMao("ulceras");
+    let g = mkMatch({ round: 6, hand: [[h], []], board: [mk("colosso", { owner: 1, lane: 0 })] });
+    g = jogar(g, 0, h, 0);
+    g = revelar(g);
     expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(13);
   });
 

@@ -434,12 +434,22 @@ describe("Praga das Úlceras", () => {
     expect(minha.ulceras).toBeUndefined();
   });
 
-  it("NÃO desconta Poder na hora — o primeiro tique é na rodada seguinte", () => {
+  it("desconta -1 na hora — a Praga precisa fazer algo visível na rodada em que é jogada", () => {
     const praga = mk("ulceras", { owner: 0, lane: 0 });
     const alvo = mk("colosso", { owner: 1, lane: 0 });
     const s = mkState([praga, alvo]);
     resolvePraga(s, praga, primeiro);
-    expect(power(alvo, ctxOf(s))).toBe(14);
+    expect(power(alvo, ctxOf(s))).toBe(13);
+  });
+
+  it("o tique imediato soma com os de início de rodada", () => {
+    const praga = mk("ulceras", { owner: 0, lane: 0 });
+    const alvo = mk("colosso", { owner: 1, lane: 0 });
+    const s = mkState([praga, alvo]);
+    resolvePraga(s, praga, primeiro);   // -1 imediato
+    aplicarUlceras(s);                  // -1 na rodada seguinte
+    aplicarUlceras(s);                  // -1 na outra
+    expect(power(alvo, ctxOf(s))).toBe(11);
   });
 
   it("cada início de rodada cobra -1, e o dano acumula", () => {
@@ -472,9 +482,11 @@ describe("Praga das Úlceras", () => {
     const s = mkState([praga, alvo]);
     resolvePraga(s, praga, primeiro);
     const badge = resolvePraga(s, praga, primeiro);
-    expect(badge.kind).toBe("block");
+    expect(badge.kind).toBe("block");          // a segunda não pega
     aplicarUlceras(s);
-    expect(power(alvo, ctxOf(s))).toBe(13);   // um tique, não dois
+    // -1 do tique imediato da PRIMEIRA + -1 do início de rodada. A segunda
+    // Praga não somou nada: nem marca nova, nem tique imediato.
+    expect(power(alvo, ctxOf(s))).toBe(12);
   });
 
   it("via inimiga vazia: bloqueio", () => {
