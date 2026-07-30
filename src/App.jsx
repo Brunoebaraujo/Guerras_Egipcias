@@ -49,6 +49,107 @@ function AvisoOutorga({ deck, estilo = "web" }) {
 }
 const PRAGAS_ORDENADAS = [...PRAGAS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
 
+const ARCH_NOME = {
+  base: "Base", buff: "Bênção", debuff: "Maldição", sacrificio: "Sacrifício", reset: "Equilíbrio",
+  silencio: "Silêncio", movimento: "Movimento", crescimento: "Crescimento", fusao: "Fusão", renascimento: "Renascimento",
+};
+
+/* Dimensões de filtro da Galeria. Para acrescentar uma nova — tipo, set, o que
+   for — basta uma entrada aqui: os chips, a contagem e a filtragem saem de
+   graça, e os valores oferecidos são só os que existem na aba aberta. */
+const DIMENSOES_FILTRO = [
+  { id: "custo", rotulo: "Energia", de: (c) => c.custo,
+    ordenar: (a, b) => a - b, rotuloValor: (v) => `${v}⚡` },
+  { id: "arch", rotulo: "Arquétipo", de: (c) => c.arch,
+    ordenar: (a, b) => (ARCH_NOME[a] || a).localeCompare(ARCH_NOME[b] || b),
+    rotuloValor: (v) => `${GLYPH[v] || ""} ${ARCH_NOME[v] || v}`.trim(),
+    classeValor: (v) => ARCH_COLOR[v] || "" },
+];
+const FILTROS_VAZIOS = Object.fromEntries(DIMENSOES_FILTRO.map((d) => [d.id, []]));
+
+/* Grade da Galeria: mede a si mesma e deriva colunas e largura de carta.
+   É componente, e não hook dentro do App, de propósito: o ref precisa existir
+   quando o efeito roda. Com o hook no App, na montagem a tela é "deck", o
+   ref era null, o efeito saía cedo e — com dependências [] — nunca mais rodava,
+   deixando a carta travada no valor inicial.
+   A carta precisa de largura NUMÉRICA porque toda a tipografia dela é derivada
+   dessa medida; por isso 3 colunas no celular exigem medir, não só um
+   breakpoint de CSS. */
+function GradeGaleria({ cartas, onAmpliar }) {
+  const ref = useRef(null);
+  const [grade, setGrade] = useState(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const medir = () => {
+      const w = el.clientWidth || 0;
+      if (!w) return;
+      const gap = w < 640 ? 8 : 16;
+      const cols = w >= 1000 ? 4 : 3;
+      setGrade({ cols, gap, cardW: Math.max(88, Math.min(300, Math.floor((w - gap * (cols - 1)) / cols))) });
+    };
+    medir();
+    if (typeof ResizeObserver === "undefined") {          // jsdom não tem ResizeObserver
+      window.addEventListener("resize", medir);
+      return () => window.removeEventListener("resize", medir);
+    }
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const g = grade || { cols: 3, gap: 8, cardW: 88 };   // primeiro quadro: nunca maior que a coluna
+  return (
+    <div ref={ref} style={{
+      display: "grid", gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
+      gap: g.gap, justifyItems: "center",
+    }}>
+      {cartas.map((def) => (
+        <button key={def.key} onClick={() => onAmpliar(def)} title={`${def.nome} — toque para ampliar`}
+          style={{ background: "none", border: "none", padding: 0, cursor: "zoom-in", lineHeight: 0 }}>
+          <Carta nome={def.nome} custo={def.custo} poder={def.poder} tipo={def.tipo}
+            efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte}
+            arteFoco={def.arteFoco} ordem={def.ordem} width={g.cardW} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function FiltrosGaleria({ lista, filtros, onAlternar, onLimpar, visiveis }) {
+  const ativos = DIMENSOES_FILTRO.reduce((n, d) => n + filtros[d.id].length, 0);
+  return (
+    <div className="mb-4 rounded-md border border-stone-700 bg-stone-800/40 p-3">
+      {DIMENSOES_FILTRO.map((d) => {
+        const valores = [...new Set(lista.map(d.de))].sort(d.ordenar);
+        return (
+          <div key={d.id} className="flex flex-wrap items-center gap-1.5 mb-2 last:mb-0">
+            <span className="text-xs text-stone-400 w-20 shrink-0">{d.rotulo}</span>
+            {valores.map((v) => {
+              const on = filtros[d.id].includes(v);
+              return (
+                <button key={String(v)} onClick={() => onAlternar(d.id, v)}
+                  className={`px-2 py-1 rounded text-xs border transition-colors ${
+                    on ? "bg-amber-700 border-amber-500 text-amber-50"
+                       : `bg-stone-900 border-stone-700 hover:border-stone-500 ${d.classeValor ? d.classeValor(v) : "text-stone-300"}`
+                  }`}>{d.rotuloValor(v)}</button>
+              );
+            })}
+          </div>
+        );
+      })}
+      <div className="flex items-center gap-3 pt-1 text-xs text-stone-400">
+        <span>{visiveis} de {lista.length} cartas</span>
+        {ativos > 0 && (
+          <button onClick={onLimpar} className="text-amber-300 hover:text-amber-200 underline">
+            limpar filtros ({ativos})
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* Geometria do tabuleiro (tabuleiro.webp, 1535×1024) — tudo em % da imagem.
    Medido por análise de pixels; ajuste fino aqui se algo não cair no lugar. */
 const BOARD = {
@@ -138,6 +239,8 @@ export default function App() {
   const [msg, setMsg] = useState("");
   const [fast, setFast] = useState(false);
   const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
+  const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
+  const [cartaAmpliada, setCartaAmpliada] = useState(null);    // def da carta no zoom da Galeria
   const flashRef = useRef(null);
 
   // Interface: "auto" segue a largura da tela; o usuário pode forçar uma delas.
@@ -268,6 +371,13 @@ export default function App() {
 
   // ============================ TELA: GALERIA ==============================
   if (screen === "galeria") {
+    const baseAba = galeriaAba === "colecao" ? COLLECTION : PRAGAS_ORDENADAS;
+    const visiveis = baseAba.filter((c) =>
+      DIMENSOES_FILTRO.every((d) => filtros[d.id].length === 0 || filtros[d.id].includes(d.de(c))));
+    const alternarFiltro = (id, v) => setFiltros((f) => ({
+      ...f, [id]: f[id].includes(v) ? f[id].filter((x) => x !== v) : [...f[id], v],
+    }));
+    const trocarAba = (id) => { setGaleriaAba(id); setFiltros(FILTROS_VAZIOS); };
     return (
       <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
         <div className="max-w-7xl mx-auto">
@@ -283,7 +393,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <div className="flex rounded-md overflow-hidden border border-stone-700">
                 {[["colecao", "Coleção"], ["pragas", "Pragas"]].map(([id, rotulo]) => (
-                  <button key={id} onClick={() => setGaleriaAba(id)}
+                  <button key={id} onClick={() => trocarAba(id)}
                     className={`px-3 py-2 text-sm ${galeriaAba === id ? "bg-amber-700 text-amber-100" : "bg-stone-800 hover:bg-stone-700 text-stone-300"}`}>{rotulo}</button>
                 ))}
               </div>
@@ -298,12 +408,37 @@ export default function App() {
               campo sem ocupar espaço.
             </div>
           )}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
-            {(galeriaAba === "colecao" ? COLLECTION : PRAGAS_ORDENADAS).map((def) => (
-              <Carta key={def.key} nome={def.nome} custo={def.custo} poder={def.poder}
-                tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} ordem={def.ordem} width={240} />
-            ))}
-          </div>
+          <FiltrosGaleria lista={baseAba} filtros={filtros} visiveis={visiveis.length}
+            onAlternar={alternarFiltro} onLimpar={() => setFiltros(FILTROS_VAZIOS)} />
+
+          <GradeGaleria cartas={visiveis} onAmpliar={setCartaAmpliada} />
+
+          {visiveis.length === 0 && (
+            <div className="text-center text-sm text-stone-400 py-10">
+              Nenhuma carta com essa combinação de filtros.
+            </div>
+          )}
+
+          {/* Zoom: a 3 colunas no celular a carta fica pequena para ler, então o
+              toque tem que abrir uma versão legível. */}
+          {cartaAmpliada && (
+            <div onClick={() => setCartaAmpliada(null)} style={{
+              position: "fixed", inset: 0, background: "rgba(0,0,0,.85)", zIndex: 50,
+              display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 16,
+            }}>
+              <button onClick={() => setCartaAmpliada(null)} aria-label="Fechar" style={{
+                position: "absolute", top: 14, right: 14, fontSize: 20, color: "#e7e5e4",
+                background: "rgba(255,255,255,.08)", border: "1px solid #57534e",
+                borderRadius: 8, lineHeight: 1, cursor: "pointer", padding: "4px 10px",
+              }}>✕</button>
+              <div onClick={(e) => e.stopPropagation()}>
+                <Carta nome={cartaAmpliada.nome} custo={cartaAmpliada.custo} poder={cartaAmpliada.poder}
+                  tipo={cartaAmpliada.tipo} efeito={cartaAmpliada.texto} lore={cartaAmpliada.lore}
+                  arch={cartaAmpliada.arch} arte={cartaAmpliada.arte} arteFoco={cartaAmpliada.arteFoco}
+                  ordem={cartaAmpliada.ordem} width={Math.min(330, (typeof window !== "undefined" ? window.innerWidth : 360) - 40)} />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

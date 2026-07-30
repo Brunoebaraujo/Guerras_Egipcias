@@ -194,8 +194,14 @@ Onze prompts novos (as 10 Pragas + Moisés), no fluxo de sempre. Último de prop
 
 Particularidade do set: a arte é recortada em **círculo**, não em retângulo. Os prompts precisam pedir composição centralizada e radial, com o assunto longe das bordas, porque o `object-cover` circular corta os quatro cantos. `arteFoco` continua valendo para assunto alto.
 
-### Fase 7 — Filtros da Galeria
-Custo, tipo, arquétipo e set.
+### Fase 7 — Filtros e grade da Galeria ✅ concluída
+- **`DIMENSOES_FILTRO`** — lista orientada a dados. Hoje tem **Energia** e **Arquétipo**; acrescentar tipo, set ou qualquer outra dimensão é uma entrada nova, e os chips, a contagem e a filtragem saem de graça. Cada dimensão só oferece os valores que **existem na aba aberta**, então não há chip morto.
+- **Semântica:** OU dentro de uma dimensão, E entre dimensões. Verificado: `3⚡` → 8 cartas, `+5⚡` → 12, `+Sacrifício` → 1.
+- Filtros zeram ao trocar de aba, e há contador `N de M cartas` com atalho de limpar.
+- **`GradeGaleria`** — a grade virou componente que mede a si mesma: 3 colunas até 1000 px de largura, 4 acima; carta derivada da medida, limitada a 300 px. Mobile 390 px → 3 colunas de 116 px; desktop 1440 px → 4 de 300 px (antes eram 240 fixos).
+- **Toque amplia a carta.** A 116 px o texto não se lê, então 3 colunas no celular só fazem sentido com zoom.
+
+**Bug de React encontrado e corrigido no caminho:** a medição nasceu como hook dentro do `App`, mas o `ref` fica no `div` da grade, que só existe quando `screen === "galeria"`. Na montagem a tela é `"deck"`, então `ref.current` era `null`, o efeito saía cedo e — com dependências `[]` — nunca mais rodava. Resultado: carta travada nos 240 px iniciais, **cartas se sobrepondo** no celular (a coluna tinha 111 px) e desktop preso em 3 colunas. Achado porque o clique de teste foi interceptado pela carta vizinha. A correção é estrutural: a grade é componente próprio, então o efeito roda quando ela monta. O estado inicial também virou `null` com fallback de 88 px, para o primeiro quadro nunca desenhar carta maior que a coluna.
 
 ---
 
