@@ -176,11 +176,23 @@ Detalhe que caiu de graça: como Moisés é custo 1, ele morre para a **Sekhmet*
 
 **Trevas na rodada 6:** a Praga agenda `s.trevas = round + 1`, que nunca casa. E se ela cair na rodada 5, o `startReveal` da rodada 6 ignora o atraso — é a "regra global de encerramento" do PDF, escrita assim para não forçar uma revelação dentro do `finish` e quebrar a animação passo a passo do cliente.
 
-### Fase 5 — Moldura de medalhão
-Variante no `Carta.jsx` + mapa `POS` novo. **Render-and-inspect antes de subir.** As Pragas não têm disco de Poder.
+### Fase 5 — Moldura de medalhão ✅ concluída
+Componente `CartaPraga` no `Carta.jsx`, acionado por `tipo === "Praga"`. Não usa o mapa `POS` nem a `moldura.png`: a geometria toda é **desenhada e derivada de `width`**, então escala em qualquer tamanho sem asset novo.
 
-### Fase 6 — Arte
-Dez prompts novos, no fluxo de sempre. Último de propósito: só vale desenhar depois que as regras pararem de mexer.
+- **Medalhão circular** com anel ouro → lápis-lazúli → ouro. É o vocabulário material do próprio assunto (cloisonné egípcio), não ornamento genérico.
+- **Conector numerado** — o elemento de assinatura. As dez pragas *são* uma sequência canônica, então a ordem carrega informação real que o jogador reconhece. Campo `ordem: 1..10` nas definições.
+- **Sem disco de Poder.** É metade da razão desta moldura existir.
+- **Distinção material deliberada:** as cartas da coleção são papiro pintado (tinta escura sobre fundo claro); as Pragas são **estelas de pedra** — texto claro gravado em pedra escura. Praga não é combatente que se joga na via: é decreto.
+- **`MiniCard` do tabuleiro** deixou de mostrar Poder para Pragas — mostrava um `0` mentiroso. No lugar, o número da praga num disco dourado.
+
+Verificado por render-and-inspect (Chromium headless sobre o `dist`): as dez cartas renderizam, e a checagem programática de `scrollHeight > clientHeight` não achou overflow em nenhuma — inclusive na Praga das Úlceras, que tem o texto mais longo do set, e na Morte dos Primogênitos, de número com dois dígitos.
+
+**Trade-off registrado:** a moldura é **desenhada em CSS**, não pintada. Vantagem: existe agora, escala sozinha e não depende de asset. Se um dia a estética pedir uma moldura pintada no mesmo traço da `moldura.png`, ela entra como imagem de fundo do componente sem mexer no resto do layout.
+
+### Fase 6 — Arte ⏳ próxima
+Onze prompts novos (as 10 Pragas + Moisés), no fluxo de sempre. Último de propósito: só vale desenhar depois que as regras pararem de mexer — e elas pararam.
+
+Particularidade do set: a arte é recortada em **círculo**, não em retângulo. Os prompts precisam pedir composição centralizada e radial, com o assunto longe das bordas, porque o `object-cover` circular corta os quatro cantos. `arteFoco` continua valendo para assunto alto.
 
 ### Fase 7 — Filtros da Galeria
 Custo, tipo, arquétipo e set.

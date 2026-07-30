@@ -301,7 +301,7 @@ export default function App() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 justify-items-center">
             {(galeriaAba === "colecao" ? COLLECTION : PRAGAS_ORDENADAS).map((def) => (
               <Carta key={def.key} nome={def.nome} custo={def.custo} poder={def.poder}
-                tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={240} />
+                tipo={def.tipo} efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} ordem={def.ordem} width={240} />
             ))}
           </div>
         </div>
@@ -672,6 +672,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
     );
   }
 
+  const ehPraga = def.tipo === "Praga";
   const p = power(c, ctx);
   const refP = c.printed + (c.baked || 0);
   const maat = laneHasMaat(ctx.board, c.lane);
@@ -713,7 +714,16 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
         </div>
         <div style={{ position: "relative", color: "#e7e5e4", fontSize: f(0.82), lineHeight: 1.08, textAlign: "center", padding: `0 ${f(0.25)}px`, overflow: "hidden", textShadow: "0 1px 2px rgba(0,0,0,.9)" }}>{def.nome}</div>
         <div style={{ position: "relative", textAlign: "center", paddingBottom: f(0.2) }}>
-          <span style={{ fontWeight: 800, fontSize: f(1.7), lineHeight: 1, color: pColor, textShadow: "0 1px 3px rgba(0,0,0,.95)" }}>{p}</span>
+          {ehPraga ? (
+            /* Praga não tem Poder: mostra o número da praga, não um zero mentiroso. */
+            <span title="Praga — resolve o efeito e deixa o campo" style={{
+              display: "inline-flex", alignItems: "center", justifyContent: "center",
+              width: f(1.5), height: f(1.5), borderRadius: "50%", background: "#c8a24a",
+              color: "#2b2010", fontWeight: 800, fontSize: f(0.9), lineHeight: 1,
+            }}>{def.ordem}</span>
+          ) : (
+            <span style={{ fontWeight: 800, fontSize: f(1.7), lineHeight: 1, color: pColor, textShadow: "0 1px 3px rgba(0,0,0,.95)" }}>{p}</span>
+          )}
         </div>
         {/* Úlceras: o -1 por rodada não pode ser invisível */}
         {c.ulceras && (
@@ -740,7 +750,7 @@ function ZoomModal({ zoom, onClose }) {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, cursor: "zoom-out" }}>
       <div className="duat-zoom" onClick={(e) => e.stopPropagation()} style={{ cursor: "default" }}>
         <Carta nome={def.nome} custo={zoom.custo != null ? zoom.custo : def.custo} poder={shown} tipo={def.tipo}
-          efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} width={w} />
+          efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} ordem={def.ordem} width={w} />
         <div className="text-center mt-2 text-sm text-stone-300" style={{ maxWidth: w }}>
           <div>{sub}</div>
           <div className="text-xs text-stone-400 mt-0.5">
@@ -1380,7 +1390,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
 
             <div onClick={(e) => e.stopPropagation()}>
               <Carta nome={detail.nome} custo={detail.custo} poder={detail.poder} tipo={detail.tipo}
-                efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} width={cardW} />
+                efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} ordem={detail.ordem} width={cardW} />
             </div>
 
             <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: cardW, display: "flex", gap: 8, marginTop: 12 }}>
@@ -1493,7 +1503,7 @@ function MpDeck({ build, setDeck, flash, setScreen, msg }) {
             </div>
             <div onClick={(e) => e.stopPropagation()}>
               <Carta nome={detail.nome} custo={detail.custo} poder={detail.poder} tipo={detail.tipo}
-                efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} width={cardW} />
+                efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} ordem={detail.ordem} width={cardW} />
             </div>
             <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: cardW, display: "flex", gap: 8, marginTop: 12 }}>
               <button onClick={() => addCard(detail.key)} disabled={on || cheio} style={{
