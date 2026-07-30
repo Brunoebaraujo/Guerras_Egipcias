@@ -182,6 +182,11 @@ export const PRAGAS = [
 
 export const PRAGA_KEYS = PRAGAS.map((p) => p.key);
 
+/* Teto global de mão. Vive aqui e não em match.js porque destroyList() também
+   precisa dele: mão cheia é ABSOLUTA, nada entra na mão por nenhum caminho.
+   Compra não acontece, corrente não repõe, Múmia não volta. */
+export const MAO_MAX = 7;
+
 // Sub-decks outorgados por carta. `outorga: "pragas"` no Moisés significa: ao
 // montar a partida, acrescente estas chaves ao deck de quem o escolheu.
 export const OUTORGAS = { pragas: PRAGA_KEYS };
@@ -383,8 +388,21 @@ export function destroyList(s, victims) {
     s.deaths[v.owner] += 1;
     s.destroyedPower[v.owner] += powerAtDeath[i];
   });
-  for (const r of mumias) s.hand[r.owner].push({ hid: nextUid(), key: "mumia", printed: 2, baked: r.val - 2 });
-  return mumias;
+  /* Mão cheia é absoluta: a Múmia dobrada não volta. Ela já foi contabilizada
+     como destruída acima (deaths, destroyedPower, Am-heh, Osíris) — ficar na
+     pilha de destruídas é literalmente não fazer nada além disso. Sai do array
+     de retorno para o badge não anunciar uma carta que não chegou. */
+  const voltaram = [];
+  for (const r of mumias) {
+    const mao = (s.hand[r.owner] ||= []);
+    if (mao.length >= MAO_MAX) {
+      pushLog(s, `✋ ${SIDE_NAME[r.owner]}: mão cheia (${MAO_MAX}) — a Múmia ficou na pilha de destruídas.`);
+      continue;
+    }
+    mao.push({ hid: nextUid(), key: "mumia", printed: 2, baked: r.val - 2 });
+    voltaram.push(r);
+  }
+  return voltaram;
 }
 
 // -------------------------- renascimento do Bennu ---------------------------

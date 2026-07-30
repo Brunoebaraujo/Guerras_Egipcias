@@ -35,7 +35,7 @@
    ========================================================================== */
 
 import {
-  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
+  byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, MAO_MAX, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
@@ -49,7 +49,7 @@ export const START_HAND = OPENING_DEAL; // compat
    não acontece e a carta fica no deck. Regra global, não específica de Praga —
    mas é ela que regula o arquétipo do Moisés, porque acumular Praga cara custa
    as compras normais justamente quando se precisa de guerreiro na segunda via. */
-export const MAO_MAX = 7;
+export { MAO_MAX };
 export const DECK_SIZE = 12;
 export const MAX_ROUND = 6;
 

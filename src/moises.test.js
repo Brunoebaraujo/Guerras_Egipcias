@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   CARDS, PRAGAS, PRAGA_KEYS, TOKENS, OUTORGAS, byKey,
-  power, ctxOf, registrarPraga, aplicarBencao, resetUid, nextUid,
+  power, ctxOf, registrarPraga, aplicarBencao, destroyList, MAO_MAX, resetUid, nextUid,
 } from "./engine.js";
-import { freshMatch, applyAction, expandirDeck, autoReveal, MAO_MAX } from "./match.js";
+import { freshMatch, applyAction, expandirDeck, autoReveal } from "./match.js";
 
 const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], baked = 0, ...rest } = {}) => ({
   uid: nextUid(), key, owner, lane, revealed, dying: false,
@@ -400,6 +400,20 @@ describe("teto de mão e corrente das Pragas", () => {
     expect(g.deck[0]).toEqual(["servo", "arqueiro"]);
   });
 
+  /* Bruno: "jogou uma praga e por algum motivo a mão já tem 7 cartas". O
+     "algum motivo" existe: uma Múmia que voltou, uma carta recolhida, qualquer
+     coisa que reencha a mão entre o jogar e o revelar. A corrente respeita. */
+  it("mão de volta ao teto antes do reveal: a corrente não repõe", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[hp], []], deck: [["ras", "servo"], []] });
+    g = applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state;
+    g.hand[0] = encher(MAO_MAX);                    // reencheu no meio do caminho
+    g = revelar(g);
+    expect(g.hand[0]).toHaveLength(MAO_MAX);
+    expect(g.deck[0]).toEqual(["ras", "servo"]);    // a Praga continua no deck
+    expect(g.log.some((l) => l.includes("não repôs"))).toBe(true);
+  });
+
   it("Praga bloqueada pelo Selo não aciona a corrente — gasta sem repor", () => {
     const hp = naMao("sangue");
     let g = mkMatch({
@@ -418,5 +432,54 @@ describe("teto de mão e corrente das Pragas", () => {
     g = applyAction(g, { t: "place", side: 1, hid: hp.hid, lane: 0 }).state;
     g = revelar(g);
     expect(g.hand[1].map((h) => h.key)).toEqual(["ras"]);
+  });
+});
+
+/* ==========================================================================
+   Mão cheia é ABSOLUTA: nada entra na mão por nenhum caminho.
+   ========================================================================== */
+describe("teto de mão absoluto", () => {
+  const encher = (n) => Array.from({ length: n }, () => naMao("servo"));
+
+  it("Múmia destruída com a mão cheia não volta — fica na pilha de destruídas", () => {
+    const mumia = mk("mumia", { owner: 0, baked: 2 });   // 2 impresso + 2 = 4
+    const s = mkState([mumia]);
+    s.hand[0] = encher(MAO_MAX);
+    const voltaram = destroyList(s, [mumia]);
+    expect(voltaram).toHaveLength(0);
+    expect(s.hand[0]).toHaveLength(MAO_MAX);
+    expect(s.hand[0].some((h) => h.key === "mumia")).toBe(false);
+    expect(s.log.some((l) => l.includes("pilha de destruídas"))).toBe(true);
+  });
+
+  it("a Múmia barrada continua contando como destruída — Am-heh e Osíris comem igual", () => {
+    const mumia = mk("mumia", { owner: 0, baked: 2 });
+    const s = mkState([mumia]);
+    s.hand[0] = encher(MAO_MAX);
+    destroyList(s, [mumia]);
+    expect(s.deaths[0]).toBe(1);
+    expect(s.destroyedPower[0]).toBe(4);
+  });
+
+  it("com uma vaga na mão a Múmia volta normalmente, dobrada", () => {
+    const mumia = mk("mumia", { owner: 0, baked: 2 });
+    const s = mkState([mumia]);
+    s.hand[0] = encher(MAO_MAX - 1);
+    const voltaram = destroyList(s, [mumia]);
+    expect(voltaram).toHaveLength(1);
+    expect(s.hand[0]).toHaveLength(MAO_MAX);
+    const nova = s.hand[0].find((h) => h.key === "mumia");
+    expect(nova.printed + nova.baked).toBe(8);          // 4 × 2
+  });
+
+  it("duas Múmias e uma vaga só: a primeira volta, a segunda fica destruída", () => {
+    const m1 = mk("mumia", { owner: 0, baked: 2 });
+    const m2 = mk("mumia", { owner: 0, lane: 1, baked: 2 });
+    const s = mkState([m1, m2]);
+    s.hand[0] = encher(MAO_MAX - 1);
+    const voltaram = destroyList(s, [m1, m2]);
+    expect(voltaram).toHaveLength(1);
+    expect(s.hand[0]).toHaveLength(MAO_MAX);
+    expect(s.deaths[0]).toBe(2);                        // as duas morreram
   });
 });
