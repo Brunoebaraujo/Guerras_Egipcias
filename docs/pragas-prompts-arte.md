@@ -1,27 +1,11 @@
 # Set das Pragas — prompts de geração de arte
 
-Onze imagens: as 10 Pragas + Moisés. Cada prompt = **bloco de estilo** (fixo, igual em todas) + **bloco de composição** (circular para as Pragas, retangular para o Moisés) + **bloco da carta**.
+Onze imagens: as 10 Pragas + Moisés. Cada prompt = **bloco de estilo** (fixo) + **bloco de composição** (circular para as Pragas, retangular para o Moisés) + **bloco da carta**.
 
-## Calibração feita na nº 1 ✅
+## Estado
 
-A primeira (Águas em Sangue) foi gerada e integrada. O que ela ensinou, medido no navegador:
-
-**O medalhão tem 131 pixels de diâmetro na Galeria.** Na primeira arte havia poços de pedra com figuras tirando água, pescadores, barcas de junco — detalhe bonito que simplesmente não existe nesse tamanho. Ela funcionou porque o assunto principal (a massa vermelha abrindo em Y) é grande e ocupa o centro.
-
-Por isso o bloco de estilo abaixo ganhou a regra de **poucos elementos grandes**. Vale para os nove restantes: se o assunto precisa de figuras miúdas para ser entendido, ele não vai ser entendido.
-
-Também confirmado: **o recorte é feito pelo navegador**, não por você. A imagem entra quadrada em `public/cartas/` e o componente aplica `border-radius: 50%` com `object-fit: cover` — círculo inscrito no quadrado, sem distorção e sem zoom. Você nunca precisa recortar nada à mão.
-
-## Por que os prompts são assim
-
-Cada bloco de carta está ancorado na **identidade mecânica**, não só na mitologia. Águas em Sangue não é "o Nilo vermelho" — é *dano pequeno que alcança as três frentes*, e a ilustração mostra isso em três braços de água. A Chuva de Granizo não é "gelo caindo" — é *só o que é barato morre*, e por isso as construções leves queimam enquanto a pedra maciça fica intacta ao fundo. Quem olha a carta tem que sentir o que ela faz.
-
-## Nomes de arquivo
-
-As Pragas são recortadas em **círculo**, então os quatro cantos são descartados. É a diferença mais importante em relação a tudo que você já gerou para este jogo.
-
-| # | Carta | Arquivo | Recorte | `arteFoco` sugerido | Estado |
-|---|-------|---------|---------|---------------------|--------|
+| # | Carta | Arquivo | Recorte | `arteFoco` | Estado |
+|---|-------|---------|---------|-----------|--------|
 | 1 | Águas em Sangue | `sangue.webp` | circular | — | ✅ pronta |
 | 2 | Praga das Rãs | `ras.webp` | circular | — | — |
 | 3 | Praga dos Piolhos | `piolhos.webp` | circular | — | — |
@@ -34,7 +18,17 @@ As Pragas são recortadas em **círculo**, então os quatro cantos são descarta
 | 10 | Morte dos Primogênitos | `primogenitos.webp` | circular | — | — |
 | — | Moisés, Portador das Pragas | `moises.webp` | retangular | `center 10%` | — |
 
-Como o recorte é circular e centralizado, `arteFoco` deixa de ser necessário nas dez Pragas — o enquadramento já é radial por construção. Ele continua valendo para o Moisés, que usa a moldura normal.
+## Duas coisas medidas no navegador
+
+**O recorte é feito pelo navegador, não por você.** A imagem entra quadrada em `public/cartas/` e o componente aplica `border-radius: 50%` com `object-fit: cover` — círculo inscrito no quadrado, sem distorção e sem zoom. Nunca é preciso recortar nada à mão, e a imagem original fica inteira no repositório.
+
+**A arte aparece num círculo de cerca de 136 pixels**, e os 10% de baixo ficam cobertos pelo painel de regras. A primeira arte gerada (Águas em Sangue) trazia poços de pedra com figuras tirando água, pescadores e barcas de junco: detalhe bonito que simplesmente não existe nesse tamanho. Ela funcionou porque o assunto principal — a massa vermelha abrindo em Y — é enorme e central.
+
+Todos os blocos abaixo já saíram calibrados por isso: **poucos elementos, grandes, reconhecíveis por silhueta**. Se um assunto só se entende com figuras miúdas, ele não vai se entender.
+
+## Por que os prompts são assim
+
+Cada bloco está ancorado na **identidade mecânica** da carta, não só na mitologia. Águas em Sangue não é "o Nilo vermelho" — é *dano pequeno que alcança as três frentes*. A Chuva de Granizo não é "gelo caindo" — é *só o que é barato morre*, e por isso uma tenda queima em primeiro plano enquanto um bloco de pedra maciça fica intacto atrás. Quem olha a carta tem que sentir o que ela faz.
 
 ---
 
@@ -44,14 +38,13 @@ Como o recorte é circular e centralizado, `arteFoco` deixa de ser necessário n
 Ilustração digital pintada, fantasia histórica semi-realista, Egito Antigo.
 Iluminação cinematográfica com contraste forte. Paleta dominante de ouro,
 âmbar e areia, com as sombras em azul-lápis profundo. Pincelada e textura de
-pintura visíveis; NÃO deve parecer render 3D limpo nem foto. Detalhe rico mas
-legível, porque a imagem será vista pequena.
+pintura visíveis; NÃO deve parecer render 3D limpo nem foto.
 
-POUCOS ELEMENTOS, GRANDES. A imagem final será vista com cerca de 130 pixels
-de diâmetro. O assunto principal deve ocupar boa parte do círculo central e
-ser reconhecível por SILHUETA e MASSA DE COR, não por detalhe. Evite multidões
-de figuras pequenas, panoramas amplos e minúcia decorativa: nesse tamanho
-viram borrão. No máximo duas ou três figuras humanas, e grandes.
+POUCOS ELEMENTOS, GRANDES. A arte será vista com cerca de 136 pixels. O
+assunto principal precisa ocupar boa parte do quadro e ser reconhecível por
+SILHUETA e MASSA DE COR, não por detalhe. Evite panoramas amplos, multidões de
+figuras pequenas e minúcia decorativa: nesse tamanho viram borrão. No máximo
+duas ou três figuras, e grandes.
 
 NÃO incluir: texto, letras, números, hieróglifos legíveis, moldura, borda,
 legenda, assinatura, marca d'água, elementos de interface, pessoas com roupas
@@ -63,13 +56,13 @@ modernas, objetos anacrônicos.
 ```
 Imagem quadrada, proporção 1:1.
 
-COMPOSIÇÃO RADIAL E CENTRALIZADA. A imagem será RECORTADA EM CÍRCULO: tudo o
-que estiver nos quatro cantos será descartado. Portanto:
-- o assunto principal fica no centro, dentro do círculo inscrito no quadrado;
-- deixe respiro nas bordas, sem elementos importantes perto delas;
-- nada de detalhe narrativo nos cantos;
-- a energia da cena deve irradiar do centro para fora, ou convergir de fora
-  para o centro.
+COMPOSIÇÃO RADIAL E CENTRALIZADA. A imagem será RECORTADA EM CÍRCULO e os
+quatro cantos serão descartados. Além disso, os 10% de baixo do círculo ficarão
+cobertos. Portanto:
+- o assunto principal fica no centro, ligeiramente ACIMA do meio do quadro;
+- nada importante nos cantos nem na faixa inferior;
+- deixe respiro nas bordas;
+- a energia da cena irradia do centro para fora, ou converge para o centro.
 ```
 
 ## BLOCO DE COMPOSIÇÃO — cole apenas no Moisés
@@ -82,9 +75,11 @@ para não ser cortada pela moldura.
 
 ---
 
-# 1 · Águas em Sangue (`sangue.webp`)
+# 1 · Águas em Sangue (`sangue.webp`) ✅
 
-**Mecânica:** dano pequeno que alcança **as três vias ao mesmo tempo**. Não é um golpe: é uma contaminação que chega a tudo.
+**Mecânica:** dano pequeno que alcança **as três vias ao mesmo tempo**.
+
+Já pronta. Prompt usado, para referência de traço:
 
 ```
 Vista aérea do Nilo ao amanhecer. A água transformada em vermelho-sangue
@@ -101,12 +96,13 @@ contaminação alcança cada braço de água — nada foi poupado.
 **Mecânica:** não faz dano — **entope um espaço** no campo inimigo. A rã não mata: atrapalha.
 
 ```
-Interior de uma casa egípcia de barro, à luz de lamparina. Rãs cobrindo cada
-superfície disponível: empilhadas dentro dos jarros de cerâmica, sobre os pães
-na mesa, nos degraus, no cesto de grãos, na beira do leito. Uma delas no
-próprio pão partido. Ao centro, um pé humano descalço suspenso no ar, sem
-encontrar chão livre onde pisar. A sensação é de ACÚMULO e obstrução, não de
-violência — não há ferimento nem sangue, apenas o espaço tomado por completo.
+UMA RÃ GRANDE em primeiro plano, escura e úmida, ocupando o centro do quadro e
+boa parte da altura da imagem, empoleirada na borda de um grande jarro de
+cerâmica egípcio. Ela olha para frente, imóvel, exatamente onde não deveria
+estar. Atrás dela, desfocadas e maiores que o normal, mais duas rãs sobre um
+pão partido e sobre a alça do jarro. Luz baixa de lamparina vinda da esquerda,
+brilho úmido na pele do animal. Nenhuma figura humana, nenhum ferimento,
+nenhuma violência: apenas uma presença grande e imóvel ocupando o lugar.
 ```
 
 # 3 · Praga dos Piolhos (`piolhos.webp`)
@@ -114,13 +110,13 @@ violência — não há ferimento nem sangue, apenas o espaço tomado por comple
 **Mecânica:** não destrói nada — **encarece** e atrasa. Fica mais difícil fazer o que você ia fazer.
 
 ```
-Sacerdote egípcio de cabeça e corpo raspados, ajoelhado ao centro de um
-santuário, com a pele irritada e avermelhada. Ele está TRAVADO NO MEIO DE UM
-GESTO ritual: uma das mãos levantada em oferenda, a outra desviada para
-coçar o antebraço. O incenso apagado, o vaso de libação intocado no chão, as
-oferendas paradas onde foram deixadas. Luz de tocha lateral. A cena comunica
-um rito interrompido por algo pequeno e humilhante — o trabalho não foi
-destruído, apenas ficou impossível de completar agora.
+Retrato aproximado de um sacerdote egípcio de cabeça e corpo raspados, do peito
+para cima, ocupando quase todo o quadro. A pele do crânio e dos ombros
+avermelhada e irritada. Ele está TRAVADO NO MEIO DE UM GESTO ritual: uma das
+mãos erguida à altura do rosto em oferenda, parada no ar, e a outra desviada
+para coçar o próprio ombro. A expressão é de humilhação contida, não de dor.
+Fundo escuro e simples, apenas o brilho quente de uma tocha fora do quadro.
+Nada de cenário detalhado: só o homem, as duas mãos e o gesto interrompido.
 ```
 
 # 4 · Praga das Moscas (`moscas.webp`)
@@ -128,12 +124,13 @@ destruído, apenas ficou impossível de completar agora.
 **Mecânica:** **polui o futuro** do adversário — cartas mortas embaralhadas no deck dele.
 
 ```
-Um escriba egípcio sentado de pernas cruzadas ao centro, tentando trabalhar
-sobre um rolo de papiro, com o ar tão denso de moscas que o fundo quase
-desaparece atrás delas. Enxame espesso convergindo de todas as direções para
-o centro do quadro. As moscas cobrem o papiro, a paleta de tintas, o ombro do
-escriba. Ao fundo, desfocado, um soldado com um pingente de mosca de ouro no
-peito, coberto de moscas reais. Nada está destruído: tudo está inutilizado.
+Retrato aproximado de um escriba egípcio, cabeça e ombros ocupando o centro do
+quadro, com os olhos semicerrados e o rosto virado de lado, tentando suportar.
+Em primeiro plano, MUITO GRANDES e em foco nítido, três ou quatro moscas
+enormes voando bem perto do observador, com asas translúcidas pegando a luz.
+Atrás do escriba, o ar fica opaco de tanto enxame, escurecendo o fundo até
+quase o preto. Uma mosca pousada na têmpora dele. Nada está ferido nem
+destruído: tudo está inutilizado.
 ```
 
 # 5 · Peste nos Animais (`peste.webp`)
@@ -141,12 +138,13 @@ peito, coberto de moscas reais. Nada está destruído: tudo está inutilizado.
 **Mecânica:** apaga **uma categoria inteira, de uma vez**, numa frente só.
 
 ```
-Pátio de templo egípcio ao meio-dia duro. Um rebanho inteiro caído no chão de
-pedra, todos os animais ao mesmo tempo e na mesma direção — bois, cabras,
-ovelhas — dispostos em círculo em torno do centro. No centro exato, um grande
-touro sagrado ainda com as faixas e as insígnias rituais, caído de lado. Um
-único pastor de pé entre eles, de costas curvadas, sozinho e intacto. A
-simultaneidade é o assunto: não morreram um a um, morreram todos juntos.
+UM TOURO SAGRADO ENORME caído de lado, ocupando o centro do quadro e quase
+toda a largura da imagem, ainda com as faixas de linho e o peitoral ritual de
+ouro. Os olhos fechados, a cabeça no chão de pedra. À beira do quadro, apenas
+as pernas de um segundo animal grande também caído, sugerindo que não foi só
+ele. Ao fundo, pequeno e de pé, um único pastor de ombros curvados, em
+silhueta. Luz dura de meio-dia, sombras curtas. Nenhum ferimento visível,
+nenhum sangue: os animais simplesmente pararam, todos ao mesmo tempo.
 ```
 
 # 6 · Praga das Úlceras (`ulceras.webp`)
@@ -154,13 +152,13 @@ simultaneidade é o assunto: não morreram um a um, morreram todos juntos.
 **Mecânica:** **dano contínuo**. A carta não morre: apodrece um pouco a cada rodada.
 
 ```
-Soldado egípcio ainda DE PÉ ao centro, meio despido da armadura de couro, que
-pende de um ombro. Feridas e úlceras abrindo pelos antebraços, ombro e torso,
-em estágios visivelmente diferentes — algumas recentes, outras já avançadas.
-A expressão é de quem está PIORANDO, não de quem está morrendo: ele ainda
-segura a lança. No chão ao lado, frascos de remédio e potes de unguento
-abertos e inúteis. Luz fria e doente. O assunto é deterioração em curso, não
-morte.
+Soldado egípcio ainda DE PÉ, enquadrado do peito para cima, ocupando quase todo
+o quadro. A armadura de couro pendendo aberta de um ombro. Úlceras grandes e
+claramente visíveis no ombro, no peito e no antebraço, em estágios
+DIFERENTES entre si: umas recentes e vermelhas, outras já escuras e abertas. Ele
+ainda segura a haste da lança com firmeza, e a expressão é de quem está
+PIORANDO, não de quem está morrendo. Luz fria, esverdeada e doente, vinda de
+cima. Fundo escuro e vazio. O assunto é deterioração em curso.
 ```
 
 # 7 · Chuva de Granizo e Fogo (`granizo.webp`)
@@ -168,13 +166,13 @@ morte.
 **Mecânica:** destrói **só o que é barato**, e encarece o resto.
 
 ```
-Acampamento egípcio sob uma tempestade impossível: pedras de granizo e bolas
-de fogo caindo JUNTAS do mesmo céu, do topo do quadro convergindo para o
-centro. As construções LEVES — tendas de lona, cercados de junco, telheiros de
-palha — já em chamas e desabando ao centro. Ao fundo, imponente e claramente
-INTACTO, um bloco de templo em pedra maciça, sem um arranhão, apenas iluminado
-pelo incêndio à sua frente. O contraste entre o frágil destruído e o sólido
-ileso é o assunto da imagem.
+Duas coisas grandes e nada mais. Em primeiro plano ao centro, UMA TENDA de
+lona e madeira desabando em chamas altas, já perdida. Imediatamente atrás
+dela, ocupando toda a parte de cima do quadro, UM BLOCO DE TEMPLO EM PEDRA
+MACIÇA, gigantesco e visivelmente INTACTO, sem uma marca, apenas iluminado em
+laranja pelo incêndio à sua frente. Do alto, pedras de granizo e bolas de fogo
+caindo JUNTAS do mesmo céu escuro, convergindo para o centro. O contraste entre
+o frágil consumido e o sólido ileso é todo o assunto da imagem.
 ```
 
 # 8 · Nuvem de Gafanhotos (`gafanhotos.webp`)
@@ -182,13 +180,13 @@ ileso é o assunto da imagem.
 **Mecânica:** mesmo alcance do Sangue, **o dobro da força**. Voracidade, não contaminação.
 
 ```
-Campo de trigo egípcio sendo devorado. Uma nuvem densa de gafanhotos entrando
-pelo centro do quadro em profundidade, vindo de longe na direção do
-observador, escurecendo o céu atrás dela. Em primeiro plano, os caules já
-completamente pelados e quebrados, terra nua aparecendo. No meio, a linha
-exata em que a plantação ainda está de pé e começa a desaparecer. Alguns
-gafanhotos grandes, em foco nítido, bem à frente. O assunto é CONSUMO
-voraz e avançando — a safra sendo comida ainda em pé.
+DOIS GAFANHOTOS ENORMES em primeiro plano, em foco nítido e ocupando o centro
+do quadro, agarrados a um caule de trigo já completamente pelado, mandíbulas
+em movimento. Detalhe seco e quitinoso nas patas e nas asas, pegando a luz
+dourada. Atrás deles, o enxame reduzido a uma MASSA escura e sem detalhe,
+escurecendo todo o fundo do quadro como uma tempestade. Embaixo, terra nua e
+caules quebrados. Nenhuma figura humana, nenhuma construção. O assunto é
+consumo voraz visto de perto.
 ```
 
 # 9 · Trevas sobre o Egito (`trevas.webp`)
@@ -196,50 +194,51 @@ voraz e avançando — a safra sendo comida ainda em pé.
 **Mecânica:** **esconde a informação**. Ninguém vê o que está em jogo.
 
 ```
-Eclipse total sobre um grande templo egípcio. Ao centro exato do quadro, um
-disco perfeitamente negro cercado por uma coroa fina de luz solar. Abaixo,
-figuras humanas COMPLETAMENTE EM SILHUETA, imóveis, algumas com os braços
-erguidos, sem que seja possível distinguir quem é sacerdote, quem é soldado,
-quem é servo. As colunas do templo também reduzidas a contornos. Nenhum rosto
-identificável, nenhum detalhe legível — apenas formas escuras contra um
-resto de céu. A impossibilidade de reconhecer o que se vê é o assunto.
+Ao centro exato do quadro, UM DISCO PERFEITAMENTE NEGRO E GRANDE, cercado por
+uma coroa fina e branca de luz solar, ocupando a parte de cima da imagem.
+Abaixo dele, apenas DUAS FIGURAS HUMANAS GRANDES, completamente em silhueta
+preta e sem nenhum detalhe interno, imóveis, com os braços erguidos para o
+disco. Não é possível dizer se são sacerdotes, soldados ou servos. Atrás, o
+contorno vago e escuro de uma coluna. Nenhum rosto, nenhuma textura, nenhuma
+cor além do preto e do resto de céu alaranjado nas bordas. A impossibilidade
+de reconhecer o que se vê é o assunto.
 ```
 
 # 10 · Morte dos Primogênitos (`primogenitos.webp`)
 
 **Mecânica:** executa **a carta de maior valor** em jogo.
 
-> Deliberadamente simbólica e sem nada explícito: leito vazio, lamparina
-> apagada, luto. Não gere figura de criança morta — além de ser o caminho
-> respeitoso, é a imagem mais forte das duas.
+> Deliberadamente simbólica e sem nada explícito. Não gere figura de criança,
+> corpo nem ferimento — além de ser o caminho respeitoso, é a imagem mais forte.
 
 ```
-Câmara nobre egípcia à noite, visivelmente RICA: paredes de alabastro, móveis
-folheados a ouro, vasos de alabastro, tecidos finos, um colar de ouro
-esquecido sobre um banco. Ao centro exato do quadro, um leito baixo de madeira
-entalhada, VAZIO, com o lençol de linho desarrumado e afastado. Ao lado, uma
-lamparina de óleo APAGADA, um fio de fumaça ainda subindo. Uma figura adulta
-ajoelhada ao pé do leito, de costas, cabeça baixa, em luto. Nenhuma figura de
-criança, nenhum corpo, nenhum ferimento, nada explícito. A riqueza em volta
-comunica que o que foi tirado era o mais valioso da casa.
+Câmara egípcia à noite. Ao centro do quadro, ocupando boa parte da imagem, UM
+LEITO BAIXO DE MADEIRA RICAMENTE ENTALHADA E FOLHEADA A OURO, VAZIO, com o
+lençol de linho branco afastado e amarrotado. Em primeiro plano, grande e em
+foco, UMA LAMPARINA DE ÓLEO APAGADA, com um único fio de fumaça subindo. À
+borda do quadro, uma figura adulta grande e escura, ajoelhada de costas ao pé
+do leito, cabeça baixa. Fundo escuro, com apenas dois ou três brilhos de ouro
+sugerindo a riqueza da casa. Nenhuma criança, nenhum corpo, nenhum ferimento,
+nada explícito. A riqueza em volta comunica que o que foi tirado era o mais
+valioso da casa.
 ```
 
 # 11 · Moisés, Portador das Pragas (`moises.webp`)
 
-**Mecânica:** entra com **Poder 0** e cresce exponencialmente. A carta é potencial, não força — então a imagem não deve mostrar milagre nenhum acontecendo ainda.
+**Mecânica:** entra com **Poder 0** e cresce exponencialmente. A carta é potencial, não força — então a imagem não pode mostrar milagre nenhum acontecendo ainda.
 
-**Este é o único com enquadramento retangular** (usa a `moldura.png` normal). Use o bloco de composição do Moisés, não o circular.
+**Único com enquadramento retangular** (usa a `moldura.png` normal). Use o bloco de composição do Moisés, não o circular.
 
 ```
 Um homem de meia-idade, barbado, de pele curtida pelo sol, vestindo apenas
 roupas simples e gastas de pastor — lã crua, sandálias de couro, um manto
-puído. Ele está de pé, sozinho, diante da arquitetura monumental egípcia:
-colunas colossais cobertas de relevo pintado que se erguem muito além do topo
-do quadro, guardas de lança enfileirados e desfocados ao fundo. O cajado de
-madeira na mão está BAIXADO, apoiado no chão. Nenhum milagre acontecendo,
-nenhuma luz sobrenatural, nenhum gesto de poder: apenas um homem pobre e
-irredutível diante de um império, com o olhar firme. A DESPROPORÇÃO entre a
-figura pequena e a arquitetura gigantesca é o assunto da imagem. A cabeça um
+puído. Ele está de pé, sozinho, de corpo inteiro ao centro. Ao lado dele, UMA
+ÚNICA COLUNA COLOSSAL de templo egípcio, coberta de relevo pintado, tão larga
+quanto ele é alto e subindo muito além do topo do quadro. O cajado de madeira
+na mão está BAIXADO, apoiado no chão. Nenhum milagre acontecendo, nenhuma luz
+sobrenatural, nenhum gesto de poder, nenhuma multidão: apenas um homem pobre e
+irredutível, com o olhar firme, ao lado de algo esmagadoramente maior que ele.
+A DESPROPORÇÃO entre a figura e a coluna é o assunto da imagem. A cabeça um
 pouco abaixo do topo do quadro.
 ```
 
@@ -247,13 +246,13 @@ pouco abaixo do topo do quadro.
 
 ## Depois de gerar
 
-Me manda as imagens como anexo, na ordem que quiser, uma ou várias por vez. Do meu lado o fluxo é o de sempre:
+Me manda as imagens como anexo, uma ou várias por vez, na ordem que quiser. Do meu lado o fluxo é:
 
 1. converto para WebP 1000×1000, mirando ~200 KB
 2. gravo em `public/cartas/` com o nome de arquivo da tabela
 3. adiciono `arte` (e `arteFoco`, se precisar) na definição em `src/engine.js`
 4. rodo a suíte (225 testes) e o build
-5. render-and-inspect antes de subir — com o recorte circular isso passa a ser obrigatório, porque é fácil um assunto bem enquadrado no quadrado perder a cabeça no círculo
+5. **render-and-inspect**: com recorte circular isso é obrigatório, porque é fácil um assunto bem enquadrado no quadrado perder a cabeça no círculo
 6. commit e push na `main`
 
-Se alguma ficar com o assunto muito perto da borda, eu aviso na etapa 5 e a gente regera só aquela.
+Se alguma ficar com o assunto perto da borda, eu aviso na etapa 5 e a gente regera só aquela.

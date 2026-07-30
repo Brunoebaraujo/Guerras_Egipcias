@@ -46,8 +46,7 @@ const POS = {
 
    Toda a geometria é derivada de `width`, para a carta escalar em qualquer
    tamanho sem quebrar. u(n) = n × largura.
-   -------------------------------------------------------------------------- */
-function CartaPraga({ nome, custo, ordem, tipo, efeito, lore, arch = "base", arte, arteFoco, width }) {
+   -------------------------------------------------------------------------- */function CartaPraga({ nome, custo, ordem, tipo, efeito, lore, arch = "base", arte, arteFoco, width }) {
   const base = import.meta.env.BASE_URL;
   const u = (n) => n * width;
   const glyph = GLYPH[arch] || "𓂀";
@@ -57,9 +56,17 @@ function CartaPraga({ nome, custo, ordem, tipo, efeito, lore, arch = "base", art
   const OURO = "#c8a24a", OURO_CLARO = "#f0dca4", LAPIS = "#1d2a55";
   const TINTA = "#eadfc4", TINTA_FRACA = "#b9a87f";
 
-  const D = u(0.60);                                  // diâmetro do medalhão
+  /* Geometria. O painel de regras SOBREPÕE os 10% de baixo do medalhão, como o
+     medalhão ritual pousado sobre a placa. O conector numerado fica em cima dos
+     dois, na borda do painel, costurando as duas peças.
+     Consequência assumida: 10% da altura do círculo fica coberta, então a arte
+     precisa ter o assunto no centro — o que o bloco de composição já exige. */
+  const D = u(0.62);                    // diâmetro do medalhão
+  const topoMed = u(0.135);
+  const sobrepor = D * 0.10;            // os 10% pedidos
+  const topoPainel = topoMed + D - sobrepor;
+  const DC = u(0.15);                   // conector
   const anelExterno = u(0.016), anelLapis = u(0.011);
-  const DC = u(0.15);                                 // diâmetro do conector
 
   const nameSize = width * (nome.length > 24 ? 0.034 : nome.length > 14 ? 0.039 : 0.047);
   const efeitoSize = width * ((efeito || "").length > 110 ? 0.0335 : 0.038);
@@ -78,27 +85,18 @@ function CartaPraga({ nome, custo, ordem, tipo, efeito, lore, arch = "base", art
     <div style={{
       position: "relative", width, aspectRatio: "1024 / 1536", userSelect: "none",
       borderRadius: u(0.045), overflow: "hidden",
-      background: `linear-gradient(170deg, #241f19 0%, #16120e 45%, #0d0b08 100%)`,
+      background: "linear-gradient(170deg, #241f19 0%, #16120e 45%, #0d0b08 100%)",
       border: `${u(0.007)}px solid ${OURO}`,
       boxShadow: `inset 0 0 ${u(0.06)}px rgba(0,0,0,.9)`,
-      display: "flex", flexDirection: "column", alignItems: "center",
       fontFamily: "Georgia, 'Times New Roman', serif",
     }}>
       {/* filete interno, a moldura da estela */}
-      <div style={{ position: "absolute", inset: u(0.022), borderRadius: u(0.03), border: `${u(0.003)}px solid rgba(200,162,74,.38)`, pointerEvents: "none" }} />
-
-      {/* custo à esquerda, glifo do arquétipo à direita — mesma leitura das outras cartas */}
-      <div style={{ position: "absolute", left: u(0.045), top: u(0.038), zIndex: 3 }}>
-        {disco(u(0.175), <span style={{ color: "#2b2010", fontWeight: 800, fontSize: u(0.105), lineHeight: 1 }}>{custo}</span>)}
-      </div>
-      <div style={{
-        position: "absolute", right: u(0.06), top: u(0.055), zIndex: 3,
-        fontSize: u(0.085), lineHeight: 1, opacity: 0.85, color: OURO,
-      }}>{glyph}</div>
+      <div style={{ position: "absolute", inset: u(0.022), borderRadius: u(0.03), border: `${u(0.003)}px solid rgba(200,162,74,.38)`, pointerEvents: "none", zIndex: 4 }} />
 
       {/* MEDALHÃO — anel ouro / lápis / ouro */}
       <div style={{
-        marginTop: u(0.15), width: D, height: D, borderRadius: "50%", padding: anelExterno,
+        position: "absolute", left: "50%", transform: "translateX(-50%)", top: topoMed, zIndex: 1,
+        width: D, height: D, borderRadius: "50%", padding: anelExterno,
         background: `conic-gradient(from 210deg, #8a6b28, ${OURO_CLARO} 25%, ${OURO} 50%, #7d5f22 72%, ${OURO_CLARO} 100%)`,
         boxShadow: `0 ${u(0.01)}px ${u(0.03)}px rgba(0,0,0,.8)`,
       }}>
@@ -115,37 +113,49 @@ function CartaPraga({ nome, custo, ordem, tipo, efeito, lore, arch = "base", art
         </div>
       </div>
 
-      {/* CONECTOR — o número da praga, pousado na borda do medalhão */}
-      <div style={{ marginTop: -DC / 2, zIndex: 2 }}>
+      {/* PAINEL DE REGRAS — placa de pedra sobre o medalhão */}
+      <div style={{
+        position: "absolute", left: u(0.045), right: u(0.045), top: topoPainel, bottom: u(0.045), zIndex: 2,
+        borderRadius: u(0.022), border: `${u(0.0035)}px solid rgba(200,162,74,.55)`,
+        background: "linear-gradient(180deg, #2c2519 0%, #1c1711 40%, #12100c 100%)",
+        boxShadow: `0 ${-u(0.008)}px ${u(0.024)}px rgba(0,0,0,.75), inset 0 ${u(0.004)}px 0 rgba(240,220,164,.16)`,
+        display: "flex", flexDirection: "column", alignItems: "center",
+        paddingTop: DC / 2 + u(0.028), paddingLeft: u(0.04), paddingRight: u(0.04), paddingBottom: u(0.035),
+        overflow: "hidden",
+      }}>
+        {/* NOME */}
+        <div style={{ width: "100%", minHeight: u(0.10), display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+          <span style={{ color: OURO_CLARO, fontWeight: 700, fontSize: nameSize, lineHeight: 1.1,
+                         letterSpacing: u(0.004), textTransform: "uppercase" }}>{nome}</span>
+        </div>
+
+        {/* filete duplo + tipo: separa identidade de regras */}
+        <div style={{ display: "flex", alignItems: "center", gap: u(0.03), width: "100%", marginTop: u(0.008) }}>
+          <span style={{ flex: 1, height: u(0.004), background: `linear-gradient(90deg, transparent, ${OURO})` }} />
+          <span style={{ color: OURO, fontSize: u(0.042), letterSpacing: u(0.012), textTransform: "uppercase", whiteSpace: "nowrap" }}>{tipo}</span>
+          <span style={{ flex: 1, height: u(0.004), background: `linear-gradient(90deg, ${OURO}, transparent)` }} />
+        </div>
+
+        {/* TEXTO */}
+        <div style={{ flex: 1, width: "100%", display: "flex", flexDirection: "column", justifyContent: "center",
+                      gap: u(0.024), textAlign: "center", overflow: "hidden" }}>
+          {efeito ? <span style={{ color: TINTA, fontSize: efeitoSize, lineHeight: 1.26, fontWeight: 600 }}>{efeito}</span> : null}
+          {lore ? <span style={{ color: TINTA_FRACA, fontSize: loreSize, lineHeight: 1.24, fontStyle: "italic" }}>{lore}</span> : null}
+        </div>
+      </div>
+
+      {/* CONECTOR — o número da praga, costurando medalhão e painel */}
+      <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", top: topoPainel - DC / 2, zIndex: 3 }}>
         {disco(DC, <span style={{ color: "#2b2010", fontWeight: 800, fontSize: u(0.088), lineHeight: 1 }}>{ordem}</span>,
           { border: `${u(0.005)}px solid #16120e` })}
       </div>
 
-      {/* NOME */}
-      <div style={{
-        marginTop: u(0.022), width: u(0.84), minHeight: u(0.10), display: "flex", alignItems: "center", justifyContent: "center",
-        textAlign: "center", overflow: "hidden",
-      }}>
-        <span style={{ color: OURO_CLARO, fontWeight: 700, fontSize: nameSize, lineHeight: 1.1,
-                       letterSpacing: u(0.004), textTransform: "uppercase" }}>{nome}</span>
+      {/* custo à esquerda, glifo do arquétipo à direita — mesma leitura das outras cartas */}
+      <div style={{ position: "absolute", left: u(0.045), top: u(0.038), zIndex: 5 }}>
+        {disco(u(0.175), <span style={{ color: "#2b2010", fontWeight: 800, fontSize: u(0.105), lineHeight: 1 }}>{custo}</span>)}
       </div>
-
-      {/* filete duplo + tipo: separa identidade de regras */}
-      <div style={{ display: "flex", alignItems: "center", gap: u(0.03), width: u(0.82), marginTop: u(0.006) }}>
-        <span style={{ flex: 1, height: u(0.004), background: `linear-gradient(90deg, transparent, ${OURO})` }} />
-        <span style={{ color: OURO, fontSize: u(0.042), letterSpacing: u(0.012), textTransform: "uppercase", whiteSpace: "nowrap" }}>{tipo}</span>
-        <span style={{ flex: 1, height: u(0.004), background: `linear-gradient(90deg, ${OURO}, transparent)` }} />
-      </div>
-
-      {/* PAINEL DE REGRAS */}
-      <div style={{
-        flex: 1, width: u(0.84), marginTop: u(0.026), marginBottom: u(0.05),
-        display: "flex", flexDirection: "column", justifyContent: "center", gap: u(0.022),
-        textAlign: "center", overflow: "hidden",
-      }}>
-        {efeito ? <span style={{ color: TINTA, fontSize: efeitoSize, lineHeight: 1.26, fontWeight: 600 }}>{efeito}</span> : null}
-        {lore ? <span style={{ color: TINTA_FRACA, fontSize: loreSize, lineHeight: 1.24, fontStyle: "italic" }}>{lore}</span> : null}
-      </div>
+      <div style={{ position: "absolute", right: u(0.06), top: u(0.055), zIndex: 5,
+                    fontSize: u(0.085), lineHeight: 1, opacity: 0.85, color: OURO }}>{glyph}</div>
     </div>
   );
 }
