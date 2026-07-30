@@ -2,21 +2,23 @@
 
 Onze imagens: as 10 Pragas + Moisés. Cada prompt = **bloco de estilo** (fixo) + **bloco de composição** (circular para as Pragas, retangular para o Moisés) + **bloco da carta**.
 
-## Estado
+## Estado — set completo ✅
+
+As onze artes estão integradas. `arteFoco` ficou vazio nas dez Pragas por geometria, não por esquecimento: a fonte é quadrada e o contêiner do medalhão também, então `object-fit: cover` encaixa exato e `objectPosition` não tem nada para deslocar. Só o Moisés precisa, porque a janela retangular da moldura é 1,213:1 e descarta 17,6% da altura.
 
 | # | Carta | Arquivo | Recorte | `arteFoco` | Estado |
 |---|-------|---------|---------|-----------|--------|
 | 1 | Águas em Sangue | `sangue.webp` | circular | — | ✅ pronta |
-| 2 | Praga das Rãs | `ras.webp` | circular | — | — |
-| 3 | Praga dos Piolhos | `piolhos.webp` | circular | — | — |
-| 4 | Praga das Moscas | `moscas.webp` | circular | — | — |
-| 5 | Peste nos Animais | `peste.webp` | circular | — | — |
-| 6 | Praga das Úlceras | `ulceras.webp` | circular | — | — |
-| 7 | Chuva de Granizo e Fogo | `granizo.webp` | circular | — | — |
-| 8 | Nuvem de Gafanhotos | `gafanhotos.webp` | circular | — | — |
-| 9 | Trevas sobre o Egito | `trevas.webp` | circular | — | — |
-| 10 | Morte dos Primogênitos | `primogenitos.webp` | circular | — | — |
-| — | Moisés, Portador das Pragas | `moises.webp` | retangular | `center 10%` | — |
+| 2 | Praga das Rãs | `ras.webp` | circular | — | ✅ pronta |
+| 3 | Praga dos Piolhos | `piolhos.webp` | circular | — | ✅ pronta |
+| 4 | Praga das Moscas | `moscas.webp` | circular | — | ✅ pronta |
+| 5 | Peste nos Animais | `peste.webp` | circular | — | ✅ pronta |
+| 6 | Praga das Úlceras | `ulceras.webp` | circular | — | ✅ pronta |
+| 7 | Chuva de Granizo e Fogo | `granizo.webp` | circular | — | ✅ pronta |
+| 8 | Nuvem de Gafanhotos | `gafanhotos.webp` | circular | — | ✅ pronta |
+| 9 | Trevas sobre o Egito | `trevas.webp` | circular | — | ✅ pronta |
+| 10 | Morte dos Primogênitos | `primogenitos.webp` | circular | — | ✅ pronta |
+| — | Moisés, Portador das Pragas | `moises.webp` | retangular | `center 20%` | ✅ pronta |
 
 ## Duas coisas medidas no navegador
 
