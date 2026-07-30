@@ -45,6 +45,11 @@ import {
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
 export const START_HAND = OPENING_DEAL; // compat
+/* Teto global de mão. Mão cheia não compra e não repõe: a compra simplesmente
+   não acontece e a carta fica no deck. Regra global, não específica de Praga —
+   mas é ela que regula o arquétipo do Moisés, porque acumular Praga cara custa
+   as compras normais justamente quando se precisa de guerreiro na segunda via. */
+export const MAO_MAX = 7;
 export const DECK_SIZE = 12;
 export const MAX_ROUND = 6;
 
@@ -89,10 +94,32 @@ const clone = (s) => JSON.parse(JSON.stringify(s));
 const err = (state, msg) => ({ state, error: msg });
 const ok = (state) => ({ state });
 
-/* Compra: shift do topo do deck para a mão. Devolve o hid comprado (ou null). */
+/* Compra: shift do topo do deck para a mão. Devolve o hid comprado (ou null).
+   Único caminho de compra do jogo — abertura, compra de rodada e corrente das
+   Pragas passam todos por aqui, então o teto de mão vive num lugar só. */
 function drawOne(s, side) {
   if (!s.deck[side] || s.deck[side].length === 0) return null;
+  if (s.hand[side].length >= MAO_MAX) return null;
   const key = s.deck[side].shift();
+  const hid = nextUid();
+  s.hand[side].push({ hid, key, printed: byKey[key].poder, baked: 0 });
+  s.seen[side] += 1;
+  return hid;
+}
+
+/* Corrente das Pragas: toda Praga revelada repõe outra Praga tirada do mesmo
+   deck embaralhado. Varre do topo e leva a primeira que achar — como o deck já
+   foi embaralhado, isso é sorteio, e preserva a ordem do resto.
+
+   Efeito colateral de propósito: cada Praga que a corrente tira reduz a
+   densidade de Praga nas compras normais seguintes. Quanto mais fundo o jogador
+   vai no arquétipo, mais o deck devolve as 11 cartas dele. */
+function drawPraga(s, side) {
+  if (!s.deck[side] || s.deck[side].length === 0) return null;
+  if (s.hand[side].length >= MAO_MAX) return "cheia";
+  const idx = s.deck[side].findIndex((k) => byKey[k]?.praga);
+  if (idx < 0) return null;
+  const [key] = s.deck[side].splice(idx, 1);
   const hid = nextUid();
   s.hand[side].push({ hid, key, printed: byKey[key].poder, baked: 0 });
   s.seen[side] += 1;
@@ -104,8 +131,12 @@ function drawOne(s, side) {
 function drawForRound(s) {
   s.justDrew = [[], []];
   for (const side of [0, 1]) {
+    const cheia = s.hand[side].length >= MAO_MAX;
     const hid = drawOne(s, side);
     if (hid != null) s.justDrew[side].push(hid);
+    /* Sem esta linha, mão cheia lê como bug em playtest: a carta simplesmente
+       não aparece e não há nada explicando por quê. */
+    else if (cheia) pushLog(s, `✋ ${SIDE_NAME[side]}: mão cheia (${MAO_MAX}) — sem compra nesta rodada.`);
   }
 }
 
@@ -294,6 +325,17 @@ const ACTIONS = {
       // O Sinal do Moisés é o que o olho precisa ver; o badge da própria Praga
       // só aparece quando nenhum Moisés estava em campo para registrá-la.
       const sinais = registrarPraga(s, card.key);
+      /* Corrente: resolve no reveal, não no jogar. No reveal simultâneo, comprar
+         na hora de jogar vazaria informação antes do tempo — e, pior, o teto de
+         mão cairia em cima da própria corrente em vez de cair na compra da
+         rodada seguinte, travando o arquétipo. */
+      const rep = drawPraga(s, card.owner);
+      if (rep === "cheia") {
+        pushLog(s, `✋ ${SIDE_NAME[card.owner]}: mão cheia (${MAO_MAX}) — a corrente não repôs Praga.`);
+      } else if (rep != null) {
+        s.justDrew?.[card.owner]?.push(rep);
+        pushLog(s, `↻ ${SIDE_NAME[card.owner]}: a corrente repôs uma Praga do deck.`);
+      }
       s.effect = sinais.length
         ? { uid: sinais[0].uid, text: `✧ ${sinais[0].depois}`, kind: "buff", seq: s.effectSeq }
         : badge || { uid: card.uid, text: "✧ —", kind: "block", seq: s.effectSeq };

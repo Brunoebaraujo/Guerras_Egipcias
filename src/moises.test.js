@@ -3,7 +3,7 @@ import {
   CARDS, PRAGAS, PRAGA_KEYS, TOKENS, OUTORGAS, byKey,
   power, ctxOf, registrarPraga, aplicarBencao, resetUid, nextUid,
 } from "./engine.js";
-import { freshMatch, applyAction, expandirDeck, autoReveal } from "./match.js";
+import { freshMatch, applyAction, expandirDeck, autoReveal, MAO_MAX } from "./match.js";
 
 const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], baked = 0, ...rest } = {}) => ({
   uid: nextUid(), key, owner, lane, revealed, dying: false,
@@ -320,5 +320,103 @@ describe("Praga na revelação", () => {
     g = revelar(g);
     g = applyAction(g, { t: "nextRound" }).state;
     expect(g.board.filter((c) => c.lane === 0 && c.owner === 0 && !c.dying)).toHaveLength(3);
+  });
+});
+
+/* ==========================================================================
+   Teto de mão (regra global) + corrente das Pragas.
+   O teto é global, mas é ele que regula o arquétipo: acumular Praga cara custa
+   as compras normais justamente quando se precisa de guerreiro na segunda via.
+   ========================================================================== */
+describe("teto de mão e corrente das Pragas", () => {
+  const revelar = (g) => autoReveal(applyAction(g, { t: "startReveal" }).state).state;
+  const encher = (n) => Array.from({ length: n }, () => naMao("servo"));
+
+  it("MAO_MAX vale 7", () => {
+    expect(MAO_MAX).toBe(7);
+  });
+
+  it("mão cheia não compra na rodada, e a carta fica no deck", () => {
+    let g = mkMatch({ hand: [encher(MAO_MAX), []], deck: [["servo", "arqueiro"], ["servo"]] });
+    g = applyAction(g, { t: "startReveal" }).state;
+    g = autoReveal(g).state;
+    g = applyAction(g, { t: "nextRound" }).state;
+    expect(g.hand[0]).toHaveLength(MAO_MAX);
+    expect(g.deck[0]).toHaveLength(2);              // nada saiu do deck
+    expect(g.hand[1]).toHaveLength(1);              // o outro lado comprou normal
+    expect(g.log.some((l) => l.includes("mão cheia"))).toBe(true);
+  });
+
+  it("Praga revelada repõe outra Praga tirada do mesmo deck", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[hp], []], deck: [["servo", "ras", "arqueiro", "piolhos"], []] });
+    g = applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state;
+    g = revelar(g);
+    expect(g.hand[0]).toHaveLength(1);
+    expect(byKey[g.hand[0][0].key].praga).toBe(true);
+    expect(g.hand[0][0].key).toBe("ras");           // a primeira Praga do topo
+    expect(g.deck[0]).toEqual(["servo", "arqueiro", "piolhos"]);
+    expect(g.log.some((l) => l.includes("corrente repôs"))).toBe(true);
+  });
+
+  it("a corrente tira Praga do deck, então as compras seguintes ficam mais suas", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[hp], []], deck: [["ras", "piolhos", "servo"], []] });
+    const antes = g.deck[0].filter((k) => byKey[k].praga).length;
+    g = revelar(applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state);
+    expect(g.deck[0].filter((k) => byKey[k].praga).length).toBe(antes - 1);
+  });
+
+  /* A corrente nunca é barrada pelo teto, e isso é estrutural: jogar a Praga
+     abre exatamente o slot que a reposição vai ocupar. O teto morde a compra da
+     RODADA SEGUINTE, não a corrente. É esse desencontro que faz a mão fossilizar
+     em Praga quando se joga uma carta por rodada com a mão cheia. */
+  it("a corrente repõe mesmo com a mão cheia — jogar a Praga abriu o slot", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[hp, ...encher(MAO_MAX - 1)], []], deck: [["ras", "servo"], []] });
+    g = applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state;
+    expect(g.hand[0]).toHaveLength(MAO_MAX - 1);    // saiu da mão ao ser jogada
+    g = revelar(g);
+    expect(g.hand[0]).toHaveLength(MAO_MAX);        // a corrente devolveu ao teto
+    expect(g.deck[0]).toEqual(["servo"]);
+  });
+
+  it("mão de volta ao teto pela corrente: a compra da rodada seguinte é a bloqueada", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[hp, ...encher(MAO_MAX - 1)], []], deck: [["ras", "servo"], []] });
+    g = applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state;
+    g = revelar(g);
+    g = applyAction(g, { t: "nextRound" }).state;
+    expect(g.hand[0]).toHaveLength(MAO_MAX);
+    expect(g.deck[0]).toEqual(["servo"]);           // a compra da rodada não saiu
+    expect(g.log.some((l) => l.includes("mão cheia"))).toBe(true);
+  });
+
+  it("deck sem Praga nenhuma: a corrente não puxa carta comum no lugar", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[hp], []], deck: [["servo", "arqueiro"], []] });
+    g = revelar(applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state);
+    expect(g.hand[0]).toHaveLength(0);
+    expect(g.deck[0]).toEqual(["servo", "arqueiro"]);
+  });
+
+  it("Praga bloqueada pelo Selo não aciona a corrente — gasta sem repor", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({
+      board: [mk("selo", { owner: 1, lane: 0 })],
+      hand: [[hp], []], deck: [["ras", "servo"], []],
+    });
+    g = applyAction(g, { t: "place", side: 0, hid: hp.hid, lane: 0 }).state;
+    g = revelar(g);
+    expect(g.deck[0]).toEqual(["ras", "servo"]);
+    expect(g.hand[0]).toHaveLength(0);
+  });
+
+  it("a corrente vale para os dois lados — não é privilégio do jogador 0", () => {
+    const hp = naMao("sangue");
+    let g = mkMatch({ hand: [[], [hp]], deck: [[], ["ras", "servo"]] });
+    g = applyAction(g, { t: "place", side: 1, hid: hp.hid, lane: 0 }).state;
+    g = revelar(g);
+    expect(g.hand[1].map((h) => h.key)).toEqual(["ras"]);
   });
 });
