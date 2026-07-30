@@ -216,3 +216,81 @@ describe("contrato de ações", () => {
     expect(g.finished).toBe(true);
   });
 });
+
+/* ==========================================================================
+   resetPlan — refazer a ordem de jogadas da rodada.
+   A ordem importa: o reveal acontece em ordem de colocação.
+   ========================================================================== */
+describe("resetPlan", () => {
+  const naMao = (key) => ({ hid: nextUid(), key, printed: byKey[key].poder, baked: 0 });
+
+  it("devolve à mão tudo que foi posicionado nesta rodada, com a energia", () => {
+    const a = naMao("servo"), b = naMao("arqueiro");
+    let g = mkMatch({ hand: [[a, b], []], energy: [9, 9] });
+    g = applyAction(g, { t: "place", side: 0, hid: a.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "place", side: 0, hid: b.hid, lane: 1 }).state;
+    const gasto = 9 - g.energy[0];
+    expect(gasto).toBeGreaterThan(0);
+    g = applyAction(g, { t: "resetPlan", side: 0 }).state;
+    expect(g.board).toHaveLength(0);
+    expect(g.hand[0]).toHaveLength(2);
+    expect(g.energy[0]).toBe(9);
+    expect(g.plays[0]).toBe(0);
+    expect(g.log.some((l) => l.includes("reiniciou a rodada"))).toBe(true);
+  });
+
+  it("não mexe nas cartas do adversário", () => {
+    const a = naMao("servo"), b = naMao("servo");
+    let g = mkMatch({ hand: [[a], [b]], energy: [9, 9] });
+    g = applyAction(g, { t: "place", side: 0, hid: a.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "place", side: 1, hid: b.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "resetPlan", side: 0 }).state;
+    expect(g.board).toHaveLength(1);
+    expect(g.board[0].owner).toBe(1);
+    expect(g.hand[1]).toHaveLength(0);
+  });
+
+  it("não devolve carta já revelada de rodadas anteriores", () => {
+    const a = naMao("servo");
+    let g = mkMatch({
+      board: [{ uid: 999, key: "servo", owner: 0, lane: 2, revealed: true, dying: false,
+                printed: 1, baked: 0, mods: [], entryPlays: 0, enteredRound: 1, moved: false }],
+      hand: [[a], []], round: 2, energy: [9, 9],
+    });
+    g = applyAction(g, { t: "place", side: 0, hid: a.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "resetPlan", side: 0 }).state;
+    expect(g.board).toHaveLength(1);
+    expect(g.board[0].revealed).toBe(true);
+    expect(g.hand[0]).toHaveLength(1);
+  });
+
+  it("carta atrasada pelas Trevas fica onde está — não é deste planejamento", () => {
+    let g = mkMatch({
+      board: [{ uid: 998, key: "servo", owner: 0, lane: 0, revealed: false, dying: false,
+                printed: 1, baked: 0, mods: [], entryPlays: 0, enteredRound: 1, moved: false }],
+      hand: [[], []], round: 2, energy: [9, 9],
+    });
+    const { error } = applyAction(g, { t: "resetPlan", side: 0 });
+    expect(error).toBeTruthy();
+    expect(g.board).toHaveLength(1);
+  });
+
+  it("recusa quando não há nada posicionado nesta rodada", () => {
+    const g = mkMatch({ hand: [[naMao("servo")], []] });
+    const { error } = applyAction(g, { t: "resetPlan", side: 0 });
+    expect(error).toBeTruthy();
+  });
+
+  it("depois do reset dá para reposicionar em outra ordem", () => {
+    const a = naMao("servo"), b = naMao("arqueiro");
+    let g = mkMatch({ hand: [[a, b], []], energy: [9, 9] });
+    g = applyAction(g, { t: "place", side: 0, hid: a.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "place", side: 0, hid: b.hid, lane: 0 }).state;
+    expect(g.board.map((c) => c.key)).toEqual(["servo", "arqueiro"]);
+    g = applyAction(g, { t: "resetPlan", side: 0 }).state;
+    const [n1, n2] = g.hand[0];
+    g = applyAction(g, { t: "place", side: 0, hid: n2.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "place", side: 0, hid: n1.hid, lane: 0 }).state;
+    expect(g.board.map((c) => c.key)).toEqual(["arqueiro", "servo"]);
+  });
+});

@@ -284,10 +284,14 @@ export default function App() {
   function zoomBoard(c) {
     const def = byKey[c.key];
     const cur = c.revealed ? power(c, ctxOf(g)) : null;
+    /* Recolher pelo zoom, não pelo ✕ do canto: no tabuleiro remodelado aquele
+       ✕ ficou pequeno demais para o toque. */
+    const podeVoltar = planning && !aim && !moving && !c.revealed && !c.dying && c.enteredRound === g.round;
     setZoom({
       def, custo: custoDe(c), printed: c.printed, baked: c.baked || 0, current: cur,
       partes: c.revealed ? decomporPartes(c, ctxOf(g)) : null,
       sub: `Via ${c.lane + 1} · ${SIDE_NAME[c.owner]}` + (c.revealed ? "" : " · por revelar"),
+      onReturn: podeVoltar ? () => { pickUp(c.uid); setZoom(null); } : null,
     });
   }
   function zoomHand(h) {
@@ -299,6 +303,11 @@ export default function App() {
   function placeCard(side, lane) {
     if (!planning || aim || moving || !sel || sel.side !== side) return;
     if (dispatch({ t: "place", side, hid: sel.hid, lane })) setSel(null);
+  }
+
+  function resetPlan(side) {
+    if (!planning || aim || moving) return;
+    if (dispatch({ t: "resetPlan", side })) setSel(null);
   }
 
   function pickUp(cardUid) {
@@ -548,7 +557,7 @@ export default function App() {
           sel={sel} setSel={setSel} aim={aim} moving={moving} msg={msg} fast={fast}
           startReveal={startReveal} setFast={setFast} nextRound={nextRound} reset={reset}
           setScreen={setScreen} setForceView={setForceView}
-          placeCard={placeCard} pickUp={pickUp} startMove={startMove} moveTo={moveTo}
+          placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
         {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
@@ -878,7 +887,7 @@ const PART_COLOR = {
 };
 
 function ZoomModal({ zoom, onClose }) {
-  const { def, printed, baked, current, sub, partes } = zoom;   // zoom.custo = custo efetivo
+  const { def, printed, baked, current, sub, partes, onReturn } = zoom;   // zoom.custo = custo efetivo
   const shown = current != null ? current : printed + (baked || 0);
   const w = Math.min(320, typeof window !== "undefined" ? window.innerWidth * 0.78 : 320);
   return (
@@ -888,6 +897,12 @@ function ZoomModal({ zoom, onClose }) {
           efeito={def.texto} lore={def.lore} arch={def.arch} arte={def.arte} arteFoco={def.arteFoco} ordem={def.ordem} width={w} />
         <div className="text-center mt-2 text-sm text-stone-300" style={{ maxWidth: w }}>
           <div>{sub}</div>
+          {onReturn && (
+            <button onClick={onReturn}
+              className="mt-2 w-full rounded border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 hover:bg-amber-500/20">
+              ↩ Retornar para a mão
+            </button>
+          )}
           <div className="text-xs text-stone-400 mt-0.5">
             Impresso {def.poder}{baked > 0 ? ` · Faixa +${baked}` : ""}{current != null && current !== printed + baked ? ` · Atual ${current}` : ""}
           </div>
@@ -1191,13 +1206,13 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   }, [drawn]);
   return (
     <div ref={ref} className={drawn ? "duat-draw" : ""} style={{
-      position: "relative", flex: "0 0 auto", width: 88, borderRadius: 8, background: "#1c1917",
+      position: "relative", flex: "1 1 0", minWidth: 0, maxWidth: 72, borderRadius: 8, background: "#1c1917",
       border: isSel ? `2px solid ${accent}` : "1px solid #44403c", opacity: disabled ? 0.5 : afford ? 1 : 0.55,
       overflow: "hidden",
     }}>
       <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
         style={{ display: "block", textAlign: "left", width: "100%", padding: 0, background: "none", border: "none", cursor: disabled ? "default" : "pointer" }}>
-        <div style={{ position: "relative", width: "100%", height: 52, background: "#000" }}>
+        <div style={{ position: "relative", width: "100%", height: 40, background: "#000" }}>
           {artSrc
             ? <img src={artSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: afford ? 1 : 0.7 }} />
             : <div className={ARCH_COLOR[def.arch]} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{GLYPH[def.arch]}</div>}
@@ -1214,8 +1229,10 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   );
 }
 
-function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, online = false, isOpp = false, oppHand = 0 }) {
+function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, onResetPlan = null, online = false, isOpp = false, oppHand = 0 }) {
   const hand = g.hand[side];
+  // Quantas cartas este lado posicionou nesta rodada e ainda não foram reveladas.
+  const postos = g.board.filter((c) => c.owner === side && !c.revealed && !c.dying && c.enteredRound === g.round).length;
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const isPrio = g.priority === side;
   const edge = side === 1 ? { borderBottom: `1px solid ${accent}44` } : { borderTop: `1px solid ${accent}44` };
@@ -1225,8 +1242,17 @@ function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, online = false
         <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>{SIDE_NAME[side]}</span>
         {isPrio && <span style={{ fontSize: 9, color: "#78716c" }}>revela 1º</span>}
         <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]}</span>
+        {onResetPlan && (
+          <button onClick={() => onResetPlan(side)} disabled={!postos} title="Devolve à mão tudo que você posicionou nesta rodada"
+            style={{
+              fontSize: 9.5, padding: "2px 6px", borderRadius: 5, lineHeight: 1.4,
+              border: `1px solid ${postos ? "#a8a29e66" : "#44403c"}`,
+              background: postos ? "rgba(168,162,158,.12)" : "transparent",
+              color: postos ? "#d6d3d1" : "#57534e", cursor: postos ? "pointer" : "default",
+            }}>↺ Reiniciar rodada</button>
+        )}
       </div>
-      <div style={{ display: "flex", gap: 5, overflowX: "auto", paddingBottom: 2 }}>
+      <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 2, alignItems: "stretch" }}>
         {online && isOpp
           ? <span style={{ fontSize: 11, color: "#a8a29e", padding: "6px 2px" }}>🂠 {oppHand} carta{oppHand === 1 ? "" : "s"} na mão (ocultas)</span>
           : <>
@@ -1242,7 +1268,7 @@ function GameMobile(p) {
   const {
     g, ctx, wins, planning, sel, setSel, aim, moving, msg, fast,
     startReveal, setFast, nextRound, reset, setScreen, setForceView,
-    placeCard, pickUp, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
+    placeCard, pickUp, resetPlan, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
     zoomBoard, zoomHand,
     online = false, seat = 0, myReady = false, oppReady = false, oppHand = 0,
   } = p;
@@ -1285,13 +1311,17 @@ function GameMobile(p) {
       )}
       {sel && planning && !aim && !moving && <MBanner tone="amber">Toque numa via do {SIDE_NAME[sel.side]} para posicionar {byKey[g.hand[sel.side].find((h) => h.hid === sel.hid)?.key]?.nome || "a carta"}.</MBanner>}
 
-      <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 1} oppHand={oppHand} />
+      <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
+        onResetPlan={planning && (!online || seat === 1) ? resetPlan : null}
+        online={online} isOpp={online && seat !== 1} oppHand={oppHand} />
 
       <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
         <BoardArt config={BOARD_MOBILE} {...laneProps} />
       </div>
 
-      <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand} online={online} isOpp={online && seat !== 0} oppHand={oppHand} />
+      <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
+        onResetPlan={planning && (!online || seat === 0) ? resetPlan : null}
+        online={online} isOpp={online && seat !== 0} oppHand={oppHand} />
 
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         {planning && (online
@@ -1350,6 +1380,10 @@ function OnlineGame({ send, data, note, onLeave }) {
     if (!c || c.revealed || c.owner !== seat) return;
     sendAct({ t: "pickup", uid }); setSel(null);
   };
+  const resetPlan = (side) => {
+    if (!planning || myAim || moving || side !== seat) return;
+    sendAct({ t: "resetPlan" }); setSel(null);
+  };
   const isMovable = (c) =>
     planning && !myAim && !c.dying && c.revealed && c.owner === seat &&
     byKey[c.key] && byKey[c.key].move && !c.moved && c.enteredRound < g.round;
@@ -1398,7 +1432,7 @@ function OnlineGame({ send, data, note, onLeave }) {
         sel={sel} setSel={setSel} aim={myAim} moving={moving} msg={msg} fast={false}
         startReveal={startReveal} setFast={() => {}} nextRound={nextRound} reset={onLeave}
         setScreen={onLeave} setForceView={() => {}}
-        placeCard={placeCard} pickUp={pickUp} startMove={startMove} moveTo={moveTo}
+        placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
         applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
         zoomBoard={zoomBoard} zoomHand={zoomHand} />
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}

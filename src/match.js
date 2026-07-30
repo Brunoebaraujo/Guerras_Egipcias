@@ -221,6 +221,30 @@ const ACTIONS = {
     return ok(s);
   },
 
+  /* Reinicia o planejamento da rodada: tudo que este lado posicionou NESTA
+     rodada e ainda não foi revelado volta para a mão, com a energia devolvida.
+     Serve para refazer a ordem das jogadas, que importa por causa do reveal em
+     ordem de colocação. Cartas atrasadas pelas Trevas (enteredRound < round)
+     ficam onde estão: já não pertencem a este planejamento. */
+  resetPlan(g, { side }, _rng) {
+    if (!planning(g)) return err(g, "Não é fase de planejamento.");
+    const s = clone(g);
+    const voltando = s.board.filter(
+      (c) => c.owner === side && !c.revealed && !c.dying && c.enteredRound === s.round,
+    );
+    if (voltando.length === 0) return err(g, "Nada posicionado nesta rodada.");
+    /* Devolve na ordem em que foram posicionadas, então a mão fica legível:
+       primeira jogada, primeira da leva que volta. */
+    for (const c of voltando) {
+      s.energy[c.owner] += custoDe(c);
+      s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
+      s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0 });
+      s.board.splice(s.board.findIndex((x) => x.uid === c.uid), 1);
+    }
+    pushLog(s, `${SIDE_NAME[side]} reiniciou a rodada — ${voltando.length} carta(s) de volta à mão.`);
+    return ok(s);
+  },
+
   move(g, { side, uid, lane }, _rng) {
     if (!planning(g)) return err(g, "Não é fase de planejamento.");
     const c0 = g.board.find((x) => x.uid === uid);
