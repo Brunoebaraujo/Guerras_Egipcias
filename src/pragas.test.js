@@ -238,3 +238,13 @@ describe("TOKENS", () => {
     expect(laneScore(ctxOf(s), 0, 1)).toBe(1);
   });
 });
+
+/* Os tokens são cartas de verdade: se a arte sumir do build, a Rã e a Mosca
+   voltam ao placeholder de glifo sem reclamar de nada — modo de falha
+   silencioso. Este teste é o alarme. */
+describe("arte dos tokens", () => {
+  it("Rã e Mosca apontam para um arquivo de arte", () => {
+    expect(byKey["token-ra"].arte).toBe("token-ra");
+    expect(byKey["token-mosca"].arte).toBe("token-mosca");
+  });
+});

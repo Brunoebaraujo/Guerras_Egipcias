@@ -197,8 +197,10 @@ export const OUTORGAS = { pragas: PRAGA_KEYS };
    todo o motor. Ambas são custo 1 de propósito: a Sekhmet tem que alcançá-las. */
 export const TOKENS = [
   { key: "token-ra", nome: "Rã", tipo: "Animal", custo: 1, poder: 1, arch: "base", set: "pragas", token: true,
+    arte: "token-ra",
     lore: "A segunda praga subiu do Nilo e entrou nos fornos, nas camas e nas amassadeiras. Não matava ninguém: apenas ocupava cada palmo até não haver onde pisar." },
   { key: "token-mosca", nome: "Mosca", tipo: "Animal", custo: 1, poder: 0, arch: "base", set: "pragas", token: true,
+    arte: "token-mosca",
     lore: "O enxame da quarta praga não devorava nem picava — apenas estava em toda parte, num zumbido que não deixava pensar. O Egito aprendeu que atrapalhar basta." },
 ];
 
