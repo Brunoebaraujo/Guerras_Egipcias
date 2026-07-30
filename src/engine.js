@@ -138,6 +138,7 @@ export const CARDS = [
    um glifo novo — a identidade visual do set virá da moldura em medalhão. */
 export const PRAGAS = [
   { key: "sangue", ordem: 1, nome: "Águas em Sangue", tipo: "Praga", custo: 1, poder: 0, arch: "debuff", set: "pragas", praga: true,
+    arte: "sangue",
     texto: "Uma carta inimiga aleatória em cada via ocupada recebe -1 de Poder.",
     lore: "Tudo no Egito media-se pelo Nilo: a colheita, o calendário, o imposto. Quando a água deixou de ser água, não faltou apenas bebida — faltou a régua com que o país se entendia." },
   { key: "ras", ordem: 2, nome: "Praga das Rãs", tipo: "Praga", custo: 2, poder: 0, arch: "debuff", set: "pragas", praga: true,

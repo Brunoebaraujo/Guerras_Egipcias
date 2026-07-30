@@ -2,9 +2,15 @@
 
 Onze imagens: as 10 Pragas + Moisés. Cada prompt = **bloco de estilo** (fixo, igual em todas) + **bloco de composição** (circular para as Pragas, retangular para o Moisés) + **bloco da carta**.
 
-## Antes de gerar tudo
+## Calibração feita na nº 1 ✅
 
-**Gere primeiro só a nº 1 (Águas em Sangue).** Se o bloco de estilo não estiver batendo com o traço das 26 cartas que já existem, é melhor descobrir numa imagem do que em onze. Me manda a primeira e eu ajusto o bloco antes de você seguir.
+A primeira (Águas em Sangue) foi gerada e integrada. O que ela ensinou, medido no navegador:
+
+**O medalhão tem 131 pixels de diâmetro na Galeria.** Na primeira arte havia poços de pedra com figuras tirando água, pescadores, barcas de junco — detalhe bonito que simplesmente não existe nesse tamanho. Ela funcionou porque o assunto principal (a massa vermelha abrindo em Y) é grande e ocupa o centro.
+
+Por isso o bloco de estilo abaixo ganhou a regra de **poucos elementos grandes**. Vale para os nove restantes: se o assunto precisa de figuras miúdas para ser entendido, ele não vai ser entendido.
+
+Também confirmado: **o recorte é feito pelo navegador**, não por você. A imagem entra quadrada em `public/cartas/` e o componente aplica `border-radius: 50%` com `object-fit: cover` — círculo inscrito no quadrado, sem distorção e sem zoom. Você nunca precisa recortar nada à mão.
 
 ## Por que os prompts são assim
 
@@ -14,19 +20,19 @@ Cada bloco de carta está ancorado na **identidade mecânica**, não só na mito
 
 As Pragas são recortadas em **círculo**, então os quatro cantos são descartados. É a diferença mais importante em relação a tudo que você já gerou para este jogo.
 
-| # | Carta | Arquivo | Recorte | `arteFoco` sugerido |
-|---|-------|---------|---------|---------------------|
-| 1 | Águas em Sangue | `sangue.webp` | circular | — |
-| 2 | Praga das Rãs | `ras.webp` | circular | — |
-| 3 | Praga dos Piolhos | `piolhos.webp` | circular | — |
-| 4 | Praga das Moscas | `moscas.webp` | circular | — |
-| 5 | Peste nos Animais | `peste.webp` | circular | — |
-| 6 | Praga das Úlceras | `ulceras.webp` | circular | — |
-| 7 | Chuva de Granizo e Fogo | `granizo.webp` | circular | — |
-| 8 | Nuvem de Gafanhotos | `gafanhotos.webp` | circular | — |
-| 9 | Trevas sobre o Egito | `trevas.webp` | circular | — |
-| 10 | Morte dos Primogênitos | `primogenitos.webp` | circular | — |
-| — | Moisés, Portador das Pragas | `moises.webp` | retangular | `center 10%` |
+| # | Carta | Arquivo | Recorte | `arteFoco` sugerido | Estado |
+|---|-------|---------|---------|---------------------|--------|
+| 1 | Águas em Sangue | `sangue.webp` | circular | — | ✅ pronta |
+| 2 | Praga das Rãs | `ras.webp` | circular | — | — |
+| 3 | Praga dos Piolhos | `piolhos.webp` | circular | — | — |
+| 4 | Praga das Moscas | `moscas.webp` | circular | — | — |
+| 5 | Peste nos Animais | `peste.webp` | circular | — | — |
+| 6 | Praga das Úlceras | `ulceras.webp` | circular | — | — |
+| 7 | Chuva de Granizo e Fogo | `granizo.webp` | circular | — | — |
+| 8 | Nuvem de Gafanhotos | `gafanhotos.webp` | circular | — | — |
+| 9 | Trevas sobre o Egito | `trevas.webp` | circular | — | — |
+| 10 | Morte dos Primogênitos | `primogenitos.webp` | circular | — | — |
+| — | Moisés, Portador das Pragas | `moises.webp` | retangular | `center 10%` | — |
 
 Como o recorte é circular e centralizado, `arteFoco` deixa de ser necessário nas dez Pragas — o enquadramento já é radial por construção. Ele continua valendo para o Moisés, que usa a moldura normal.
 
@@ -40,6 +46,12 @@ Iluminação cinematográfica com contraste forte. Paleta dominante de ouro,
 âmbar e areia, com as sombras em azul-lápis profundo. Pincelada e textura de
 pintura visíveis; NÃO deve parecer render 3D limpo nem foto. Detalhe rico mas
 legível, porque a imagem será vista pequena.
+
+POUCOS ELEMENTOS, GRANDES. A imagem final será vista com cerca de 130 pixels
+de diâmetro. O assunto principal deve ocupar boa parte do círculo central e
+ser reconhecível por SILHUETA e MASSA DE COR, não por detalhe. Evite multidões
+de figuras pequenas, panoramas amplos e minúcia decorativa: nesse tamanho
+viram borrão. No máximo duas ou três figuras humanas, e grandes.
 
 NÃO incluir: texto, letras, números, hieróglifos legíveis, moldura, borda,
 legenda, assinatura, marca d'água, elementos de interface, pessoas com roupas
