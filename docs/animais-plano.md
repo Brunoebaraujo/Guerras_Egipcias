@@ -224,7 +224,8 @@ aperto de mão acusar versões diferentes. Os dois precisam subir juntos.
 ## 13. Pendências conhecidas
 
 - **Arte**: as 10 cartas e as 2 fichas entram sem `arte`, mostrando o glifo do
-  arquétipo. Faltam os prompts e a integração (mesmo fluxo das outras).
+  arquétipo. Os prompts estão prontos em `docs/animais-prompts-arte.md`; falta
+  gerar e integrar (mesmo fluxo das outras).
 - **Macaco interativo**: hoje sorteia (§6).
 - **Animações** pedidas pelo documento e ainda não feitas: crescimento da Hiena,
   pulso da Aura do Domador, destaque das vias cheias ao revelar a Garça. O
