@@ -8,11 +8,12 @@ import React from "react";
 const GLYPH = {
   base: "𓂀", buff: "☀", debuff: "☾", sacrificio: "☥", reset: "⚖",
   silencio: "⊘", movimento: "⇄", crescimento: "⇑", fusao: "⛨", renascimento: "⟳",
+  animal: "𓃒",
 };
 const TINT = {
   base: "#5c4a2a", buff: "#7a5f1f", debuff: "#33335f", sacrificio: "#2a5238",
   reset: "#5f2a34", silencio: "#5f2a34", movimento: "#2a4a5f", crescimento: "#7a5f1f",
-  fusao: "#2a5252", renascimento: "#7a5f1f",
+  fusao: "#2a5252", renascimento: "#7a5f1f", animal: "#3f4a20",
 };
 
 // Zonas da moldura (em % do tamanho da carta)

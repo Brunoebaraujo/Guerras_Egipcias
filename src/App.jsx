@@ -7,9 +7,9 @@ import {
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
   montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet, resolveAnubis,
-  CONTENT_SIG, CARD_KEYS,
+  CONTENT_SIG, CARD_KEYS, laneProtegida,
 } from "./engine.js";
-import { freshMatch, applyAction } from "./match.js";
+import { freshMatch, applyAction, isAimable as podeMirar } from "./match.js";
 
 /* ==========================================================================
    Guerras Egípcias — playtest (revelação simultânea com prioridade) sobre o tabuleiro
@@ -33,6 +33,8 @@ const PRESETS = {
   // Moisés traz +10 Pragas: 12 escolhidas viram 22 embaralhadas. As outras 11
   // vagas seguram as duas vias que o Moisés não ocupa.
   "Pragas":     ["moises", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "armadura", "hathor", "escaravelho", "selo"],
+  // Ocupação: corpo barato nas três vias, Domador para somar e Ápis para fechar.
+  "Animais":    ["cao", "cabra-nilo", "ganso", "gato", "macaco", "hiena", "garca", "rebanho", "domador", "apis", "amon", "escaravelho"],
 };
 const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
 
@@ -53,6 +55,7 @@ const PRAGAS_ORDENADAS = [...PRAGAS].sort((a, b) => a.custo - b.custo || a.nome.
 const ARCH_NOME = {
   base: "Base", buff: "Bênção", debuff: "Maldição", sacrificio: "Sacrifício", reset: "Equilíbrio",
   silencio: "Silêncio", movimento: "Movimento", crescimento: "Crescimento", fusao: "Fusão", renascimento: "Renascimento",
+  animal: "Animal",
 };
 
 /* Dimensões de filtro da Galeria. Para acrescentar uma nova — tipo, set, o que
@@ -339,12 +342,9 @@ export default function App() {
 
   function applyAim(target) { dispatch({ t: "aim", targetUid: target.uid }); }
   function skipAim() { dispatch({ t: "skipAim" }); }
-  const isAimable = (c) => {
-    if (!aim || c.dying || c.lane !== aim.lane) return false;
-    if (aim.needs === "ally") return c.owner === aim.side && c.uid !== aim.uid;
-    if (aim.needs === "enemy") return c.owner !== aim.side;
-    return false;
-  };
+  // Regra de realce = regra de validação: a mesma função do match.js, para o
+  // realce nunca oferecer um alvo que a ação "aim" vai recusar (Gato Egípcio).
+  const isAimable = (c) => podeMirar(g, c);
 
   // ------------------------------ RODADAS ----------------------------------
   function nextRound() {
@@ -776,7 +776,7 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
   );
 }
 
-const BADGE_COLOR = { buff: "text-emerald-300", debuff: "text-rose-300", sac: "text-emerald-300", fuse: "text-teal-300", block: "text-stone-300" };
+const BADGE_COLOR = { buff: "text-emerald-300", debuff: "text-rose-300", sac: "text-emerald-300", fuse: "text-teal-300", block: "text-stone-300", movimento: "text-sky-300" };
 function EffectBadge({ badge, size }) {
   if (!badge) return null;
   return (
@@ -818,6 +818,8 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
   }
 
   const ehPraga = def.tipo === "Praga";
+  // Escudo discreto: esta carta está sob a Aura de um Gato Egípcio da via.
+  const protegida = laneProtegida(ctx.board, c.owner, c.lane);
   const p = power(c, ctx);
   const refP = c.printed + (c.baked || 0);
   const maat = laneHasMaat(ctx.board, c.lane);
@@ -855,7 +857,11 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
         {artSrc && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,.65) 100%)" }} />}
         <div style={{ position: "relative", display: "flex", justifyContent: "space-between", padding: `${f(0.25)}px ${f(0.35)}px 0` }}>
           <span className={ARCH_COLOR[def.arch]} style={{ fontSize: f(1.0), lineHeight: 1 }}>{GLYPH[def.arch]}</span>
-          <span style={{ color: custoDe(c) > byKey[c.key].custo ? "#fda4af" : "#d6d3d1", fontSize: f(0.8), lineHeight: 1 }}>{movable ? "⇄" : `${custoDe(c)}⚡`}</span>
+          <span style={{ display: "flex", alignItems: "center", gap: f(0.2) }}>
+            {protegida && <span title="Protegida pelo Gato Egípcio — efeitos inimigos não podem escolhê-la"
+              style={{ color: "#bef264", fontSize: f(0.85), lineHeight: 1 }}>⛨</span>}
+            <span style={{ color: custoDe(c) > byKey[c.key].custo ? "#fda4af" : "#d6d3d1", fontSize: f(0.8), lineHeight: 1 }}>{movable ? "⇄" : `${custoDe(c)}⚡`}</span>
+          </span>
         </div>
         <div style={{ position: "relative", color: "#e7e5e4", fontSize: f(0.82), lineHeight: 1.08, textAlign: "center", padding: `0 ${f(0.25)}px`, overflow: "hidden", textShadow: "0 1px 2px rgba(0,0,0,.9)" }}>{def.nome}</div>
         <div style={{ position: "relative", textAlign: "center", paddingBottom: f(0.2) }}>
@@ -1402,12 +1408,7 @@ function OnlineGame({ send, data, note, onLeave }) {
   const nextRound = () => { if (g.phase !== "revealed" || myReady) return; send({ t: "ready" }); };
   const applyAim = (target) => { if (!myAim) return; send({ t: "aim", targetUid: target.uid }); };
   const skipAim = () => { if (!myAim) return; send({ t: "skipAim" }); };
-  const isAimable = (c) => {
-    if (!myAim || c.dying || c.lane !== myAim.lane) return false;
-    if (myAim.needs === "ally") return c.owner === myAim.side && c.uid !== myAim.uid;
-    if (myAim.needs === "enemy") return c.owner !== myAim.side;
-    return false;
-  };
+  const isAimable = (c) => !!myAim && podeMirar(g, c);
   function zoomBoard(c) {
     const def = byKey[c.key]; if (!def) return;
     const cur = c.revealed ? power(c, ctx) : null;

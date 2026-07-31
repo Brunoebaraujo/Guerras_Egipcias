@@ -7,11 +7,13 @@
 export const GLYPH = {
   buff: "☀", debuff: "☾", sacrificio: "☥", reset: "⚖", silencio: "⊘",
   movimento: "⇄", crescimento: "⇑", fusao: "⛨", renascimento: "⟳", base: "𓂀",
+  animal: "𓃒",
 };
 export const ARCH_COLOR = {
   base: "text-stone-400", buff: "text-amber-300", debuff: "text-indigo-300",
   sacrificio: "text-emerald-300", reset: "text-rose-300", silencio: "text-rose-300",
   movimento: "text-sky-300", crescimento: "text-amber-300", fusao: "text-teal-300", renascimento: "text-amber-300",
+  animal: "text-lime-300",
 };
 
 export const CARDS = [
@@ -120,6 +122,50 @@ export const CARDS = [
     trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
+  /* ------------------------------ ANIMAIS ---------------------------------
+     Arquétipo de OCUPAÇÃO: corpo barato, pouco Poder por carta, presença nas
+     três vias e finalizadores que escalam com o tabuleiro cheio. É o oposto
+     mecânico do Guerreiro (poder concentrado, eficiência por carta, Montu).
+     Animais NÃO recebem Montu, e a Peste nos Animais é a resposta natural
+     ao arquétipo — foi ela que definiu `tipo: "Animal"` no motor. */
+  { key: "cao", nome: "Cão do Deserto", tipo: "Animal", custo: 0, poder: 1, arch: "animal",
+    lore: "O tesem, de orelhas eretas e cauda enrolada, corre nas paredes dos túmulos desde antes das pirâmides. Não era símbolo de coisa alguma: era o bicho que ia à frente do caçador — e a quem se dava nome próprio. Abutiu, o cão de um faraó, tem o nome mais antigo de cão que se conhece." },
+  { key: "cabra-nilo", nome: "Cabra do Nilo", tipo: "Animal", custo: 1, poder: 1, arch: "animal",
+    trigger: "entrar", animalNaVia: 1,
+    texto: "Ao Entrar: +1 de Poder se houver outro Animal seu nesta via.",
+    lore: "A cabra dava leite onde a terra não sustentava vaca, e por isso era o gado de quem não tinha gado. Os escribas contavam bois cabeça por cabeça; cabra ninguém contava uma a uma — contava-se o rebanho." },
+  { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 0, arch: "animal",
+    trigger: "entrar", invocar: { key: "token-ganso", onde: "propria" },
+    texto: "Ao Entrar: invoque um Ganso (0/0) nesta via.",
+    lore: "Do ganso Gengen Wer, o Grande Grasnador, teria saído o ovo que continha o sol. Em terra, porém, o ganso do Nilo era o mais banal dos bens: engordado à força, salgado em jarras e oferecido aos milhares nos altares." },
+  { key: "gato", nome: "Gato Egípcio", tipo: "Animal", custo: 2, poder: 2, arch: "animal",
+    trigger: "continuo", protegeVia: true,
+    texto: "Contínuo: suas cartas nesta via não podem ser alvo escolhido por efeitos inimigos. Não impede efeitos globais nem de via inteira.",
+    lore: "Matar um gato, ainda que sem querer, era crime capital: Diodoro conta que uma multidão linchou um romano por isso, em plena missão diplomática. O animal que guardava o celeiro dos ratos acabou guardado pela cidade inteira." },
+  { key: "macaco", nome: "Macaco Sagrado", tipo: "Animal", custo: 2, poder: 1, arch: "animal",
+    trigger: "entrar", moverAnimal: true,
+    texto: "Ao Entrar: move outro Animal seu para outra via com espaço.",
+    lore: "Babuínos vinham de Punt e viviam nos templos de Tot, com nome, ração e sepultura própria. Nas pinturas aparecem trepando em figueiras a mando dos donos: o Egito descobriu cedo que o macaco alcança o que o homem não alcança." },
+  { key: "hiena", nome: "Hiena do Deserto", tipo: "Animal", custo: 2, poder: 2, arch: "animal",
+    trigger: "continuo", ganhoPorAnimalMorto: 2,
+    texto: "Contínuo: +2 de Poder permanente sempre que um Animal seu for destruído em campo.",
+    lore: "Nos relevos do Império Antigo há hienas amarradas e alimentadas à força, como se engordam gansos: o Egito tentou criar a carniceira em cativeiro. Não deu certo — o bicho que prospera do que morre não se deixa domesticar." },
+  { key: "garca", nome: "Garça do Nilo", tipo: "Animal", custo: 2, poder: 2, arch: "animal",
+    trigger: "entrar", bonusPorViaCheia: 3,
+    texto: "Ao Entrar: +3 de Poder para cada via sua com os quatro espaços ocupados.",
+    lore: "A garça pousa no primeiro monte de terra que emerge da cheia, e foi dessa imagem que os egípcios fizeram o relato da criação. Ela só desce quando já não sobra água: chega por último, e chega ao cheio." },
+  { key: "rebanho", nome: "Rebanho de Cabras", tipo: "Animal", custo: 3, poder: 2, arch: "animal",
+    trigger: "entrar", invocar: { key: "token-cabra", onde: "outras" },
+    texto: "Ao Entrar: invoque uma Cabra (0/1) em cada uma das outras duas vias.",
+    lore: "O Censo do Gado marcava os anos do reinado: contava-se o rebanho do Egito inteiro e o número virava data. Rebanho não andava em fila — espalhava-se por onde houvesse mato, e era assim que se media a riqueza de um homem." },
+  { key: "domador", nome: "Domador de Animais", tipo: "Humano", custo: 3, poder: 2, arch: "animal",
+    trigger: "continuo", anthemType: "Animal", anthemVal: 1,
+    texto: "Contínuo: seus Animais ganham +1 de Poder.",
+    lore: "Havia o pastor, o guardador de gansos, o tratador de babuínos — cada bicho com seu homem, e cada homem com o título gravado na parede do túmulo. No Egito, animal nenhum ficava selvagem por muito tempo: encontrava dono, nome e ração." },
+  { key: "apis", nome: "Touro Ápis", tipo: "Animal", custo: 6, poder: 7, arch: "animal",
+    trigger: "entrar", bonusPorAnimal: 1,
+    texto: "Ao Entrar: +1 de Poder para cada outro Animal revelado em jogo, dos dois lados.",
+    lore: "Um só touro por vez era Ápis, escolhido por marcas no pelo: vivia em Mênfis servido como rei e, ao morrer, era mumificado e descia ao Serapeu num sarcófago de granito de setenta toneladas. Enquanto ele vivia, todo o resto do gado do Egito era apenas gado." },
   // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
   { key: "moises", nome: "Moisés, Portador das Pragas", tipo: "Divindade", custo: 1, poder: 0, arch: "crescimento",
     set: "pragas", abertura: true, outorga: "pragas",
@@ -202,6 +248,14 @@ export const TOKENS = [
   { key: "token-mosca", nome: "Mosca", tipo: "Animal", custo: 1, poder: 0, arch: "base", set: "pragas", token: true,
     arte: "token-mosca",
     lore: "O enxame da quarta praga não devorava nem picava — apenas estava em toda parte, num zumbido que não deixava pensar. O Egito aprendeu que atrapalhar basta." },
+  /* Fichas do arquétipo Animal. Custo 0, e não 1 como as duas de cima: as fichas
+     das Pragas foram feitas alcançáveis pela Sekhmet de propósito, mas estas são
+     o corpo barato de um arquétipo que JÁ é vulnerável à Peste nos Animais e a
+     todo efeito de via. Somar a Sekhmet a isso seria cobrar duas vezes. */
+  { key: "token-ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 0, poder: 0, arch: "animal", token: true,
+    lore: "Ganso do Nilo nunca aparece sozinho nas pinturas: vem sempre em fila, e a fila é o ponto." },
+  { key: "token-cabra", nome: "Cabra", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true,
+    lore: "Uma cabra come o que houver, dá leite e não pede pasto. Vinte cabras são um patrimônio." },
 ];
 
 export const byKey = Object.fromEntries([...CARDS, ...PRAGAS, ...TOKENS].map((c) => [c.key, c]));
@@ -255,9 +309,94 @@ export const pushLog = (s, m) => {
   s.trace = [...(s.trace || []), m];            // exportacao: tudo, em ordem
 };
 
+/* ---------------------- OCUPAÇÃO DA VIA (fonte única) ----------------------
+   Cada jogador tem QUATRO espaços por via (grade 2×2 do seu lado). A conta
+   estava repetida em cinco lugares — place, Bennu, Rãs, Set, Enxame — e agora
+   mora aqui. `!c.dying` faz parte da definição: quem está saindo já liberou o
+   espaço, e é isso que permite Sobek destruir a via e a mesma rodada preencher.
+
+   VIA CHEIA é POR LADO, e não pelos oito espaços dos dois lados juntos. Essa
+   já era a definição oficial do motor (é a mensagem "Via 2 cheia (4/4)" que o
+   jogador vê ao tentar posicionar), e é dela que a Garça do Nilo se alimenta.
+   Se um dia a Garça tiver que exigir os dois lados cheios, o lugar de mudar é
+   contarViasCheias() — e só ele. */
+export const LANE_CAP = 4;
+export const ocupacaoDaVia = (board, owner, lane) =>
+  board.filter((c) => c.owner === owner && c.lane === lane && !c.dying).length;
+export const viaCheia = (board, owner, lane) => ocupacaoDaVia(board, owner, lane) >= LANE_CAP;
+export const viasComEspaco = (board, owner, exceto = null) =>
+  [0, 1, 2].filter((l) => l !== exceto && !viaCheia(board, owner, l));
+export const contarViasCheias = (board, owner) =>
+  [0, 1, 2].filter((l) => viaCheia(board, owner, l)).length;
+
+/* ------------------------------- ANIMAIS -----------------------------------
+   O arquétipo é lido pelo `tipo` da definição — o mesmo campo que a Peste nos
+   Animais já usava antes de existir um Animal escolhível. Fichas contam como
+   Animais enquanto estiverem em campo, porque a ficha É uma carta de tabuleiro
+   comum: só não existe fora dele.
+
+   `revelado` é o critério: identidade de arquétipo só conta o que já foi
+   revelado. Uma carta ainda oculta não tem tipo em jogo — do contrário a Cabra
+   se somaria a um Cão que só revela depois dela, e o Ápis contaria cartas que o
+   oponente ainda pode nem ter revelado. Efeitos de DESTRUIÇÃO seguem a regra
+   antiga (só `!dying`): quem some, some oculto. */
+export const ehTipo = (c, tipo) => byKey[c.key]?.tipo === tipo;
+export const emJogo = (c) => c.revealed && !c.dying;
+export const animaisEmJogo = (board, { owner = null, lane = null, exceto = null } = {}) =>
+  board.filter((c) =>
+    emJogo(c) && ehTipo(c, "Animal") &&
+    (owner === null || c.owner === owner) &&
+    (lane === null || c.lane === lane) &&
+    (exceto === null || c.uid !== exceto));
+
+/* --------------------- PROTEÇÃO DE ALVO (Gato Egípcio) ---------------------
+   O Gato torna INALCANÇÁVEIS as cartas do seu dono na sua via — todas elas, de
+   qualquer tipo, ele inclusive. A distinção que importa não é "quem faz mal" e
+   sim "quem ESCOLHE uma carta":
+
+     bloqueia  — Set (dispersa 2 sorteadas), Águas em Sangue, Gafanhotos,
+                 Úlceras, Granizo, Primogênitos, e qualquer mira inimiga futura.
+     não bloqueia — Sekhmet (varre um custo em todo o tabuleiro), Assassino
+                 Medjay e Peste nos Animais (varrem uma via inteira sem
+                 escolher), Maat, Anúbis, fim de partida.
+
+   Sorteio CONTA como escolha: o efeito precisa apontar uma carta para resolver.
+   É por isso que a proteção entra dentro dos seletores de alvo (não numa
+   varredura à parte) — assim o alvo é revalidado no momento da resolução, e
+   não só quando a interface pinta o realce. */
+export const laneProtegida = (board, owner, lane) =>
+  board.some((c) => c.key === "gato" && c.owner === owner && c.lane === lane && emJogo(c));
+
+export function podeSerAlvo(board, alvo, fonte) {
+  if (!alvo) return false;
+  if (!fonte || fonte.owner === alvo.owner) return true;   // efeito próprio nunca é bloqueado
+  return !laneProtegida(board, alvo.owner, alvo.lane);
+}
+
 // ----------------------------- motor de poder -------------------------------
 export const laneHasMaat = (board, lane) =>
   board.some((c) => c.lane === lane && c.key === "maat" && c.revealed && !c.dying);
+
+/* HINOS — auras contínuas que fortalecem um TIPO inteiro do próprio dono.
+   Montu (+2 aos Guerreiros) era um caso especial escrito à mão; o Domador de
+   Animais (+1 aos Animais) tem a mesma forma, então a forma virou regra: quem
+   declara `anthemType` + `anthemVal` vira uma fonte de hino, e nada mais precisa
+   ser tocado no motor. Fontes iguais ACUMULAM (dois Domadores dão +2) e cada
+   fonte aparece com o próprio nome na decomposição do Poder.
+   A fonte nunca fortalece a si mesma — hoje isso é automático (Montu é
+   Divindade, o Domador é Humano), mas fica explícito para não virar armadilha
+   se algum dia um hino apontar para o próprio tipo. */
+export function hinosPara(board, card) {
+  const tipoAlvo = byKey[card.key]?.tipo;
+  const soma = new Map();
+  for (const c of board) {
+    if (c.owner !== card.owner || !c.revealed || c.dying || c.uid === card.uid) continue;
+    const d = byKey[c.key];
+    if (!d?.anthemType || d.anthemType !== tipoAlvo) continue;
+    soma.set(d.nome, (soma.get(d.nome) || 0) + d.anthemVal);
+  }
+  return [...soma].map(([label, val]) => ({ label, val }));
+}
 
 // Decompoe o poder em parcelas nomeadas. O power() abaixo e a SOMA disto, para
 // que o numero exibido e a explicacao nunca possam divergir.
@@ -280,8 +419,7 @@ export function decomporPartes(card, ctx) {
   const amons = board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
   if (amons) partes.push({ label: "Amon", val: amons, tipo: "continuo" });
 
-  const montus = board.filter((c) => c.owner === card.owner && c.key === "montu" && c.revealed && !c.dying).length;
-  if (montus && byKey[card.key].tipo === "Guerreiro") partes.push({ label: "Montu", val: 2 * montus, tipo: "continuo" });
+  for (const h of hinosPara(board, card)) partes.push({ ...h, tipo: "continuo" });
 
   if (card.key === "osiris") {
     const totalMortes = deaths[0] + deaths[1];
@@ -341,7 +479,8 @@ export const onEnterBlocked = (card, board) =>
 
 export const validTargets = (card, needs, board) => {
   if (needs === "ally") return board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && !c.dying);
-  if (needs === "enemy") return board.filter((c) => c.owner !== card.owner && c.lane === card.lane && !c.dying);
+  // Mira inimiga é escolha de alvo: passa pelo Gato Egípcio.
+  if (needs === "enemy") return board.filter((c) => c.owner !== card.owner && c.lane === card.lane && !c.dying && podeSerAlvo(board, c, card));
   return [];
 };
 
@@ -408,6 +547,11 @@ export function destroyList(s, victims) {
     s.deaths[v.owner] += 1;
     s.destroyedPower[v.owner] += powerAtDeath[i];
   });
+  /* Hiena: DEPOIS das marcas de morte, de propósito. Assim ela não entra no
+     powerAtDeath das vítimas (o Am-heh absorveria o bônus dela) e, se a própria
+     Hiena estiver na leva, já está `dying` e o filtro a exclui — que é a regra
+     "destruída junto não ganha o bônus depois de sair". */
+  alimentarHienas(s, victims);
   /* Mão cheia é absoluta: a Múmia dobrada não volta. Ela já foi contabilizada
      como destruída acima (deaths, destroyedPower, Am-heh, Osíris) — ficar na
      pilha de destruídas é literalmente não fazer nada além disso. Sai do array
@@ -433,9 +577,7 @@ export function resolveBennuRebirth(s, rng = Math.random) {
   if (!s.pendingReturn || s.pendingReturn.length === 0) return [];
   const nascidos = [];
   for (const r of s.pendingReturn) {
-    const livres = [0, 1, 2].filter(
-      (lane) => s.board.filter((c) => c.owner === r.owner && c.lane === lane && !c.dying).length < 4
-    );
+    const livres = viasComEspaco(s.board, r.owner);
     if (livres.length === 0) {
       pushLog(s, `\u27f3 Bennu nao renasceu \u2014 todas as vias do ${SIDE_NAME[r.owner]} estao cheias.`);
       continue;
@@ -567,8 +709,13 @@ export function registrarPraga(s, pragaKey) {
 const sorteioUm = (arr, rng) => (arr.length ? arr[Math.floor(rng() * arr.length)] : null);
 
 // Cartas do lado oposto ainda no tabuleiro, opcionalmente de uma via só.
+// Toda Praga que ESCOLHE uma vítima (sorteada ou pelo maior custo) passa por
+// aqui, então é aqui que a proteção do Gato Egípcio entra para todas de uma vez.
+// A Peste nos Animais NÃO passa por aqui: ela varre a via inteira sem escolher,
+// e continua sendo a resposta ao arquétipo Animal.
 const inimigasNoCampo = (s, praga, lane = null) =>
-  s.board.filter((c) => c.owner !== praga.owner && !c.dying && (lane === null || c.lane === lane));
+  s.board.filter((c) => c.owner !== praga.owner && !c.dying && (lane === null || c.lane === lane)
+    && podeSerAlvo(s.board, c, praga));
 
 const semAlvo = (s, praga, motivo) => {
   pushLog(s, `${byKey[praga.key].nome}: ${motivo}`);
@@ -649,9 +796,7 @@ const PRAGA_EFEITOS = {
   // consequência da decisão de quem lançou a Praga, e faz parte do preço.
   ras: (s, praga, rng) => {
     const oponente = 1 - praga.owner;
-    const livres = [0, 1, 2].filter(
-      (lane) => s.board.filter((c) => c.owner === oponente && c.lane === lane && !c.dying).length < 4
-    );
+    const livres = viasComEspaco(s.board, oponente);
     if (livres.length === 0) return semAlvo(s, praga, `todas as vias do ${SIDE_NAME[oponente]} estão cheias.`);
     const lane = livres[Math.floor(rng() * livres.length)];
     s.plays[oponente] += 1;
@@ -784,8 +929,10 @@ export function montarLogPartida(s) {
 // Nao consome o movimento proprio da carta: a vitima nao escolheu sair.
 export function resolveSet(s, set, rng = Math.random) {
   const def = byKey[set.key];
+  // Dispersar é escolher quem sai do lugar: o Gato Egípcio bloqueia.
   const pool = s.board.filter(
     (c) => c.owner !== set.owner && c.lane === set.lane && c.revealed && !c.dying
+      && podeSerAlvo(s.board, c, set)
   );
   const vitimas = [];
   while (vitimas.length < def.scatterEnemies && pool.length > 0) {
@@ -797,10 +944,7 @@ export function resolveSet(s, set, rng = Math.random) {
   }
   const movidas = [], presas = [];
   for (const v of vitimas) {
-    const destinos = [0, 1, 2].filter(
-      (l) => l !== v.lane &&
-        s.board.filter((c) => c.owner === v.owner && c.lane === l && !c.dying).length < 4
-    );
+    const destinos = viasComEspaco(s.board, v.owner, v.lane);
     if (destinos.length === 0) {
       presas.push(v);
       pushLog(s, `⇄ ${byKey[v.key].nome} resistiu — as outras vias do ${SIDE_NAME[v.owner]} estão cheias.`);
@@ -843,14 +987,14 @@ export function resolveAnubis(s, anubis) {
 function copyVisibleAuraBonus(s, card) {
   if (laneHasMaat(s.board, card.lane)) return 0;
   const amon = s.board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
-  const montu = s.board.filter((c) => c.owner === card.owner && c.key === "montu" && c.revealed && !c.dying).length * 2;
-  return amon + montu;
+  const hinos = hinosPara(s.board, card).reduce((t, h) => t + h.val, 0);
+  return amon + hinos;
 }
 
 export function resolveEnxame(s, card) {
   const def = byKey[card.key];
-  const occupied = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && !c.dying).length;
-  const copiesToCreate = Math.min(2, Math.max(0, 4 - occupied));
+  const occupied = ocupacaoDaVia(s.board, card.owner, card.lane);
+  const copiesToCreate = Math.min(2, Math.max(0, LANE_CAP - occupied));
   if (copiesToCreate === 0) {
     pushLog(s, `${def.nome}: sem espaço na via para criar cópias.`);
     return { uid: card.uid, text: "sem espaço", kind: "block", seq: s.effectSeq };
@@ -974,4 +1118,148 @@ export function resolveHeka(s, heka) {
   s.pendingBuff[heka.owner] = val;
   pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta revelada (vale entre rodadas).`);
   return { uid: heka.uid, text: `☀ +${val}→`, kind: "buff", seq: s.effectSeq };
+}
+
+/* ==========================================================================
+   ARQUÉTIPO ANIMAL
+
+   Cinco efeitos de entrada (Cabra, Ganso, Rebanho, Garça, Ápis, Macaco) e um
+   gatilho de morte (Hiena). Nenhum deles inventa mecânica nova: todos usam os
+   seletores de ocupação e de tipo declarados no topo do arquivo, e todo bônus
+   é gravado por aplicarBencao — o mesmo caminho da Hathor e da Armadura, o que
+   dá compatibilidade com a Renenutet de graça.
+
+   O que NÃO existe aqui: contadores próprios de poder. O arquétipo inteiro se
+   apoia no modelo aditivo de decomporPartes(), então nada pode divergir do
+   número exibido na carta.
+   ========================================================================== */
+
+// ------------------------------- INVOCAÇÃO ----------------------------------
+// Ficha é carta de tabuleiro comum: ocupa espaço, recebe hino e bênção, conta
+// como Animal, morre normalmente. O que a distingue é não ter deck nem mão —
+// ela só existe porque um efeito a criou, e some ao sair do campo.
+// SEM ESPAÇO, SEM FICHA: a invocação falha sozinha, sem substituir ninguém.
+export function invocarFicha(s, { key, owner, lane }) {
+  if (viaCheia(s.board, owner, lane)) return null;
+  s.plays[owner] += 1;            // ficha é carta colocada em jogo: alimenta a Ammit
+  const ficha = {
+    uid: nextUid(), key, owner, lane,
+    printed: byKey[key].poder, baked: 0, mods: [], revealed: true, dying: false,
+    entryPlays: s.plays[owner], enteredRound: s.round, moved: false, token: true,
+  };
+  s.board.push(ficha);
+  return ficha;
+}
+
+// Ganso (uma ficha na própria via) e Rebanho de Cabras (uma em cada OUTRA via).
+// Cada via é resolvida em separado: uma cheia não cancela a outra.
+export function resolveInvocar(s, card) {
+  const def = byKey[card.key];
+  const { key, onde } = def.invocar;
+  const nome = byKey[key].nome;
+  const destinos = onde === "outras" ? [0, 1, 2].filter((l) => l !== card.lane) : [card.lane];
+  const criadas = [], semEspaco = [];
+  for (const lane of destinos) {
+    const ficha = invocarFicha(s, { key, owner: card.owner, lane });
+    if (ficha) criadas.push(ficha); else semEspaco.push(lane);
+  }
+  const recado = semEspaco.length ? ` Sem espaço na(s) Via(s) ${semEspaco.map((l) => l + 1).join(", ")}.` : "";
+  if (criadas.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma ${nome} invocada —${recado || " sem espaço."}`);
+    return { uid: card.uid, text: "sem espaço", kind: "block", seq: s.effectSeq };
+  }
+  pushLog(s, `${def.nome} invocou ${criadas.length}× ${nome} na(s) Via(s) ${criadas.map((c) => c.lane + 1).join(", ")}.${recado}`);
+  return { uid: card.uid, text: `＋${criadas.length} ${nome}`, kind: "buff", seq: s.effectSeq };
+}
+
+// ----------------------------- Cabra do Nilo --------------------------------
+// +1 se JÁ houver outro Animal seu revelado nesta via. Uma vez só, na entrada:
+// o bônus é permanente e não some se o companheiro sair.
+export function resolveCabraDoNilo(s, cabra) {
+  const def = byKey[cabra.key];
+  const companhia = animaisEmJogo(s.board, { owner: cabra.owner, lane: cabra.lane, exceto: cabra.uid });
+  if (companhia.length === 0) {
+    pushLog(s, `${def.nome}: sozinha na Via ${cabra.lane + 1} — sem bônus.`);
+    return { uid: cabra.uid, text: "sozinha", kind: "block", seq: s.effectSeq };
+  }
+  aplicarBencao(s, cabra, def.animalNaVia, `${def.nome} — Animal na via`);
+  pushLog(s, `${def.nome}: +${def.animalNaVia} — ${byKey[companhia[0].key].nome} já ocupava a Via ${cabra.lane + 1}.`);
+  return { uid: cabra.uid, text: `+${def.animalNaVia}`, kind: "buff", seq: s.effectSeq };
+}
+
+// ------------------------------ Garça do Nilo -------------------------------
+// +3 por via SUA com os quatro espaços ocupados, medido no instante da entrada.
+// A própria Garça já está em campo quando isso roda (a carta ocupa o espaço
+// antes de o efeito resolver), então ela pode ser a quarta que fecha a via.
+// Congelado: fechar uma via depois não aumenta, esvaziar não reduz.
+export function resolveGarca(s, garca) {
+  const def = byKey[garca.key];
+  const cheias = contarViasCheias(s.board, garca.owner);
+  if (cheias === 0) {
+    pushLog(s, `${def.nome}: nenhuma via sua está cheia — sem bônus.`);
+    return { uid: garca.uid, text: "sem via cheia", kind: "block", seq: s.effectSeq };
+  }
+  const ganho = cheias * def.bonusPorViaCheia;
+  aplicarBencao(s, garca, ganho, `${def.nome} — ${cheias} via(s) cheia(s)`);
+  pushLog(s, `${def.nome}: ${cheias} via(s) cheia(s) → +${ganho}.`);
+  return { uid: garca.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
+}
+
+// -------------------------------- Touro Ápis --------------------------------
+// +1 por OUTRO Animal revelado em jogo, dos dois lados, fichas inclusive.
+// Congelado na entrada: é uma fotografia do tabuleiro, não uma aura.
+export function resolveApis(s, apis) {
+  const def = byKey[apis.key];
+  const outros = animaisEmJogo(s.board, { exceto: apis.uid });
+  if (outros.length === 0) {
+    pushLog(s, `${def.nome}: nenhum outro Animal em jogo — entra com o Poder impresso.`);
+    return { uid: apis.uid, text: "só ele", kind: "block", seq: s.effectSeq };
+  }
+  const ganho = outros.length * def.bonusPorAnimal;
+  aplicarBencao(s, apis, ganho, `${def.nome} — ${outros.length} Animal(is) em jogo`);
+  pushLog(s, `${def.nome}: ${outros.length} outro(s) Animal(is) em jogo → +${ganho}.`);
+  return { uid: apis.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
+}
+
+// ------------------------------ Macaco Sagrado ------------------------------
+// Move OUTRO Animal seu para outra via com espaço. O alvo e o destino são
+// sorteados, seguindo o Set e a Armadura de Ptah: o motor resolve a revelação
+// sem pausa de mira, e a pausa existe hoje só para a Hathor.
+// Não consome o movimento próprio da carta movida (o Escaravelho continua com
+// o dele) e não redispara o Ao Entrar de quem foi movido.
+export function resolveMacaco(s, macaco, rng = Math.random) {
+  const def = byKey[macaco.key];
+  const candidatos = animaisEmJogo(s.board, { owner: macaco.owner, exceto: macaco.uid })
+    .filter((c) => viasComEspaco(s.board, c.owner, c.lane).length > 0);
+  if (candidatos.length === 0) {
+    pushLog(s, `${def.nome}: nenhum Animal seu pode mudar de via.`);
+    return { uid: macaco.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  const alvo = candidatos[Math.floor(rng() * candidatos.length)];
+  const destinos = viasComEspaco(s.board, alvo.owner, alvo.lane);
+  const origem = alvo.lane;
+  alvo.lane = destinos[Math.floor(rng() * destinos.length)];
+  pushLog(s, `⇄ ${def.nome} levou ${byKey[alvo.key].nome} da Via ${origem + 1} para a Via ${alvo.lane + 1}.`);
+  return { uid: alvo.uid, text: `⇄ Via ${alvo.lane + 1}`, kind: "movimento", seq: s.effectSeq };
+}
+
+// ----------------------------- Hiena do Deserto -----------------------------
+// +2 permanentes por Animal SEU destruído em campo, em qualquer via, fichas
+// inclusive. Chamada de dentro de destroyList, que é o único caminho de morte
+// do motor — por isso não conta quem volta à mão (Múmia), quem só muda de via,
+// nem quem sai do campo consumido (Praga), que não passam por lá.
+export function alimentarHienas(s, victims) {
+  const mortos = victims.filter((v) => ehTipo(v, "Animal"));
+  if (mortos.length === 0) return [];
+  const alimentadas = [];
+  for (const h of s.board.filter((c) => c.key === "hiena" && c.revealed && !c.dying)) {
+    const n = mortos.filter((m) => m.owner === h.owner && m.uid !== h.uid).length;
+    if (n === 0) continue;
+    const ganho = byKey[h.key].ganhoPorAnimalMorto * n;
+    aplicarBencao(s, h, ganho, `Hiena — ${n} Animal(is) destruído(s)`);
+    alimentadas.push({ uid: h.uid, ganho, n });
+  }
+  if (alimentadas.length)
+    pushLog(s, `𓃒 Hiena do Deserto se alimentou: ${alimentadas.map((a) => `+${a.ganho}`).join(", ")}.`);
+  return alimentadas;
 }

@@ -41,6 +41,8 @@ import {
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
+  resolveInvocar, resolveCabraDoNilo, resolveGarca, resolveApis, resolveMacaco,
+  viaCheia, podeSerAlvo,
 } from "./engine.js";
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
@@ -184,8 +186,7 @@ const ACTIONS = {
     const def = byKey[h.key];
     const custo = custoDe(h);   // impresso + agravos (Piolhos, Granizo)
     if (g.energy[side] < custo) return err(g, `Sem energia: ${def.nome} custa ${custo}.`);
-    if (g.board.filter((c) => c.lane === lane && c.owner === side).length >= 4)
-      return err(g, `Via ${lane + 1} cheia (4/4).`);
+    if (viaCheia(g.board, side, lane)) return err(g, `Via ${lane + 1} cheia (4/4).`);
     const s = clone(g);
     s.plays[side] += 1;
     s.board.push({
@@ -255,8 +256,7 @@ const ACTIONS = {
     if (c0.dying || !c0.revealed || c0.moved || c0.enteredRound >= g.round)
       return err(g, "Carta não pode se mover agora.");
     if (lane === c0.lane) return ok(g); // sem efeito
-    if (g.board.filter((c) => c.lane === lane && c.owner === side).length >= 4)
-      return err(g, `Via ${lane + 1} cheia (4/4).`);
+    if (viaCheia(g.board, side, lane)) return err(g, `Via ${lane + 1} cheia (4/4).`);
     const s = clone(g);
     const c = s.board.find((x) => x.uid === uid);
     c.lane = lane; c.moved = true;
@@ -395,6 +395,12 @@ const ACTIONS = {
       if (def.fuse) { s.effect = resolveArmadura(s, card); return ok(s); }
       if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return ok(s); }
       if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return ok(s); }
+      // ---- Arquétipo Animal ----
+      if (def.invocar) { s.effect = resolveInvocar(s, card); return ok(s); }
+      if (def.animalNaVia) { s.effect = resolveCabraDoNilo(s, card); return ok(s); }
+      if (def.bonusPorViaCheia) { s.effect = resolveGarca(s, card); return ok(s); }
+      if (def.bonusPorAnimal) { s.effect = resolveApis(s, card); return ok(s); }
+      if (def.moverAnimal) { s.effect = resolveMacaco(s, card, rng); return ok(s); }
       if (def.needs) {
         const tg = validTargets(card, def.needs, s.board);
         if (tg.length === 0) {
@@ -478,7 +484,10 @@ export function isAimable(s, c) {
   const a = s.awaitingAim;
   if (!a || !c || c.dying || c.lane !== a.lane) return false;
   if (a.needs === "ally") return c.owner === a.side && c.uid !== a.uid;
-  if (a.needs === "enemy") return c.owner !== a.side;
+  /* Mira inimiga revalida a proteção do Gato AQUI, e não só quando a interface
+     pintou o realce: entre o realce e o clique o tabuleiro pode ter mudado, e é
+     a ação "aim" (validada pelo servidor) que decide de verdade. */
+  if (a.needs === "enemy") return c.owner !== a.side && podeSerAlvo(s.board, c, { owner: a.side });
   return false;
 }
 
