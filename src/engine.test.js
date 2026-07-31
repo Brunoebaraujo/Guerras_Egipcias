@@ -349,9 +349,9 @@ describe("Enxame sob aura contínua (Amon) independe da ordem de revelação", (
       const amon = mk("amon", { lane: 2, revealed: amonAntes });   // cross-lane
       const enxame = mk("enxame", { lane: 0, revealed: true });
       const s = mkState([amon, enxame]);
-      resolveEnxame(s, s.board.find((c) => c.key === "enxame" && !c.baseCopy));
+      resolveEnxame(s, s.board.find((c) => c.key === "enxame"));
       s.board.find((c) => c.key === "amon").revealed = true;        // aura em vigor
-      const copias = s.board.filter((c) => c.key === "enxame" && c.baseCopy);
+      const copias = s.board.filter((c) => c.key === "token-gafanhoto" && c.baseCopy);
       expect(copias).toHaveLength(2);
       for (const c of copias) expect(power(c, ctxOf(s))).toBe(3);   // 2 impresso + 1 Amon
     }
@@ -424,7 +424,7 @@ describe("Heka — buff da próxima carta revelada", () => {
     applyPendingBuff(s, enxame);                                    // Enxame entra com +3
     enxame.revealed = true;
     resolveEnxame(s, enxame);
-    const copias = s.board.filter((c) => c.key === "enxame" && c.baseCopy);
+    const copias = s.board.filter((c) => c.key === "token-gafanhoto" && c.baseCopy);
     expect(copias).toHaveLength(2);
     expect(power(enxame, ctxOf(s))).toBe(5);                        // 2 + 3
     for (const c of copias) expect(power(c, ctxOf(s))).toBe(5);     // cópias herdam o +3

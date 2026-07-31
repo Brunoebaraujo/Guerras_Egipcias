@@ -354,3 +354,75 @@ meu lado o fluxo é:
 
 Se alguma ficar com o assunto encostando no topo, eu aviso na etapa 5 e a gente
 decide entre `center 0%` e regerar só aquela.
+
+---
+
+# Adendo — Enxame de Gafanhotos e sua ficha
+
+O Enxame passou a ser **Guerreiro E Animal** ao mesmo tempo, e as cópias que ele
+cria viraram uma ficha própria (`token-gafanhoto`). São duas artes novas: a do
+Enxame substitui a atual, que está em baixa resolução.
+
+**Herança de registro:** o Enxame é a única carta que pertence a dois mundos. A
+arte tem que ler como o Set das Pragas (é a oitava praga) e como bicho de campo
+(é Animal). O caminho: manter a paleta e o traço do bloco de estilo dos Animais,
+mas com a densidade de enxame que a Nuvem de Gafanhotos das Pragas já tem.
+
+Use o **bloco de estilo** e o **bloco de composição retangular** do documento
+acima nas duas, com uma ressalva: aqui vale suspender a linha "sem arquitetura
+monumental" do registro, porque a lavoura e o celeiro são o que dá a escala do
+estrago.
+
+## 13 · Enxame de Gafanhotos (`enxame.webp`) — substituir
+
+**Mecânica:** custo 3, Poder 2. Ao Entrar, invoca **duas fichas com o Poder atual
+dela** — ou seja, a carta se multiplica, e o que ela ganhou antes de revelar é
+multiplicado junto. É a carta que transforma um buff em três corpos.
+
+**O assunto é multiplicação, não devastação.** A praga que devora já existe na
+Nuvem de Gafanhotos; esta aqui é sobre um virar três.
+
+```
+TRÊS GAFANHOTOS ENORMES em primeiro plano, praticamente idênticos entre si,
+dispostos em diagonal do centro para os lados — um ligeiramente à frente e
+maior, os outros dois logo atrás, no mesmo ângulo e na mesma pose, como se o
+primeiro tivesse acabado de se dividir. Detalhe seco e quitinoso nas patas
+traseiras e nas asas semiabertas, tudo pegando a luz dourada de fim de tarde.
+Sob eles, um talo de trigo ainda com grãos, curvado pelo peso dos três. Atrás,
+o ar carregado de uma névoa de asas fora de foco, escurecendo o fundo sem
+mostrar nenhum inseto nítido. Chão de terra rachada. Nenhuma figura humana,
+nenhuma construção, nenhum campo devastado — a colheita ainda está de pé. A
+REPETIÇÃO das três silhuetas iguais é o assunto da imagem.
+```
+
+## 14 · Gafanhoto — ficha (`token-gafanhoto.webp`)
+
+**Mecânica:** ficha 1 de custo, nasce com o Poder da mãe. É Guerreiro e Animal:
+recebe Montu e o Domador, e morre para a Peste nos Animais e para a Sekhmet.
+
+Deve parecer **um** dos três da carta acima, isolado — mesmo bicho, mesma luz,
+metade da presença. É a relação que o Ganso e sua ficha já têm.
+
+```
+UM ÚNICO GAFANHOTO GRANDE de perfil ao centro do quadro, agarrado a um talo de
+trigo seco que atravessa a imagem na vertical, corpo inteiro visível. Carapaça
+âmbar e esverdeada com brilho quitinoso, patas traseiras dobradas, asas
+fechadas ao longo do dorso, antenas longas e finas. Fundo simples e claro de
+campo ao sol, completamente fora de foco, sem outro inseto à vista. Luz lateral
+de meio da tarde. Nenhum enxame, nenhuma figura humana, nenhuma destruição:
+um bicho só, quieto, sem importância nenhuma sozinho.
+```
+
+**Atenção ao topo:** as antenas do gafanhoto e as pontas das asas são finas e
+ficam altas. Mantenha ambas claramente abaixo do topo do quadro — é o mesmo erro
+que obrigou o Gato Egípcio a usar `arteFoco: "center 0%"`.
+
+## Estado
+
+| # | Carta | Arquivo | `arteFoco` | Estado |
+|---|-------|---------|-----------|--------|
+| 13 | Enxame de Gafanhotos | `enxame.webp` | a medir | ⬜ a regerar |
+| 14 | Gafanhoto (ficha) | `token-gafanhoto.webp` | a medir | ⬜ a gerar |
+
+A ficha entra sem o campo `arte` até a imagem chegar — assim ela mostra o glifo
+do arquétipo em vez de tentar carregar um arquivo que não existe.

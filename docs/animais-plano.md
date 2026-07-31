@@ -303,3 +303,51 @@ O Ápis **continua congelado na entrada** — de propósito. São dois pagamento
 diferentes pelo mesmo tabuleiro: o Ápis cobra pela foto do instante em que
 chega, a Garça cobra pelo que o tabuleiro for. Se os dois fossem contínuos, o
 arquétipo teria duas cartas com a mesma curva.
+
+
+---
+
+## 16. Tipo duplo e a ficha do Enxame
+
+Três mudanças pedidas depois do playtest, todas no Enxame de Gafanhotos.
+
+**1. Tipo duplo.** O motor comparava tipo com `===` em três lugares (hinos,
+varredura por tipo, seletores de Animal). Agora tudo passa por uma função só:
+
+```js
+temTipo(carta, "Animal")   // le `tipos: [...]` se existir, senao cai em `tipo`
+```
+
+Cartas de um tipo só não mudaram nada: `tipo` continua sendo a string única, e é
+ela que aparece na tarja. Quem tem mais de um declara `tipos: ["Guerreiro",
+"Animal"]` e usa `tipo` só como rótulo legível — `"Guerreiro · Animal"`.
+
+O que o Enxame ganhou e perdeu com isso:
+
+| | Antes | Agora |
+|---|---|---|
+| Montu | +2 | +2 |
+| Domador de Animais | — | **+2** |
+| Peste nos Animais | imune | **destruído** |
+| Touro Ápis, Cabra do Nilo, Hiena | não contava | **conta como Animal** |
+| Assassino Medjay (Divindades) | imune | imune |
+
+**2. As cópias viraram fichas.** Antes eram instâncias com a `key` da mãe, o que
+dava a elas o nome, a arte e o texto da carta original — inclusive o "Ao Entrar:
+crie 2 cópias", que elas não fazem. Agora existe `token-gafanhoto`, uma definição
+própria, invocada por `invocarFicha` como qualquer outra ficha do jogo.
+
+A herança de Poder não mudou: a ficha nasce com o Poder **visível** da mãe menos
+as auras que ela própria vai receber sozinha. Como a ficha tem o mesmo tipo duplo,
+recebe exatamente as mesmas auras, e a subtração continua exata.
+
+**3. Custo 1 na ficha.** Diferente do Ganso e da Cabra (custo 0): estas nascem
+carregando Poder, às vezes muito, e um corpo que carrega Poder precisa de
+resposta. Custo 1 mantém a Sekhmet como o preço de varrer um enxame — a mesma
+razão pela qual a Rã e a Mosca são custo 1. Efeito colateral bem-vindo: a
+Morte dos Primogênitos, que caça o maior custo, deixa de ver as fichas como alvo
+prioritário e vai atrás da carta-mãe.
+
+**Tarja da moldura:** `"Guerreiro · Animal"` é quase o dobro do rótulo mais longo
+que existia. A fonte da tarja passou a encolher quando o rótulo passa de 12
+caracteres.

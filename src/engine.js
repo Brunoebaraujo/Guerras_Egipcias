@@ -65,10 +65,11 @@ export const CARDS = [
     trigger: "morrer", arte: "mumia",
     lore: "Os egípcios não mumificavam seus mortos para lembrar o passado, mas para prepará-los para o futuro. Se o corpo permanecesse intacto, a alma poderia retornar e erguer-se novamente. O corpo era preservado para que o Ka e o Ba pudessem reconhecê-lo após a morte.",
     texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
-  { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro", custo: 3, poder: 2, arch: "crescimento",
+  { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro · Animal", tipos: ["Guerreiro", "Animal"],
+    custo: 3, poder: 2, arch: "crescimento",
     trigger: "entrar", absorb: "swarm", arte: "enxame",
     lore: "Quando a oitava praga desceu sobre o Egito, o céu escureceu de asas e a terra foi devorada num só dia. Onde pousa um gafanhoto, logo há mil — a fome se multiplica mais depressa do que se pode contá-la.",
-    texto: "Ao Entrar: crie 2 cópias desta carta no seu lado. As cópias são Guerreiros base sem efeito e copiam o Poder atual." },
+    texto: "Ao Entrar: invoque 2 Gafanhotos nesta via, com o Poder atual desta carta. Guerreiro e Animal ao mesmo tempo: recebe Montu e o Domador." },
   { key: "assassino-medjay", nome: "Assassino Medjay", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff", arte: "assassino-medjay",
     trigger: "entrar",
     destroyAllOfTypeInLane: "Divindade",
@@ -254,6 +255,13 @@ export const TOKENS = [
      todo efeito de via. Somar a Sekhmet a isso seria cobrar duas vezes. */
   { key: "token-ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true, arte: "token-ganso",
     lore: "Ganso do Nilo nunca aparece sozinho nas pinturas: vem sempre em fila, e a fila é o ponto." },
+  /* Ficha do Enxame. Custo 1, e não 0 como as duas acima: estas nascem com o
+     Poder da carta-mãe (que pode vir alto depois de bênçãos), e um corpo que
+     carrega Poder precisa ter resposta. Custo 1 mantém a Sekhmet como o preço
+     de varrer um enxame — mesma razão da Rã e da Mosca. */
+  { key: "token-gafanhoto", nome: "Gafanhoto", tipo: "Guerreiro · Animal", tipos: ["Guerreiro", "Animal"],
+    custo: 1, poder: 2, arch: "crescimento", token: true,
+    lore: "Um gafanhoto sozinho é insignificante, e foi por isso que ninguém contou o primeiro. Quando se contou o milésimo, já não havia o que colher." },
   { key: "token-cabra", nome: "Cabra", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true, arte: "token-cabra",
     lore: "Uma cabra come o que houver, dá leite e não pede pasto. Vinte cabras são um patrimônio." },
 ];
@@ -340,11 +348,20 @@ export const contarViasCheias = (board, owner) =>
    se somaria a um Cão que só revela depois dela, e o Ápis contaria cartas que o
    oponente ainda pode nem ter revelado. Efeitos de DESTRUIÇÃO seguem a regra
    antiga (só `!dying`): quem some, some oculto. */
-export const ehTipo = (c, tipo) => byKey[c.key]?.tipo === tipo;
+/* TIPO DUPLO. A maioria das cartas tem um tipo só, declarado em `tipo`, que é
+   também o que aparece na tarja da moldura. Quem tem mais de um declara `tipos`,
+   e aí `tipo` vira apenas o rótulo legível ("Guerreiro · Animal").
+   TUDO que pergunta "isto é um X?" passa por aqui — hinos, Peste, Medjay,
+   seletores de Animal, Hiena. É o que garante que um tipo novo não precise ser
+   ensinado a cada efeito separadamente. */
+export const temTipo = (c, tipo) => {
+  const d = byKey[c.key];
+  return d?.tipos ? d.tipos.includes(tipo) : d?.tipo === tipo;
+};
 export const emJogo = (c) => c.revealed && !c.dying;
 export const animaisEmJogo = (board, { owner = null, lane = null, exceto = null } = {}) =>
   board.filter((c) =>
-    emJogo(c) && ehTipo(c, "Animal") &&
+    emJogo(c) && temTipo(c, "Animal") &&
     (owner === null || c.owner === owner) &&
     (lane === null || c.lane === lane) &&
     (exceto === null || c.uid !== exceto));
@@ -387,12 +404,11 @@ export const laneHasMaat = (board, lane) =>
    Divindade, o Domador é Humano), mas fica explícito para não virar armadilha
    se algum dia um hino apontar para o próprio tipo. */
 export function hinosPara(board, card) {
-  const tipoAlvo = byKey[card.key]?.tipo;
   const soma = new Map();
   for (const c of board) {
     if (c.owner !== card.owner || !c.revealed || c.dying || c.uid === card.uid) continue;
     const d = byKey[c.key];
-    if (!d?.anthemType || d.anthemType !== tipoAlvo) continue;
+    if (!d?.anthemType || !temTipo(card, d.anthemType)) continue;
     soma.set(d.nome, (soma.get(d.nome) || 0) + d.anthemVal);
   }
   return [...soma].map(([label, val]) => ({ label, val }));
@@ -1012,18 +1028,22 @@ export function resolveEnxame(s, card) {
     return { uid: card.uid, text: "sem espaço", kind: "block", seq: s.effectSeq };
   }
 
+  /* As fichas nascem com o Poder VISÍVEL da mãe menos as auras que elas próprias
+     já vão receber sozinhas — senão Montu e Domador entrariam duas vezes. Como a
+     ficha tem o mesmo tipo duplo da mãe, ela recebe exatamente as mesmas auras,
+     e a subtração continua exata. */
   const visiblePower = power(card, ctxOf(s));
   const printedForCopies = visiblePower - copyVisibleAuraBonus(s, card);
+  let criadas = 0;
   for (let i = 0; i < copiesToCreate; i++) {
-    s.plays[card.owner] += 1;
-    s.board.push({
-      uid: nextUid(), key: card.key, owner: card.owner, lane: card.lane,
-      printed: printedForCopies, baked: 0, mods: [], revealed: true, dying: false,
-      entryPlays: s.plays[card.owner], enteredRound: s.round, moved: false, baseCopy: true,
-    });
+    const ficha = invocarFicha(s, { key: "token-gafanhoto", owner: card.owner, lane: card.lane });
+    if (!ficha) break;                       // não deve acontecer: o espaço já foi conferido
+    ficha.printed = printedForCopies;        // a ficha herda o Poder, não o impresso do molde
+    ficha.baseCopy = true;
+    criadas += 1;
   }
-  pushLog(s, `${def.nome} criou ${copiesToCreate} cópia(s) com Poder ${visiblePower}.`);
-  return { uid: card.uid, text: `+${copiesToCreate} cópias`, kind: "buff", seq: s.effectSeq };
+  pushLog(s, `${def.nome} invocou ${criadas} Gafanhoto(s) com Poder ${visiblePower}.`);
+  return { uid: card.uid, text: `+${criadas} Gafanhotos`, kind: "buff", seq: s.effectSeq };
 }
 
 // Destrói as OUTRAS cartas do próprio dono na via (Apófis absorve; Dilúvio só destrói).
@@ -1074,7 +1094,7 @@ export function resolveDestroyAllOfTypeInLane(s, card, tipo, { escopo = "todos" 
     if (escopo === "inimigos" && c.owner === card.owner) return false;
 
     const def = byKey[c.key];
-    return def.tipo === tipo;
+    return temTipo(c, tipo);
   });
 
   if (victims.length === 0) {
@@ -1246,7 +1266,7 @@ export function resolveMacaco(s, macaco, rng = Math.random) {
 // do motor — por isso não conta quem volta à mão (Múmia), quem só muda de via,
 // nem quem sai do campo consumido (Praga), que não passam por lá.
 export function alimentarHienas(s, victims) {
-  const mortos = victims.filter((v) => ehTipo(v, "Animal"));
+  const mortos = victims.filter((v) => temTipo(v, "Animal"));
   if (mortos.length === 0) return [];
   const alimentadas = [];
   for (const h of s.board.filter((c) => c.key === "hiena" && c.revealed && !c.dying)) {

@@ -2,8 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   CARDS, TOKENS, byKey, custoDe, consumirCarta, destroyList,
   power, ctxOf, laneScore, resolveSekhmet, snapshotTabuleiro,
-  resolveBennuRebirth, resetUid, nextUid,
-} from "./engine.js";
+  resolveBennuRebirth, resetUid, nextUid, temTipo } from "./engine.js";
 import { applyAction } from "./match.js";
 
 /* Fábricas — mesma filosofia de engine.test.js */
@@ -217,7 +216,7 @@ describe("TOKENS", () => {
   });
 
   it("ambos são do tipo Animal, alvo da Peste nos Animais", () => {
-    for (const t of TOKENS) expect(t.tipo).toBe("Animal");
+    for (const t of TOKENS) expect(temTipo(t, "Animal"), t.key).toBe(true);
   });
 
   it("nenhuma chave de token colide com a coleção", () => {

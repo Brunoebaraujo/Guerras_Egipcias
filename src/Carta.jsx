@@ -214,7 +214,7 @@ export default function Carta({
 
       {/* Tipo / categoria */}
       <div style={{ position: "absolute", ...POS.typebar, zIndex: 20, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <span style={{ color: "#4a3618", fontWeight: 700, fontFamily: "Georgia, serif", fontSize: width * 0.044, letterSpacing: 0.6, textTransform: "uppercase" }}>{glyph} {tipo}</span>
+        <span style={{ color: "#4a3618", fontWeight: 700, fontFamily: "Georgia, serif", fontSize: width * (String(tipo).length > 12 ? 0.036 : 0.044), letterSpacing: 0.6, textTransform: "uppercase" }}>{glyph} {tipo}</span>
       </div>
 
       {/* Efeito + Lore (papiro) */}
