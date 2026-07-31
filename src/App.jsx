@@ -944,33 +944,44 @@ function Chip({ label, value, tone = "stone" }) {
   return <div className="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-xs"><span className="text-stone-500">{label} </span><span className={`font-bold ${t}`}>{value}</span></div>;
 }
 
+/* Carta da mao, no NIVEL DO MODULO — e nao dentro de Hand.
+   Componente declarado dentro de outro componente ganha identidade nova a cada
+   render do pai. O React compara os tipos, ve funcoes diferentes, e em vez de
+   atualizar ele DESMONTA e REMONTA a subarvore inteira. Duas consequencias:
+   o DOM de toda a mao era destruido e reconstruido a cada clique, e a animacao
+   CSS `duat-draw` (o halo dourado da compra) recomecava do zero junto, porque
+   animacao de CSS reinicia quando o elemento monta.
+   Aqui em cima, a mao so e remontada quando uma carta entra ou sai dela — que
+   e exatamente quando o halo DEVE tocar. */
+function HandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
+  const def = byKey[h.key];
+  const isSel = !!sel && sel.side === side && sel.hid === h.hid;
+  const custo = custoDe(h);
+  const afford = g.energy[side] >= custo;
+  const agravada = custo > def.custo;
+  const faixa = h.baked > 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
+  const drawn = g.justDrew?.[side]?.includes(h.hid);
+  const ring = isSel ? (tone === "amber" ? "ring-2 ring-amber-400" : "ring-2 ring-sky-400") : "";
+  return (
+    <div className={`relative rounded border bg-stone-800 border-stone-700 ${ring} ${drawn ? "duat-draw" : ""} ${disabled ? "opacity-40" : afford ? "hover:border-stone-500" : "opacity-50"}`} style={{ width: 122 }}>
+      <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })} title={def.texto || "Carta base (sem efeito)"}
+        className="text-left w-full p-1 pr-5">
+        <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nome}</div>
+        <div className="text-xs text-stone-400 mt-0.5"><span className={agravada ? "text-rose-300 font-semibold" : ""}>{custo}⚡</span>{faixa}</div>
+      </button>
+      <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar carta"
+        className="absolute top-0.5 right-0.5 text-stone-500 hover:text-amber-300 text-xs leading-none p-0.5">🔍</button>
+    </div>
+  );
+}
+
 function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
   const accent = tone === "amber" ? "border-amber-600 text-amber-200" : "border-sky-600 text-sky-200";
-  const selRing = (isSel) => (isSel ? (tone === "amber" ? "ring-2 ring-amber-400" : "ring-2 ring-sky-400") : "");
   const hand = g.hand[side];
   const returned = hand.filter((h) => h.baked > 0);
   const normal = hand.filter((h) => h.baked === 0);
   const isPrio = g.priority === side;
-  const CardBtn = ({ h }) => {
-    const def = byKey[h.key];
-    const isSel = sel && sel.side === side && sel.hid === h.hid;
-    const custo = custoDe(h);
-    const afford = g.energy[side] >= custo;
-    const agravada = custo > def.custo;
-    const faixa = h.baked > 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
-    const drawn = g.justDrew?.[side]?.includes(h.hid);
-    return (
-      <div className={`relative rounded border bg-stone-800 border-stone-700 ${selRing(isSel)} ${drawn ? "duat-draw" : ""} ${disabled ? "opacity-40" : afford ? "hover:border-stone-500" : "opacity-50"}`} style={{ width: 122 }}>
-        <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })} title={def.texto || "Carta base (sem efeito)"}
-          className="text-left w-full p-1 pr-5">
-          <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nome}</div>
-          <div className="text-xs text-stone-400 mt-0.5"><span className={agravada ? "text-rose-300 font-semibold" : ""}>{custo}⚡</span>{faixa}</div>
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar carta"
-          className="absolute top-0.5 right-0.5 text-stone-500 hover:text-amber-300 text-xs leading-none p-0.5">🔍</button>
-      </div>
-    );
-  };
+  const props = { side, tone, g, sel, setSel, disabled, onZoom };
   return (
     <div className={`rounded-lg border ${accent} p-3`} style={{ backgroundColor: "#1c1a17" }}>
       <div className="flex items-center justify-between mb-2">
@@ -980,13 +991,13 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
       {returned.length > 0 && (
         <div className="mb-2">
           <div className="text-xs uppercase tracking-widest text-stone-500 mb-1">Voltaram à mão</div>
-          <div className="flex flex-wrap gap-1">{returned.map((h) => <CardBtn key={h.hid} h={h} />)}</div>
+          <div className="flex flex-wrap gap-1">{returned.map((h) => <HandCard key={h.hid} h={h} {...props} />)}</div>
         </div>
       )}
       <div className="text-xs uppercase tracking-widest text-stone-500 mb-1">Mão ({normal.length})</div>
       <div className="flex flex-wrap gap-1">
         {normal.length === 0 && <span className="text-xs text-stone-600">Mão vazia.</span>}
-        {normal.map((h) => <CardBtn key={h.hid} h={h} />)}
+        {normal.map((h) => <HandCard key={h.hid} h={h} {...props} />)}
       </div>
     </div>
   );
