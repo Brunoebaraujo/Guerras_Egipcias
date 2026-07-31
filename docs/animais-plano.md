@@ -351,3 +351,40 @@ prioritário e vai atrás da carta-mãe.
 **Tarja da moldura:** `"Guerreiro · Animal"` é quase o dobro do rótulo mais longo
 que existia. A fonte da tarja passou a encolher quando o rótulo passa de 12
 caracteres.
+
+
+---
+
+## 17. Bennu retém os bônus ao renascer
+
+Achado em partida (log de 31/07): o Bennu do Lado B tinha +3 da Heka e +3 da
+Armadura de Ptah, valia 6, foi destruído pelo Dilúvio de Hápi e **renasceu
+valendo 1**.
+
+A causa estava na fila de retorno. `destroyList` empacotava `printed` e
+`baked + 1` em `s.pendingReturn` e **descartava `mods`**; `resolveBennuRebirth`
+recolocava a ave com `mods: []`. A faixa acumulada sobrevivia porque é campo
+próprio; tudo o que outras cartas tinham gravado, não.
+
+**Agora a ave leva tudo o que estava escrito nela.** O mesmo cenário devolve 7:
+
+```
+Impresso=0  Faixa acumulada=1  Heka=3  Armadura de Ptah=3
+```
+
+Três decisões dentro da correção:
+
+1. **Maldições também são retidas.** Morrer não limpa a carta. Se só os bônus
+   positivos voltassem, matar o próprio Bennu viraria uma lavagem — o oponente
+   gastaria uma Praga para enfraquecê-lo e você faria isso virar vantagem. A
+   regra é simétrica: renascer preserva o que havia, bom e ruim.
+2. **`judged` NÃO é retido.** O julgamento do Anúbis morre com o corpo. Isso não
+   devolve nada, porque o Anúbis já esvazia `mods` no momento em que julga —
+   o que ele apagou continua apagado.
+3. **Cópia funda dos mods.** A instância morta continua no tabuleiro até a purga
+   do fim da rodada, e as duas não podem compartilhar o mesmo array — seria um
+   bug silencioso, do tipo que só aparece quando alguém abençoa a ave recém-nascida.
+
+O log do renascimento passou a ler o Poder do tabuleiro depois de recolocada a
+carta, então mostra faixa, mods retidos e auras — antes ele imprimia
+`printed + baked`, que já era enganoso.

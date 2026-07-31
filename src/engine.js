@@ -110,7 +110,7 @@ export const CARDS = [
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
     trigger: "morrer", arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
-    texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. +1 de energia no próximo turno." },
+    texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. Mantém os bônus permanentes que tinha. +1 de energia no próximo turno." },
   { key: "renenutet", nome: "Renenutet", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
     trigger: "entrar", spreadOnBlessing: 2, arte: "renenutet", arteFoco: "center 0%",
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
@@ -566,7 +566,16 @@ export function destroyList(s, victims) {
     if (v.key === "mumia") mumias.push({ owner: v.owner, val: powerAtDeath[i] * 2 });
     if (v.key === "bennu") {
       s.pendingEnergy[v.owner] += 1;
-      s.pendingReturn.push({ owner: v.owner, lane: v.lane, printed: v.printed, baked: (v.baked || 0) + 1 });
+      /* A ave leva TUDO o que estava escrito nela: a faixa acumulada, mais um, e
+         os bênçãos/maldições permanentes gravados em `mods` — venham da Heka, da
+         Hathor, da Armadura de Ptah ou de onde for. Morrer não limpa a carta;
+         renascer não é voltar ao impresso. Cópia funda de propósito: a instância
+         morta ainda vive no tabuleiro até a purga do fim da rodada, e as duas não
+         podem compartilhar o mesmo array. */
+      s.pendingReturn.push({
+        owner: v.owner, lane: v.lane, printed: v.printed, baked: (v.baked || 0) + 1,
+        mods: (v.mods || []).map((m) => ({ ...m })),
+      });
     }
   });
   if (!s.destroyedPower) s.destroyedPower = [0, 0];
@@ -613,12 +622,14 @@ export function resolveBennuRebirth(s, rng = Math.random) {
     const lane = livres[Math.floor(rng() * livres.length)];
     const card = {
       uid: nextUid(), key: "bennu", owner: r.owner, lane,
-      printed: r.printed, baked: r.baked, mods: [], revealed: true,
+      printed: r.printed, baked: r.baked, mods: (r.mods || []).map((m) => ({ ...m })),
+      revealed: true, dying: false,
       entryPlays: s.plays[r.owner], enteredRound: s.round, moved: false,
     };
     s.board.push(card);
     nascidos.push(card);
-    pushLog(s, `\u27f3 Bennu renasceu na Via ${lane + 1} do ${SIDE_NAME[r.owner]} (Poder ${r.printed + r.baked}).`);
+    // Poder lido do tabuleiro depois de recolocada: inclui faixa, mods retidos e auras.
+    pushLog(s, `\u27f3 Bennu renasceu na Via ${lane + 1} do ${SIDE_NAME[r.owner]} (Poder ${power(card, ctxOf(s))}).`);
   }
   s.pendingReturn = [];
   return nascidos;

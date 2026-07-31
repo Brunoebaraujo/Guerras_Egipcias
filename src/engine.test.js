@@ -93,7 +93,7 @@ describe("Bennu (Ao Morrer)", () => {
     const s = mkState([bennu]);
     destroyList(s, [bennu]);
     expect(s.pendingEnergy[0]).toBe(1);
-    expect(s.pendingReturn).toEqual([{ owner: 0, lane: 1, printed: 0, baked: 1 }]);
+    expect(s.pendingReturn).toEqual([{ owner: 0, lane: 1, printed: 0, baked: 1, mods: [] }]);
   });
 
   it("renasce na MESMA rodada, com +1 de Poder, e limpa a fila", () => {
@@ -738,5 +738,88 @@ describe("Am-heh, o Devorador de Milhões", () => {
     expect(power(maldito, ctxOf(s))).toBe(-3);
     destroyList(s, [maldito]);
     expect(power(amheh, ctxOf(s))).toBe(-3); // absorve o negativo
+  });
+});
+
+/* Bennu retém os bônus permanentes ao renascer ---------------------------------
+   Achado em partida: o Bennu morria com +3 de Heka e +3 de Armadura de Ptah e
+   voltava valendo 1. A fila de retorno carregava `printed` e `baked`, mas
+   descartava `mods`. Renascer não é voltar ao impresso: a ave leva o que estava
+   escrito nela. */
+describe("Bennu retém os bônus ao renascer", () => {
+  const cheia = (lane, owner = 0) => Array.from({ length: 4 }, () => mk("servo", { lane, owner }));
+
+  it("mantém os buffs de outras cartas e ainda soma o +1", () => {
+    const bennu = mk("bennu", { lane: 1, mods: [{ src: "Heka", val: 3 }, { src: "Armadura de Ptah", val: 3 }] });
+    const s = mkState([bennu]);
+    expect(power(bennu, ctxOf(s))).toBe(6);
+    destroyList(s, [bennu]);
+    resolveBennuRebirth(s, () => 0);
+    const novo = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(power(novo, ctxOf(s))).toBe(7);            // 0 impresso + 3 + 3 + 1 de faixa
+  });
+
+  it("os mods do renascido são cópias, e não o mesmo array do morto", () => {
+    const bennu = mk("bennu", { lane: 1, mods: [{ src: "Hathor", val: 2 }] });
+    const s = mkState([bennu]);
+    destroyList(s, [bennu]);
+    resolveBennuRebirth(s, () => 0);
+    const novo = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(novo.mods).not.toBe(bennu.mods);
+    expect(novo.mods[0]).not.toBe(bennu.mods[0]);
+    novo.mods[0].val = 99;
+    expect(bennu.mods[0].val).toBe(2);
+  });
+
+  it("maldições também são retidas: renascer não limpa a carta", () => {
+    const bennu = mk("bennu", { lane: 1, mods: [{ src: "Sekhmet", val: -2 }] });
+    const s = mkState([bennu]);
+    destroyList(s, [bennu]);
+    resolveBennuRebirth(s, () => 0);
+    const novo = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(power(novo, ctxOf(s))).toBe(-1);           // 0 - 2 + 1 de faixa
+  });
+
+  it("bônus inertes seguem inertes depois do renascimento", () => {
+    const bennu = mk("bennu", { lane: 1, mods: [{ src: "Renenutet", val: 2, inert: true }] });
+    const s = mkState([bennu]);
+    destroyList(s, [bennu]);
+    resolveBennuRebirth(s, () => 0);
+    const novo = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(novo.mods[0].inert).toBe(true);
+    expect(power(novo, ctxOf(s))).toBe(3);
+  });
+
+  it("morrer duas vezes acumula a faixa e preserva os buffs nas duas", () => {
+    const bennu = mk("bennu", { lane: 1, mods: [{ src: "Heka", val: 3 }] });
+    const s = mkState([bennu]);
+    destroyList(s, [bennu]);
+    resolveBennuRebirth(s, () => 0);
+    const segundo = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(power(segundo, ctxOf(s))).toBe(4);
+    destroyList(s, [segundo]);
+    resolveBennuRebirth(s, () => 0);
+    const terceiro = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(power(terceiro, ctxOf(s))).toBe(5);        // 3 de Heka + 2 de faixa
+  });
+
+  it("o Anúbis limpa antes: o que ele apagou não volta pelo renascimento", () => {
+    const bennu = mk("bennu", { lane: 1, mods: [{ src: "Heka", val: 3 }] });
+    const s = mkState([bennu]);
+    bennu.mods = [];                                   // efeito do julgamento
+    bennu.judged = 0;
+    destroyList(s, [bennu]);
+    resolveBennuRebirth(s, () => 0);
+    const novo = s.board.find((c) => c.key === "bennu" && !c.dying);
+    expect(power(novo, ctxOf(s))).toBe(1);
+    expect(novo.judged).toBeUndefined();               // a ave renasce livre do julgamento
+  });
+
+  it("sem via livre não renasce, e os buffs não vazam para lugar nenhum", () => {
+    const bennu = mk("bennu", { lane: 0, mods: [{ src: "Heka", val: 3 }] });
+    const s = mkState([bennu, ...cheia(0), ...cheia(1), ...cheia(2)]);
+    destroyList(s, [bennu]);
+    expect(resolveBennuRebirth(s, () => 0)).toHaveLength(0);
+    expect(s.pendingReturn).toHaveLength(0);
   });
 });
