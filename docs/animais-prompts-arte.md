@@ -421,8 +421,23 @@ que obrigou o Gato Egípcio a usar `arteFoco: "center 0%"`.
 
 | # | Carta | Arquivo | `arteFoco` | Estado |
 |---|-------|---------|-----------|--------|
-| 13 | Enxame de Gafanhotos | `enxame.webp` | a medir | ⬜ a regerar |
-| 14 | Gafanhoto (ficha) | `token-gafanhoto.webp` | a medir | ⬜ a gerar |
+| 13 | Enxame de Gafanhotos | `enxame.webp` | — | ✅ pronta (substituída) |
+| 14 | Gafanhoto (ficha) | `token-gafanhoto.webp` | — | ✅ pronta |
 
-A ficha entra sem o campo `arte` até a imagem chegar — assim ela mostra o glifo
-do arquétipo em vez de tentar carregar um arquivo que não existe.
+### Medição
+
+| Carta | Elemento mais alto | Decisão |
+|---|---|---|
+| Enxame | insetos começam por volta de y = 275; o topo é só bruma de enxame | padrão |
+| Gafanhoto (ficha) | **antenas em y = 131**, contra o corte em y = 87 | padrão, com 44 px de folga |
+
+Na ficha, a espiga de trigo encosta no topo (y = 12) e é decepada pelo corte.
+Foi decisão de deixar assim: é planta saindo de quadro, não o assunto. As antenas,
+que eram o risco real apontado no prompt, sobraram inteiras.
+
+**A ficha tem uma assinatura de artista pintada no canto inferior direito**
+(y ≈ 940–970). Ela não aparece no jogo — some tanto no corte vertical da moldura
+quanto no corte horizontal da miniatura do tabuleiro —, mas está no arquivo.
+Assinatura em imagem gerada costuma indicar que o gerador se apoiou bastante numa
+obra específica; vale um pensamento antes de um deploy público. Regerar com
+"NÃO incluir assinatura" reforçado resolve, se preferir.

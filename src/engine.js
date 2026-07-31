@@ -260,7 +260,7 @@ export const TOKENS = [
      carrega Poder precisa ter resposta. Custo 1 mantém a Sekhmet como o preço
      de varrer um enxame — mesma razão da Rã e da Mosca. */
   { key: "token-gafanhoto", nome: "Gafanhoto", tipo: "Guerreiro · Animal", tipos: ["Guerreiro", "Animal"],
-    custo: 1, poder: 2, arch: "crescimento", token: true,
+    custo: 1, poder: 2, arch: "crescimento", token: true, arte: "token-gafanhoto",
     lore: "Um gafanhoto sozinho é insignificante, e foi por isso que ninguém contou o primeiro. Quando se contou o milésimo, já não havia o que colher." },
   { key: "token-cabra", nome: "Cabra", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true, arte: "token-cabra",
     lore: "Uma cabra come o que houver, dá leite e não pede pasto. Vinte cabras são um patrimônio." },
