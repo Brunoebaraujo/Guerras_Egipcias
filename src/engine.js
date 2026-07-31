@@ -206,6 +206,24 @@ export const TOKENS = [
 
 export const byKey = Object.fromEntries([...CARDS, ...PRAGAS, ...TOKENS].map((c) => [c.key, c]));
 
+/* --------------------------- ASSINATURA DA COLEÇÃO -------------------------
+   No multiplayer o servidor roda ESTE MESMO arquivo, mas o deploy dele é
+   separado do deploy do site. Se um dos dois ficar para trás, o app manda uma
+   carta que o servidor não conhece e a partida quebra — antes, quebrava calada.
+   CONTENT_SIG é um resumo (hash FNV-1a) de toda a coleção: muda se uma carta
+   entra, sai ou tem custo/poder alterado. Cliente e servidor trocam a
+   assinatura no aperto de mão; se diferirem, o app avisa em vez de travar. */
+export const CARD_KEYS = [...CARDS, ...PRAGAS, ...TOKENS].map((c) => c.key).sort();
+export const CONTENT_SIG = (() => {
+  const txt = [...CARDS, ...PRAGAS, ...TOKENS]
+    .map((c) => `${c.key}:${c.custo}:${c.poder}`)
+    .sort()
+    .join("|");
+  let h = 0x811c9dc5;
+  for (let i = 0; i < txt.length; i++) { h ^= txt.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return h.toString(16).padStart(8, "0");
+})();
+
 // Custo efetivo de uma INSTÂNCIA (item de mão ou carta de tabuleiro): o custo
 // impresso mais os agravos gravados nela (Praga dos Piolhos, Chuva de Granizo).
 // Todo lugar que DECIDE algo por custo — energia paga, devolução ao recolher,

@@ -6,6 +6,7 @@ import { spawn } from "child_process";
 import { WebSocket } from "ws";
 import { fileURLToPath } from "url";
 import path from "path";
+import { CONTENT_SIG, CARD_KEYS } from "../src/engine.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8199;
@@ -23,11 +24,26 @@ function mkClient(name) {
     const m = JSON.parse(raw.toString());
     c.msgs.push(m);
     if (m.t === "matchReady") c.seat = m.seat;
-    if (m.t === "gameState") { c.last = m; c.states.push(m); }
+    if (m.t === "gameState") {
+      c.last = m; c.states.push(m);
+      /* Mira pendente do MEU assento trava a revelação até alguém responder.
+         O teste não tinha esta resposta, então qualquer partida em que uma
+         carta pedisse alvo (Sobek, Ammit, Anúbis…) ficava presa em "revealing"
+         e o teste falhava de forma intermitente, conforme o sorteio do deck.
+         Aqui resolvo sempre: miro num alvo legal se houver, senão dispenso. */
+      const aim = m.state.awaitingAim;
+      if (aim && aim.side === m.seat && c.aimRespondida !== aim.uid) {
+        c.aimRespondida = aim.uid;
+        const alvo = m.state.board.find((x) =>
+          !x.dying && x.lane === aim.lane && x.uid !== aim.uid &&
+          (aim.needs === "ally" ? x.owner === aim.side : x.owner !== aim.side));
+        c.send(alvo ? { t: "aim", targetUid: alvo.uid } : { t: "skipAim" });
+      }
+    }
   });
   c.send = (o) => ws.send(JSON.stringify(o));
   c.waitOpen = () => new Promise((res) => ws.on("open", res));
-  c.waitFor = (pred, ms = 3000) => new Promise((res, rej) => {
+  c.waitFor = (pred, ms = 8000) => new Promise((res, rej) => {
     const t0 = Date.now();
     const iv = setInterval(() => {
       const hit = c.msgs.find(pred);
@@ -35,11 +51,11 @@ function mkClient(name) {
       else if (Date.now() - t0 > ms) { clearInterval(iv); rej(new Error("timeout waiting")); }
     }, 10);
   });
-  c.waitState = (pred, ms = 4000) => new Promise((res, rej) => {
+  c.waitState = (pred, ms = 10000) => new Promise((res, rej) => {
     const t0 = Date.now();
     const iv = setInterval(() => {
       if (c.last && pred(c.last)) { clearInterval(iv); res(c.last); }
-      else if (Date.now() - t0 > ms) { clearInterval(iv); rej(new Error("timeout state")); }
+      else if (Date.now() - t0 > ms) { clearInterval(iv); rej(new Error("timeout state — ultimo: " + JSON.stringify(c.last && {fase:c.last.state.phase, round:c.last.state.round, aim:!!c.last.state.awaitingAim, aimSide:c.last.state.awaitingAim&&c.last.state.awaitingAim.side, ready:c.last.ready}))); }
     }, 10);
   });
   return c;
@@ -131,7 +147,42 @@ async function main() {
   check(A.last.state.finished === true, "partida finalizou");
   check(/vence|Empate/.test(A.last.state.log.join(" ")), "log final apura vencedor/empate");
 
+  // ---- REGRESSÃO: aperto de mão de versão -------------------------------
+  const welcome = A.msgs.find((m) => m.t === "welcome");
+  check(welcome && welcome.sig === CONTENT_SIG, "welcome traz a assinatura da coleção");
+  check(welcome && welcome.cards === CARD_KEYS.length, "welcome traz a contagem de cartas");
+
+  // ---- REGRESSÃO: carta desconhecida recusa SEM derrubar o servidor -----
+  // Era esta a falha original: um deck com carta que o servidor não conhece
+  // estourava dentro do freshMatch e matava o processo inteiro, deixando o
+  // outro jogador preso em "Preparando a partida…".
   A.ws.close(); B.ws.close();
+  await sleep(120);
+  const C = mkClient("Carol"), D = mkClient("Dan");
+  await Promise.all([C.waitOpen(), D.waitOpen()]);
+  C.send({ t: "hello", name: "Carol" }); D.send({ t: "hello", name: "Dan" });
+  C.send({ t: "createRoom" });
+  const rc = await C.waitFor((m) => m.t === "roomCreated");
+  D.send({ t: "joinRoom", roomId: rc.roomId });
+  await D.waitFor((m) => m.t === "matchReady");
+  C.send({ t: "deckReady", deck: DECK });
+  D.send({ t: "deckReady", deck: ["cartaQueNaoExiste", ...DECK.slice(1)] });
+  const recusa = await C.waitFor(() => false, 300).catch(() => null); // só dá tempo
+  const errD = D.msgs.find((m) => m.t === "error" && /não conhece/.test(m.msg || ""));
+  check(!!errD, "deck com carta desconhecida é recusado com mensagem clara");
+  check(C.ws.readyState === C.ws.OPEN, "o servidor continua de pé depois da recusa");
+  void recusa;
+
+  // ---- REGRESSÃO: resetPlan chega ao motor -------------------------------
+  // O cliente online já mandava "resetPlan" (Reiniciar rodada), mas a lista
+  // branca do servidor só aceitava place/pickup/move e devolvia "Ação inválida".
+  D.msgs.length = 0;
+  D.send({ t: "act", action: { t: "resetPlan" } });
+  await sleep(150);
+  const invalida = D.msgs.find((m) => m.t === "error" && /Ação inválida/.test(m.msg || ""));
+  check(!invalida, "resetPlan não é mais barrado pela lista branca");
+
+  C.ws.close(); D.ws.close();
   srv.kill();
   await sleep(100);
 

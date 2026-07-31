@@ -7,6 +7,7 @@ import {
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
   applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
   montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet, resolveAnubis,
+  CONTENT_SIG, CARD_KEYS,
 } from "./engine.js";
 import { freshMatch, applyAction } from "./match.js";
 
@@ -1710,15 +1711,26 @@ function Lobby({ onBack, deck }) {
   const [match, setMatch] = useState(null); // { roomId, seat, opponent }
   const [game, setGame] = useState(null);    // { seat, state, ready, oppConnected } — partida ao vivo
   const [note, setNote] = useState("");
+  const [servidor, setServidor] = useState(null);   // { sig, cards } do aperto de mão
+  const [travou, setTravou] = useState(false);      // o deck foi enviado e nada voltou
   const wsRef = useRef(null);
   const deckRef = useRef(deck);
+  const timerRef = useRef(null);
   useEffect(() => { deckRef.current = deck; }, [deck]);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
   const connected = status === "conectado";
+  /* Servidor e site rodam o mesmo engine.js, mas têm deploys separados: o site
+     é o GitHub Pages, o servidor é o Render. Se um ficar para trás, a partida
+     não tem como funcionar — então descubro isso no aperto de mão, não no meio
+     do jogo. `null` = servidor antigo, que nem manda assinatura. */
+  const desatualizado = servidor && servidor.sig !== CONTENT_SIG;
+  const semAssinatura = !!servidor && !servidor.sig;
 
   function connect() {
     const nm = name.trim() || "Jogador";
     try { localStorage.setItem("ge_server", serverUrl); localStorage.setItem("ge_name", nm); } catch {}
     setNote(""); setStatus("conectando"); setRooms([]); setMyRoom(null); setMatch(null); setGame(null);
+    setServidor(null); setTravou(false); clearTimeout(timerRef.current);
     let ws;
     try { ws = new WebSocket(normalizeWs(serverUrl)); } catch { setStatus("erro"); setNote("URL inválida."); return; }
     wsRef.current = ws;
@@ -1727,16 +1739,25 @@ function Lobby({ onBack, deck }) {
     ws.onerror = () => { setStatus("erro"); setNote("Não consegui conectar. Confira a URL — e lembre que o servidor Free do Render pode levar ~1 min pra acordar; tente de novo."); };
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
-      if (m.t === "rooms") setRooms(m.rooms || []);
+      if (m.t === "welcome") setServidor({ sig: m.sig || null, cards: m.cards || 0 });
+      else if (m.t === "rooms") setRooms(m.rooms || []);
       else if (m.t === "roomCreated") { setMyRoom(m.roomId); setNote(""); }
       else if (m.t === "matchReady") {
-        setMatch({ roomId: m.roomId, seat: m.seat, opponent: m.opponent }); setMyRoom(null); setNote("");
+        setMatch({ roomId: m.roomId, seat: m.seat, opponent: m.opponent }); setMyRoom(null); setNote(""); setTravou(false);
         try { ws.send(JSON.stringify({ t: "deckReady", deck: deckRef.current })); } catch {}
+        /* Se o servidor não devolver o estado inicial, a tela não pode ficar
+           dizendo "preparando…" para sempre — era exatamente assim que a falha
+           aparecia. Passados 12 s sem gameState, eu digo o que houve. */
+        clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(() => setTravou(true), 12000);
       }
-      else if (m.t === "gameState") setGame({ seat: m.seat, state: m.state, ready: m.ready, oppConnected: m.oppConnected });
-      else if (m.t === "opponentLeft") { setMatch(null); setGame(null); setNote("O adversário saiu. Sua sala está aberta de novo."); }
-      else if (m.t === "roomClosed") { setMatch(null); setMyRoom(null); setGame(null); setNote("O anfitrião fechou a sala."); }
-      else if (m.t === "error") setNote(m.msg || "Erro.");
+      else if (m.t === "gameState") {
+        clearTimeout(timerRef.current); setTravou(false);
+        setGame({ seat: m.seat, state: m.state, ready: m.ready, oppConnected: m.oppConnected });
+      }
+      else if (m.t === "opponentLeft") { clearTimeout(timerRef.current); setMatch(null); setGame(null); setNote("O adversário saiu. Sua sala está aberta de novo."); }
+      else if (m.t === "roomClosed") { clearTimeout(timerRef.current); setMatch(null); setMyRoom(null); setGame(null); setNote("O anfitrião fechou a sala."); }
+      else if (m.t === "error") { clearTimeout(timerRef.current); setTravou(false); setNote(m.msg || "Erro."); }
     };
   }
   const send = (obj) => { try { wsRef.current?.send(JSON.stringify(obj)); } catch {} };
@@ -1756,7 +1777,11 @@ function Lobby({ onBack, deck }) {
   const statusColor = { desconectado: "#78716c", conectando: "#fbbf24", conectado: "#34d399", erro: "#fb7185" }[status];
 
   return (
-    <div style={{ minHeight: "100dvh", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif", padding: "14px" }}>
+    /* O index.html usa viewport-fit=cover, então no iPhone a página começa
+       DEBAIXO da barra de status (relógio, bateria). Sem o env(safe-area) o
+       título e o botão Voltar ficavam escondidos atrás dela. */
+    <div style={{ minHeight: "100dvh", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif",
+      padding: "14px", paddingTop: "calc(14px + env(safe-area-inset-top))", paddingBottom: "calc(14px + env(safe-area-inset-bottom))" }}>
       <div style={{ ...box, display: "flex", alignItems: "center", gap: 8, marginBottom: 14 }}>
         <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 18, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>𓂀 Guerras Egípcias</span>
         <span style={{ fontSize: 11, color: "#818cf8", flex: "0 0 auto" }}>Multiplayer · beta</span>
@@ -1786,12 +1811,28 @@ function Lobby({ onBack, deck }) {
           </>
         )}
 
+        {connected && (desatualizado || semAssinatura) && (
+          <div style={{ padding: 12, borderRadius: 10, background: "#450a0a", border: "1px solid #b91c1c", color: "#fecaca", fontSize: 12, lineHeight: 1.5 }}>
+            <b style={{ fontSize: 13 }}>⚠ Servidor desatualizado</b><br />
+            {semAssinatura
+              ? "O servidor está rodando uma versão anterior à da coleção atual."
+              : `O servidor tem ${servidor.cards} cartas (assinatura ${servidor.sig}); este app tem ${CARD_KEYS.length} (${CONTENT_SIG}).`}
+            {" "}Uma partida nessas condições quebra no meio, então o multiplayer está bloqueado.
+            Refaça o deploy do serviço no Render (Manual Deploy → Clear build cache &amp; deploy) e reconecte.
+          </div>
+        )}
+
         {connected && match && (
-          <div style={{ padding: 14, borderRadius: 12, background: "#1c1917", border: "1px solid #4f46e5", textAlign: "center" }}>
+          <div style={{ padding: 14, borderRadius: 12, background: "#1c1917", border: `1px solid ${travou ? "#b45309" : "#4f46e5"}`, textAlign: "center" }}>
             <div style={{ fontSize: 15, marginBottom: 6 }}>Emparelhado com <b>{match.opponent}</b>!</div>
             <div style={{ fontSize: 13, color: "#a8a29e" }}>Você é o <b style={{ color: match.seat === 0 ? "#fcd34d" : "#7dd3fc" }}>Lado {match.seat === 0 ? "A (ouro)" : "B (lápis)"}</b>.</div>
-            <div style={{ fontSize: 12, color: "#818cf8", marginTop: 8 }}>Preparando a partida… (enviando seu deck)</div>
-            <button onClick={() => { send({ t: "leaveRoom" }); setMatch(null); }} style={{ ...btn("#292524", "#d6d3d1"), marginTop: 12 }}>Sair da sala</button>
+            {travou
+              ? <div style={{ fontSize: 12, color: "#fbbf24", marginTop: 8, lineHeight: 1.5 }}>
+                  O servidor recebeu seu deck mas não devolveu a partida. Ou o adversário ainda não
+                  entrou na tela do lobby, ou o servidor está numa versão diferente da do app. Saia da sala e tente de novo.
+                </div>
+              : <div style={{ fontSize: 12, color: "#818cf8", marginTop: 8 }}>Preparando a partida… (enviando seu deck)</div>}
+            <button onClick={() => { clearTimeout(timerRef.current); send({ t: "leaveRoom" }); setMatch(null); setTravou(false); }} style={{ ...btn("#292524", "#d6d3d1"), marginTop: 12 }}>Sair da sala</button>
           </div>
         )}
 
@@ -1803,7 +1844,7 @@ function Lobby({ onBack, deck }) {
           </div>
         )}
 
-        {connected && !match && !myRoom && (
+        {connected && !match && !myRoom && !desatualizado && !semAssinatura && (
           <>
             <button onClick={() => send({ t: "createRoom" })} style={btn("#059669", "#052e16")}>Criar sala</button>
             <div style={{ marginTop: 4 }}>

@@ -21,7 +21,8 @@
      { t:"ready" }                     "Pronto": trava a fase atual (revelar / proxima rodada)
      { t:"aim", targetUid } / { t:"skipAim" }   resolve a mira pendente (so o dono)
    Protocolo — servidor -> cliente:
-     { t:"welcome", id }
+     { t:"welcome", id, sig, cards }   assinatura da colecao: o cliente compara
+                                       com a dele e avisa se as versoes diferem
      { t:"rooms", rooms }
      { t:"roomCreated", roomId }
      { t:"matchReady", roomId, seat, opponent }   sala cheia; envie deckReady
@@ -33,10 +34,29 @@ import http from "http";
 import { WebSocketServer } from "ws";
 import { randomUUID } from "crypto";
 import { freshMatch, applyAction } from "../src/match.js";
+import { byKey, CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
 
 const PORT = process.env.PORT || 8080;
 const STEP_MS = Number(process.env.STEP_MS) || 850;
 const DECK_SIZE = 12;
+
+/* --------------------------- BLINDAGEM DO PROCESSO ------------------------
+   Este servidor atende TODAS as salas num processo só. Antes, qualquer exceção
+   dentro de um handler derrubava o Node inteiro: uma carta desconhecida numa
+   sala desconectava todo mundo e o Render levava ~1 min pra subir de novo.
+   Agora nada escapa: cada handler roda dentro de `guard`, e o processo ainda
+   tem uma última rede embaixo. Um bug estraga no máximo uma partida. */
+process.on("uncaughtException", (e) => console.error("[uncaught]", e));
+process.on("unhandledRejection", (e) => console.error("[unhandled]", e));
+
+function guard(what, fn, onFail) {
+  try { return fn(); }
+  catch (e) {
+    console.error(`[erro em ${what}]`, e && e.stack ? e.stack : e);
+    try { onFail && onFail(e); } catch {}
+    return undefined;
+  }
+}
 
 // ---- estado em memoria --------------------------------------------------
 const clients = new Map(); // id -> { ws, name, roomId, seat }
@@ -80,52 +100,72 @@ function broadcastState(room) {
   }
 }
 
+/* Avisa os dois jogadores que a partida quebrou e encerra a sala com dignidade,
+   em vez de deixar a tela congelada esperando um estado que nunca vem. */
+function abortMatch(room, msg) {
+  for (const seat of [0, 1]) {
+    const c = seatClient(room, seat);
+    if (c) send(c.ws, { t: "error", msg });
+  }
+  if (room.match) { clearTimeout(room.match.revealTimer); room.match.broken = true; }
+}
+
 // ---- ciclo da partida ---------------------------------------------------
 function tryStartMatch(room) {
   const M = room.match;
-  if (!M || M.state) return;
+  if (!M || M.state || M.broken) return;
   if (!M.decks[0] || !M.decks[1]) return;
-  M.state = freshMatch([M.decks[0], M.decks[1]]);
-  M.ready = [false, false];
-  broadcastState(room);
+  guard("tryStartMatch", () => {
+    M.state = freshMatch([M.decks[0], M.decks[1]]);
+    M.ready = [false, false];
+    broadcastState(room);
+  }, () => { M.state = null; abortMatch(room, "Não consegui iniciar a partida (erro no servidor). Saia da sala e tente de novo."); });
 }
 
 function startReveal(room) {
   const M = room.match;
-  const r = applyAction(M.state, { t: "startReveal" });
-  if (r.error) return;
-  M.state = r.state;
-  broadcastState(room);
-  if (M.state.phase === "revealing") pumpReveal(room);
-  else { M.ready = [false, false]; broadcastState(room); }
+  if (!M || !M.state || M.broken) return;
+  guard("startReveal", () => {
+    const r = applyAction(M.state, { t: "startReveal" });
+    if (r.error) return;
+    M.state = r.state;
+    broadcastState(room);
+    if (M.state.phase === "revealing") pumpReveal(room);
+    else { M.ready = [false, false]; broadcastState(room); }
+  }, () => abortMatch(room, "Erro ao revelar as cartas. Saia da sala e tente de novo."));
 }
 
 function pumpReveal(room) {
   const M = room.match;
-  if (!M) return;
-  if (M.state.awaitingAim) { broadcastState(room); return; }
-  if (M.state.phase !== "revealing") { M.ready = [false, false]; broadcastState(room); return; }
-  const r = applyAction(M.state, { t: "step" });
-  if (r.error) return;
-  M.state = r.state;
-  broadcastState(room);
-  if (M.state.awaitingAim) return;
-  if (M.state.phase === "revealing") {
-    clearTimeout(M.revealTimer);
-    M.revealTimer = setTimeout(() => pumpReveal(room), STEP_MS);
-  } else {
-    M.ready = [false, false];
+  if (!M || !M.state || M.broken) return;
+  guard("pumpReveal", () => {
+    if (M.state.awaitingAim) { broadcastState(room); return; }
+    if (M.state.phase !== "revealing") { M.ready = [false, false]; broadcastState(room); return; }
+    const r = applyAction(M.state, { t: "step" });
+    if (r.error) return;
+    M.state = r.state;
     broadcastState(room);
-  }
+    if (M.state.awaitingAim) return;
+    if (M.state.phase === "revealing") {
+      clearTimeout(M.revealTimer);
+      M.revealTimer = setTimeout(() => pumpReveal(room), STEP_MS);
+    } else {
+      M.ready = [false, false];
+      broadcastState(room);
+    }
+  }, () => abortMatch(room, "Erro no meio da revelação. Saia da sala e tente de novo."));
 }
 
 function advanceRound(room) {
   const M = room.match;
-  const r = applyAction(M.state, { t: "nextRound" });
-  if (r.error) return;
-  M.state = r.state;
-  M.ready = [false, false];
-  broadcastState(room);
+  if (!M || !M.state || M.broken) return;
+  guard("advanceRound", () => {
+    const r = applyAction(M.state, { t: "nextRound" });
+    if (r.error) return;
+    M.state = r.state;
+    M.ready = [false, false];
+    broadcastState(room);
+  }, () => abortMatch(room, "Erro ao avançar a rodada. Saia da sala e tente de novo."));
 }
 
 // ---- lobby --------------------------------------------------------------
@@ -158,6 +198,9 @@ const server = http.createServer((req, res) => {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({
       ok: true, service: "Guerras Egipcias — servidor multiplayer (Fase 2)",
+      // sig/cards: abra esta URL no navegador e compare com o que o app mostra
+      // no lobby. Se diferirem, o servidor está rodando um commit mais velho.
+      sig: CONTENT_SIG, cards: CARD_KEYS.length,
       rooms: rooms.size, players: clients.size, uptime: Math.round(process.uptime()),
     }));
     return;
@@ -173,10 +216,10 @@ wss.on("connection", (ws) => {
   clients.set(id, { ws, name: "Jogador", roomId: null, seat: undefined });
   ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
-  send(ws, { t: "welcome", id });
+  send(ws, { t: "welcome", id, sig: CONTENT_SIG, cards: CARD_KEYS.length });
   send(ws, { t: "rooms", rooms: openRooms() });
 
-  ws.on("message", (raw) => {
+  ws.on("message", (raw) => guard("message", () => {
     let m; try { m = JSON.parse(raw.toString()); } catch { return; }
     const c = clients.get(id);
     if (!c) return;
@@ -225,6 +268,16 @@ wss.on("connection", (ws) => {
         if (!room || !room.match || c.seat === undefined) { send(ws, { t: "error", msg: "Sem partida ativa." }); break; }
         const deck = Array.isArray(m.deck) ? m.deck.slice(0, DECK_SIZE) : null;
         if (!deck || deck.length !== DECK_SIZE) { send(ws, { t: "error", msg: "Deck precisa de " + DECK_SIZE + " cartas." }); break; }
+        /* Carta que o servidor não conhece = servidor mais velho que o site.
+           Antes isso explodia lá dentro (byKey[key].poder de undefined) e
+           derrubava o processo inteiro. Agora vira uma recusa explícita. */
+        const desconhecidas = deck.filter((k) => !byKey[k]);
+        if (desconhecidas.length) {
+          send(ws, { t: "error", msg:
+            "O servidor não conhece " + desconhecidas.join(", ") +
+            ". Ele está numa versão mais antiga que o site — refaça o deploy do serviço no Render." });
+          break;
+        }
         room.match.decks[c.seat] = deck;
         tryStartMatch(room);
         break;
@@ -235,7 +288,9 @@ wss.on("connection", (ws) => {
         if (!M || !M.state) break;
         if (M.state.phase !== "plan" || M.state.finished) { send(ws, { t: "error", msg: "Nao e fase de planejamento." }); break; }
         const a = m.action || {};
-        if (!["place", "pickup", "move"].includes(a.t)) { send(ws, { t: "error", msg: "Acao invalida." }); break; }
+        // resetPlan ("Reiniciar rodada") existe no match.js e o cliente online
+        // já mandava — faltava aqui, então online a tecla não fazia nada.
+        if (!["place", "pickup", "move", "resetPlan"].includes(a.t)) { send(ws, { t: "error", msg: "Ação inválida: " + a.t }); break; }
         const action = { ...a, side: c.seat };
         const r = applyAction(M.state, action);
         if (r.error) { send(ws, { t: "error", msg: r.error }); break; }
@@ -278,12 +333,12 @@ wss.on("connection", (ws) => {
       default:
         break;
     }
-  });
+  }, () => send(ws, { t: "error", msg: "Erro interno do servidor ao processar sua jogada." })));
 
-  ws.on("close", () => {
+  ws.on("close", () => guard("close", () => {
     leaveRoom(id);
     clients.delete(id);
-  });
+  }));
 });
 
 const heartbeat = setInterval(() => {
