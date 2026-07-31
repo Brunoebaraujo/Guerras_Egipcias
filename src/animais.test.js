@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, ctxOf, destroyList, consumirCarta, resolvePraga, resolveSekhmet, resolveSet,
-  resolveInvocar, resolveCabraDoNilo, resolveGarca, resolveApis, resolveMacaco, invocarFicha,
+  resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, invocarFicha,
   viaCheia, contarViasCheias, ocupacaoDaVia, viasComEspaco, animaisEmJogo, podeSerAlvo, laneProtegida,
   resolveDestroyAllOfTypeInLane, validTargets, resetUid, nextUid, CARDS, TOKENS,
 } from "./engine.js";
@@ -522,12 +522,13 @@ describe("Hiena do Deserto", () => {
 });
 
 /* ==========================================================================
-   Garça do Nilo — +3 por via cheia
+   Garça do Nilo — CONTÍNUA: +3 por via sua cheia, recontada a cada leitura
    ========================================================================== */
 describe("Garça do Nilo", () => {
+  // Monta a Garça na via 2 com `n` vias suas cheias. A via 2 usa a própria
+  // Garça como quarta carta, então n=3 exige 12 cartas do lado dela.
   const comViasCheias = (n) => {
     const garca = mk("garca", { lane: 2 });
-    // As vias cheias são preenchidas com Cães; a Garça ocupa a via 2.
     const extras = [];
     for (let l = 0; l < n; l++) extras.push(...(l === 2 ? encher(2, 0, 3) : encher(l, 0, 4)));
     const s = mkState([...extras, garca]);
@@ -536,57 +537,80 @@ describe("Garça do Nilo", () => {
 
   it("zero vias cheias: fica com 2", () => {
     const { s, garca } = comViasCheias(0);
-    const badge = resolveGarca(s, garca);
     expect(pw(s, garca)).toBe(2);
-    expect(badge.kind).toBe("block");
   });
 
   it("uma via cheia: fica com 5", () => {
     const { s, garca } = comViasCheias(1);
-    resolveGarca(s, garca);
     expect(pw(s, garca)).toBe(5);
   });
 
   it("duas vias cheias: fica com 8", () => {
     const { s, garca } = comViasCheias(2);
-    resolveGarca(s, garca);
     expect(pw(s, garca)).toBe(8);
   });
 
   it("três vias cheias: fica com 11 — a própria Garça fecha a terceira", () => {
     const { s, garca } = comViasCheias(3);
     expect(contarViasCheias(s.board, 0)).toBe(3);
-    resolveGarca(s, garca);
     expect(pw(s, garca)).toBe(11);
   });
 
   it("conta qualquer tipo de carta, não só Animais", () => {
     const garca = mk("garca", { lane: 2 });
     const s = mkState([...Array(4).fill(0).map(() => mk("carruagem", { lane: 0 })), garca]);
-    resolveGarca(s, garca);
     expect(pw(s, garca)).toBe(5);
   });
 
-  it("via cheia DEPOIS não aumenta o bônus", () => {
+  it("VIA CHEIA EM RODADA POSTERIOR: a Garça cresce sozinha", () => {
     const { s, garca } = comViasCheias(1);
-    resolveGarca(s, garca);
-    s.board.push(...encher(1, 0, 4));
     expect(pw(s, garca)).toBe(5);
+    s.board.push(...encher(1, 0, 4));          // outra via fecha depois
+    expect(pw(s, garca)).toBe(8);
+    s.board.push(...encher(2, 0, 3));          // a via dela fecha por último (ela é a 4ª)
+    expect(pw(s, garca)).toBe(11);
   });
 
-  it("via esvaziada depois não reduz o bônus", () => {
+  it("via esvaziada depois: o bônus recua junto", () => {
     const { s, garca } = comViasCheias(1);
-    resolveGarca(s, garca);
-    destroyList(s, s.board.filter((c) => c.lane === 0));
+    expect(pw(s, garca)).toBe(5);
+    destroyList(s, [s.board.find((c) => c.lane === 0)]);
+    expect(pw(s, garca)).toBe(2);
+  });
+
+  it("carta ainda oculta já ocupa o espaço e conta para a via cheia", () => {
+    const garca = mk("garca", { lane: 2 });
+    const s = mkState([...encher(0, 0, 3), mk("cao", { lane: 0, revealed: false }), garca]);
     expect(pw(s, garca)).toBe(5);
   });
 
   it("via cheia do INIMIGO não conta", () => {
     const garca = mk("garca", { lane: 2 });
     const s = mkState([...encher(0, 1, 4), ...encher(1, 1, 4), garca]);
-    const badge = resolveGarca(s, garca);
     expect(pw(s, garca)).toBe(2);
-    expect(badge.kind).toBe("block");
+  });
+
+  it("não grava nada em mods: é aura viva, não bênção", () => {
+    const { s, garca } = comViasCheias(2);
+    expect(garca.mods).toHaveLength(0);
+  });
+
+  it("a Maat desliga a aura na via dela", () => {
+    const garca = mk("garca", { lane: 2 });
+    const s = mkState([...encher(0, 0, 4), garca, mk("maat", { owner: 1, lane: 2 })]);
+    expect(pw(s, garca)).toBe(2);
+  });
+
+  it("o Anúbis não apaga o bônus, porque não há bônus gravado para apagar", () => {
+    const { s, garca } = comViasCheias(1);
+    garca.judged = 2;
+    expect(pw(s, garca)).toBe(5);
+  });
+
+  it("duas Garças na mesma via leem o mesmo tabuleiro", () => {
+    const g1 = mk("garca", { lane: 2 }), g2 = mk("garca", { lane: 2 });
+    const s = mkState([...encher(0, 0, 4), g1, g2]);
+    expect([pw(s, g1), pw(s, g2)]).toEqual([5, 5]);
   });
 });
 

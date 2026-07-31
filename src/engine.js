@@ -151,8 +151,8 @@ export const CARDS = [
     texto: "Contínuo: +2 de Poder permanente sempre que um Animal seu for destruído em campo.",
     lore: "Nos relevos do Império Antigo há hienas amarradas e alimentadas à força, como se engordam gansos: o Egito tentou criar a carniceira em cativeiro. Não deu certo — o bicho que prospera do que morre não se deixa domesticar." },
   { key: "garca", nome: "Garça do Nilo", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "garca",
-    trigger: "entrar", bonusPorViaCheia: 3,
-    texto: "Ao Entrar: +3 de Poder para cada via sua com os quatro espaços ocupados.",
+    trigger: "continuo", bonusPorViaCheia: 3,
+    texto: "Contínuo: +3 de Poder para cada via sua com os quatro espaços ocupados.",
     lore: "A garça pousa no primeiro monte de terra que emerge da cheia, e foi dessa imagem que os egípcios fizeram o relato da criação. Ela só desce quando já não sobra água: chega por último, e chega ao cheio." },
   { key: "rebanho", nome: "Rebanho de Cabras", tipo: "Animal", custo: 3, poder: 2, arch: "animal", arte: "rebanho",
     trigger: "entrar", invocar: { key: "token-cabra", onde: "outras" },
@@ -420,6 +420,18 @@ export function decomporPartes(card, ctx) {
   if (amons) partes.push({ label: "Amon", val: amons, tipo: "continuo" });
 
   for (const h of hinosPara(board, card)) partes.push({ ...h, tipo: "continuo" });
+
+  /* Garça do Nilo: CONTÍNUA, e não Ao Entrar. Ela reconta as vias a cada leitura,
+     então cresce quando uma via sua fecha em qualquer rodada — e encolhe de novo
+     se a via se abrir. É o mesmo contrato do Amon e do Domador: aura viva, nada
+     gravado em `mods`. Consequências: a Maat continua desligando (o curto-circuito
+     lá em cima pega todas as auras) e o Selo do Silêncio deixa de alcançá-la,
+     porque o Selo só bloqueia efeito de entrada. */
+  const porViaCheia = byKey[card.key]?.bonusPorViaCheia;
+  if (porViaCheia) {
+    const cheias = contarViasCheias(board, card.owner);
+    if (cheias) partes.push({ label: `${byKey[card.key].nome} — ${cheias} via(s) cheia(s)`, val: porViaCheia * cheias, tipo: "continuo" });
+  }
 
   if (card.key === "osiris") {
     const totalMortes = deaths[0] + deaths[1];
@@ -1188,24 +1200,6 @@ export function resolveCabraDoNilo(s, cabra) {
   aplicarBencao(s, cabra, ganho, `${def.nome} — ${companhia.length} Animal(is) na via`);
   pushLog(s, `${def.nome}: ${companhia.length} Animal(is) seu(s) na Via ${cabra.lane + 1} → +${ganho}.`);
   return { uid: cabra.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
-}
-
-// ------------------------------ Garça do Nilo -------------------------------
-// +3 por via SUA com os quatro espaços ocupados, medido no instante da entrada.
-// A própria Garça já está em campo quando isso roda (a carta ocupa o espaço
-// antes de o efeito resolver), então ela pode ser a quarta que fecha a via.
-// Congelado: fechar uma via depois não aumenta, esvaziar não reduz.
-export function resolveGarca(s, garca) {
-  const def = byKey[garca.key];
-  const cheias = contarViasCheias(s.board, garca.owner);
-  if (cheias === 0) {
-    pushLog(s, `${def.nome}: nenhuma via sua está cheia — sem bônus.`);
-    return { uid: garca.uid, text: "sem via cheia", kind: "block", seq: s.effectSeq };
-  }
-  const ganho = cheias * def.bonusPorViaCheia;
-  aplicarBencao(s, garca, ganho, `${def.nome} — ${cheias} via(s) cheia(s)`);
-  pushLog(s, `${def.nome}: ${cheias} via(s) cheia(s) → +${ganho}.`);
-  return { uid: garca.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
 }
 
 // -------------------------------- Touro Ápis --------------------------------

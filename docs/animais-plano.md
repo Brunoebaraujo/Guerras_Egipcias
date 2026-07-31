@@ -32,7 +32,8 @@ apontam para um `tipo` só.
 | 5 | Alvo do Macaco Sagrado | **Sorteado**, sem pausa de mira. Ver §6 |
 | 6 | O que a Aura do Gato bloqueia | Efeitos que **escolhem** uma carta, sorteio incluído. Não bloqueia global nem via inteira. Ver §7 |
 | 7 | Aura do Domador | Contínua, recalculada a cada leitura — nunca vira bônus gravado. Dois Domadores acumulam |
-| 8 | Bônus da Garça e do Ápis | Gravados em `mods` na entrada: permanentes, congelados, imunes a mudanças posteriores do tabuleiro |
+| 8 | Bônus do Ápis | Gravado em `mods` na entrada: permanente, congelado, imune a mudanças posteriores |
+| 8b | Bônus da Garça | **Contínuo**, recalculado a cada leitura. Ver §15 |
 | 9 | Fichas alimentam a Ammit | **Sim** — `plays` incrementa. Mesma regra da Rã das Pragas |
 | 10 | Hiena conta outra Hiena aliada destruída | **Sim.** Hiena é Animal |
 
@@ -51,6 +52,7 @@ Duas razões práticas fecharam a questão:
   (0 → 2, 1 → 5, 2 → 8, 3 → 11) é inalcançável: três vias cheias exigiriam 24
   cartas em campo. Por lado, os quatro degraus são todos jogáveis, e a carta
   vira o pagamento natural de um arquétipo que enche o tabuleiro.
+  (Com a Garça contínua, §15, isso passou a valer ainda mais.)
 - A conta estava repetida em cinco lugares do motor. Agora existe uma só:
 
 ```js
@@ -269,3 +271,35 @@ por 3 de energia, e dois Domadores dariam +44. É a maior alavanca do jogo hoje.
 Contrapartida real: o mesmo tabuleiro perde uma via inteira para uma Peste nos
 Animais e desmonta com Anúbis, que apaga todos os bônus gravados de Cabra, Garça
 e Ápis de uma via só.
+
+
+---
+
+## 15. A Garça virou contínua
+
+Encontrado em playtest: a Garça entrava cedo, o tabuleiro fechava nas rodadas
+seguintes e ela ficava parada em 2. Estava correta segundo o documento original
+("o bônus é calculado somente na entrada"), e a regra é que estava errada — uma
+carta de arquétipo de ocupação não pode punir quem a joga antes de ocupar.
+
+**Antes:** `trigger: "entrar"`, `resolveGarca` gravava o bônus em `mods`.
+**Agora:** `trigger: "continuo"`, o bônus é uma parcela viva dentro de
+`decomporPartes`, do lado do Amon, do Domador, do Osíris e da Ammit.
+
+Quatro consequências, todas herdadas do contrato de aura do motor:
+
+1. **Cresce em qualquer rodada.** É o que se pediu.
+2. **Encolhe também.** Se o oponente abrir uma via sua — Sobek, Sekhmet,
+   Primogênitos —, o +3 daquela via some junto. A carta ficou interativa: dá
+   para responder a ela.
+3. **A Maat desliga.** O curto-circuito da Maat em `decomporPartes` pega todas
+   as auras, e agora pega esta.
+4. **O Selo do Silêncio deixou de alcançá-la**, porque o Selo só bloqueia efeito
+   de entrada. Trocou um algoz por outro.
+
+Nada é gravado em `mods`, então o Anúbis também não tem o que apagar nela.
+
+O Ápis **continua congelado na entrada** — de propósito. São dois pagamentos
+diferentes pelo mesmo tabuleiro: o Ápis cobra pela foto do instante em que
+chega, a Garça cobra pelo que o tabuleiro for. Se os dois fossem contínuos, o
+arquétipo teria duas cartas com a mesma curva.

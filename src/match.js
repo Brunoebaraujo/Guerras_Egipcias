@@ -41,7 +41,7 @@ import {
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
-  resolveInvocar, resolveCabraDoNilo, resolveGarca, resolveApis, resolveMacaco,
+  resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco,
   viaCheia, podeSerAlvo,
 } from "./engine.js";
 
@@ -398,7 +398,6 @@ const ACTIONS = {
       // ---- Arquétipo Animal ----
       if (def.invocar) { s.effect = resolveInvocar(s, card); return ok(s); }
       if (def.animalNaVia) { s.effect = resolveCabraDoNilo(s, card); return ok(s); }
-      if (def.bonusPorViaCheia) { s.effect = resolveGarca(s, card); return ok(s); }
       if (def.bonusPorAnimal) { s.effect = resolveApis(s, card); return ok(s); }
       if (def.moverAnimal) { s.effect = resolveMacaco(s, card, rng); return ok(s); }
       if (def.needs) {
