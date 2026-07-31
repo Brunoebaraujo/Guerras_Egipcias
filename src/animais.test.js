@@ -50,7 +50,7 @@ describe("identidade do arquétipo", () => {
       expect(CARDS.some((c) => c.key === key), `${key} não é escolhível`).toBe(false);
       expect(TOKENS.some((c) => c.key === key)).toBe(true);
     }
-    expect(byKey["token-ganso"].poder).toBe(0);
+    expect(byKey["token-ganso"].poder).toBe(1);
     expect(byKey["token-cabra"].poder).toBe(1);
   });
 
@@ -135,20 +135,55 @@ describe("Cabra do Nilo", () => {
     resolveCabraDoNilo(s, cabra);
     expect(pw(s, cabra)).toBe(2);
   });
+
+  it("escala: +1 para CADA Animal seu na via", () => {
+    const cabra = mk("cabra-nilo");
+    const s = mkState([mk("cao"), mk("cao"), mk("token-ganso"), cabra]);
+    resolveCabraDoNilo(s, cabra);
+    expect(pw(s, cabra)).toBe(4);          // 1 impresso + 3 companheiros
+  });
+
+  it("teto natural do lado da via: três companheiros, +3", () => {
+    const cabra = mk("cabra-nilo");
+    const s = mkState([...encher(0, 0, 3), cabra]);
+    resolveCabraDoNilo(s, cabra);
+    expect(pw(s, cabra)).toBe(4);
+  });
+
+  it("a escala ignora Animais inimigos e de outras vias", () => {
+    const cabra = mk("cabra-nilo", { lane: 0 });
+    const s = mkState([
+      mk("cao", { lane: 0 }),                    // conta
+      mk("cao", { lane: 0, owner: 1 }),          // inimigo: não conta
+      mk("cao", { lane: 1 }),                    // outra via: não conta
+      mk("cao", { lane: 0, revealed: false }),   // oculto: não conta
+      cabra,
+    ]);
+    resolveCabraDoNilo(s, cabra);
+    expect(pw(s, cabra)).toBe(2);
+  });
+
+  it("o bônus congela: Animais que chegam depois não aumentam", () => {
+    const cabra = mk("cabra-nilo");
+    const s = mkState([mk("cao"), cabra]);
+    resolveCabraDoNilo(s, cabra);
+    s.board.push(mk("cao"));
+    expect(pw(s, cabra)).toBe(2);
+  });
 });
 
 /* ==========================================================================
    Ganso Doméstico e Rebanho de Cabras — invocação
    ========================================================================== */
 describe("Ganso Doméstico", () => {
-  it("com espaço: cria uma ficha 0/0 na própria via", () => {
+  it("com espaço: cria uma ficha 0/1 na própria via", () => {
     const ganso = mk("ganso");
     const s = mkState([ganso]);
     const badge = resolveInvocar(s, ganso);
     const fichas = s.board.filter((c) => c.key === "token-ganso");
     expect(fichas).toHaveLength(1);
     expect([fichas[0].lane, fichas[0].owner, fichas[0].token]).toEqual([0, 0, true]);
-    expect(pw(s, fichas[0])).toBe(0);
+    expect(pw(s, fichas[0])).toBe(1);
     expect(badge.kind).toBe("buff");
   });
 
@@ -205,7 +240,7 @@ describe("Rebanho de Cabras", () => {
     const reb = mk("rebanho", { lane: 1 });
     const s = mkState([reb, mk("domador", { lane: 1 })]);
     resolveInvocar(s, reb);
-    for (const cabra of s.board.filter((c) => c.key === "token-cabra")) expect(pw(s, cabra)).toBe(2);
+    for (const cabra of s.board.filter((c) => c.key === "token-cabra")) expect(pw(s, cabra)).toBe(3);
   });
 });
 
@@ -559,23 +594,23 @@ describe("Garça do Nilo", () => {
    Domador de Animais — Aura contínua
    ========================================================================== */
 describe("Domador de Animais", () => {
-  it("um Domador dá +1 aos seus Animais, em todas as vias", () => {
+  it("um Domador dá +2 aos seus Animais, em todas as vias", () => {
     const s = mkState([mk("domador", { lane: 0 }), mk("cao", { lane: 2 }), mk("token-cabra", { lane: 1 })]);
-    expect(pw(s, s.board[1])).toBe(2);
-    expect(pw(s, s.board[2])).toBe(2);
-  });
-
-  it("dois Domadores acumulam: +2", () => {
-    const s = mkState([mk("domador"), mk("domador"), mk("cao")]);
+    expect(pw(s, s.board[1])).toBe(3);
     expect(pw(s, s.board[2])).toBe(3);
   });
 
-  it("destruir um dos dois devolve apenas 1 de Poder", () => {
+  it("dois Domadores acumulam: +4", () => {
+    const s = mkState([mk("domador"), mk("domador"), mk("cao")]);
+    expect(pw(s, s.board[2])).toBe(5);
+  });
+
+  it("destruir um dos dois devolve apenas 2 de Poder", () => {
     const d1 = mk("domador"), cao = mk("cao");
     const s = mkState([d1, mk("domador"), cao]);
-    expect(pw(s, cao)).toBe(3);
+    expect(pw(s, cao)).toBe(5);
     destroyList(s, [d1]);
-    expect(pw(s, cao)).toBe(2);
+    expect(pw(s, cao)).toBe(3);
   });
 
   it("a Aura some por inteiro quando o Domador sai", () => {
@@ -600,7 +635,7 @@ describe("Domador de Animais", () => {
     const s = mkState([mk("domador")]);
     const novo = mk("cao");
     s.board.push(novo);
-    expect(pw(s, novo)).toBe(2);
+    expect(pw(s, novo)).toBe(3);
   });
 
   it("Domador oculto ainda não vale", () => {
@@ -621,7 +656,7 @@ describe("Domador de Animais", () => {
 
   it("Domador e Montu convivem, cada um com a própria parcela nomeada", () => {
     const s = mkState([mk("domador"), mk("montu"), mk("cao"), mk("carruagem")]);
-    expect(pw(s, s.board[2])).toBe(2);      // Animal: só o Domador
+    expect(pw(s, s.board[2])).toBe(3);      // Animal: só o Domador
     expect(pw(s, s.board[3])).toBe(8);      // Guerreiro: só o Montu
   });
 });
@@ -659,7 +694,7 @@ describe("Touro Ápis", () => {
     // Nenhum outro Animal em jogo: o +1 que aparece é a Aura do Domador,
     // que é contínua e independe do Ao Entrar.
     expect(apis.mods).toHaveLength(0);
-    expect(pw(s, apis)).toBe(8);
+    expect(pw(s, apis)).toBe(9);
   });
 
   it("não conta Animais ocultos nem os que estão saindo", () => {
@@ -690,7 +725,7 @@ describe("Touro Ápis", () => {
     const apis = mk("apis");
     const s = mkState([mk("domador"), mk("cao"), apis]);
     resolveApis(s, apis);                  // +1 (só o Cão é Animal)
-    expect(pw(s, apis)).toBe(9);           // 7 + 1 (Ápis) + 1 (Domador)
+    expect(pw(s, apis)).toBe(10);          // 7 + 1 (Ápis) + 2 (Domador)
   });
 });
 
@@ -715,7 +750,7 @@ describe("arquétipo Animal na partida", () => {
     expect(s.board.filter((c) => c.key === "token-ganso")).toHaveLength(1);
   });
 
-  it("Rebanho + Domador: as três Cabras valem 2 e o tabuleiro tem 5 cartas", () => {
+  it("Rebanho + Domador: as Cabras valem 3 e o tabuleiro fica com 4 cartas", () => {
     let s = jogar(["domador", "rebanho"]);
     s = applyAction(s, { t: "place", side: 0, hid: s.hand[0][0].hid, lane: 0 }).state;
     s = applyAction(s, { t: "place", side: 0, hid: s.hand[0][0].hid, lane: 1 }).state;
@@ -723,7 +758,7 @@ describe("arquétipo Animal na partida", () => {
     s = revelar(s);
     const cabras = s.board.filter((c) => c.key === "token-cabra");
     expect(cabras).toHaveLength(2);
-    for (const c of cabras) expect(power(c, ctxOf(s))).toBe(2);
+    for (const c of cabras) expect(power(c, ctxOf(s))).toBe(3);
     expect(s.board).toHaveLength(4);
   });
 

@@ -141,7 +141,7 @@ O Montu era um caso especial escrito à mão dentro de `decomporPartes`. O Domad
 tem a mesma forma, então a forma virou mecanismo:
 
 ```js
-{ anthemType: "Animal", anthemVal: 1 }
+{ anthemType: "Animal", anthemVal: 2 }
 ```
 
 Qualquer carta que declare esses dois campos vira fonte de hino. Fontes iguais
@@ -229,7 +229,42 @@ aperto de mão acusar versões diferentes. Os dois precisam subir juntos.
 - **Animações** pedidas pelo documento e ainda não feitas: crescimento da Hiena,
   pulso da Aura do Domador, destaque das vias cheias ao revelar a Garça. O
   escudo do Gato e o badge de movimento do Macaco já estão.
-- **Balanceamento**: o arquétipo nunca foi jogado. Suspeitos de estarem fortes,
-  em ordem: Garça (5 de Poder por 2 de energia é rotina num deck de ocupação),
-  Gato (desliga sozinho seis efeitos inimigos) e Hiena em deck de sacrifício com
-  Sobek ou Dilúvio.
+- **Balanceamento**: ver §14. Depois do primeiro ajuste, o suspeito nº 1 passou
+  a ser o Domador; o Gato continua desligando sozinho seis efeitos inimigos por
+  2 de energia.
+
+---
+
+## 14. Rebalanceamento — 1ª rodada
+
+Três ajustes pedidos depois da implementação inicial:
+
+| Carta | Antes | Depois |
+|---|---|---|
+| Ficha de Ganso | 0/0 | **0/1** |
+| Cabra do Nilo | +1 se houver outro Animal seu na via | **+1 para cada** outro Animal seu na via (teto natural +3) |
+| Domador de Animais | Aura +1 | **Aura +2** |
+
+O escopo da Cabra não mudou: continua contando só Animais **seus**, **revelados**,
+**naquela via**, e o bônus continua congelado na entrada.
+
+**Medição.** Tabuleiro plausível de rodada 6 (20 de energia, 12 cartas, as três
+vias cheias — Cão, Ganso + ficha, Cabra do Nilo, Cão, Rebanho + ficha, Domador,
+Gato, Hiena, Garça, Ápis):
+
+```
+Via 1 [14]: Cão 3 | Ganso 2 | Ganso (ficha) 3 | Cabra do Nilo 6
+Via 2 [28]: Cão 3 | Rebanho 4 | Domador 2 | Touro Ápis 19
+Via 3 [21]: Cabra (ficha) 3 | Gato 4 | Hiena 4 | Garça 10
+total: 63
+```
+
+Um deck de Guerreiros com a curva cheia (Arqueiro → Lanceiro → Montu →
+Guarda Real → General → Colosso) fecha perto de **50** em 6 cartas. Os Animais
+chegam a 63 em 12, o que é coerente com a identidade — mas o número a vigiar é
+outro: naquele tabuleiro o **Domador sozinho responde por +22** (11 Animais × 2)
+por 3 de energia, e dois Domadores dariam +44. É a maior alavanca do jogo hoje.
+
+Contrapartida real: o mesmo tabuleiro perde uma via inteira para uma Peste nos
+Animais e desmonta com Anúbis, que apaga todos os bônus gravados de Cabra, Garça
+e Ápis de uma via só.

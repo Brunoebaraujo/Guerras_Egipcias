@@ -132,11 +132,11 @@ export const CARDS = [
     lore: "O tesem, de orelhas eretas e cauda enrolada, corre nas paredes dos túmulos desde antes das pirâmides. Não era símbolo de coisa alguma: era o bicho que ia à frente do caçador — e a quem se dava nome próprio. Abutiu, o cão de um faraó, tem o nome mais antigo de cão que se conhece." },
   { key: "cabra-nilo", nome: "Cabra do Nilo", tipo: "Animal", custo: 1, poder: 1, arch: "animal",
     trigger: "entrar", animalNaVia: 1,
-    texto: "Ao Entrar: +1 de Poder se houver outro Animal seu nesta via.",
+    texto: "Ao Entrar: +1 de Poder para cada outro Animal seu nesta via.",
     lore: "A cabra dava leite onde a terra não sustentava vaca, e por isso era o gado de quem não tinha gado. Os escribas contavam bois cabeça por cabeça; cabra ninguém contava uma a uma — contava-se o rebanho." },
   { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 0, arch: "animal",
     trigger: "entrar", invocar: { key: "token-ganso", onde: "propria" },
-    texto: "Ao Entrar: invoque um Ganso (0/0) nesta via.",
+    texto: "Ao Entrar: invoque um Ganso (0/1) nesta via.",
     lore: "Do ganso Gengen Wer, o Grande Grasnador, teria saído o ovo que continha o sol. Em terra, porém, o ganso do Nilo era o mais banal dos bens: engordado à força, salgado em jarras e oferecido aos milhares nos altares." },
   { key: "gato", nome: "Gato Egípcio", tipo: "Animal", custo: 2, poder: 2, arch: "animal",
     trigger: "continuo", protegeVia: true,
@@ -159,8 +159,8 @@ export const CARDS = [
     texto: "Ao Entrar: invoque uma Cabra (0/1) em cada uma das outras duas vias.",
     lore: "O Censo do Gado marcava os anos do reinado: contava-se o rebanho do Egito inteiro e o número virava data. Rebanho não andava em fila — espalhava-se por onde houvesse mato, e era assim que se media a riqueza de um homem." },
   { key: "domador", nome: "Domador de Animais", tipo: "Humano", custo: 3, poder: 2, arch: "animal",
-    trigger: "continuo", anthemType: "Animal", anthemVal: 1,
-    texto: "Contínuo: seus Animais ganham +1 de Poder.",
+    trigger: "continuo", anthemType: "Animal", anthemVal: 2,
+    texto: "Contínuo: seus Animais ganham +2 de Poder.",
     lore: "Havia o pastor, o guardador de gansos, o tratador de babuínos — cada bicho com seu homem, e cada homem com o título gravado na parede do túmulo. No Egito, animal nenhum ficava selvagem por muito tempo: encontrava dono, nome e ração." },
   { key: "apis", nome: "Touro Ápis", tipo: "Animal", custo: 6, poder: 7, arch: "animal",
     trigger: "entrar", bonusPorAnimal: 1,
@@ -252,7 +252,7 @@ export const TOKENS = [
      das Pragas foram feitas alcançáveis pela Sekhmet de propósito, mas estas são
      o corpo barato de um arquétipo que JÁ é vulnerável à Peste nos Animais e a
      todo efeito de via. Somar a Sekhmet a isso seria cobrar duas vezes. */
-  { key: "token-ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 0, poder: 0, arch: "animal", token: true,
+  { key: "token-ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true,
     lore: "Ganso do Nilo nunca aparece sozinho nas pinturas: vem sempre em fila, e a fila é o ponto." },
   { key: "token-cabra", nome: "Cabra", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true,
     lore: "Uma cabra come o que houver, dá leite e não pede pasto. Vinte cabras são um patrimônio." },
@@ -1173,8 +1173,10 @@ export function resolveInvocar(s, card) {
 }
 
 // ----------------------------- Cabra do Nilo --------------------------------
-// +1 se JÁ houver outro Animal seu revelado nesta via. Uma vez só, na entrada:
-// o bônus é permanente e não some se o companheiro sair.
+// +1 por OUTRO Animal seu já revelado nesta via — só na própria via, só do
+// próprio dono, e só uma vez, na entrada. O bônus é permanente: não some se a
+// companhia sair, e não cresce se chegar mais gente depois.
+// Teto natural: três companheiros num lado de via (4 espaços), logo +3.
 export function resolveCabraDoNilo(s, cabra) {
   const def = byKey[cabra.key];
   const companhia = animaisEmJogo(s.board, { owner: cabra.owner, lane: cabra.lane, exceto: cabra.uid });
@@ -1182,9 +1184,10 @@ export function resolveCabraDoNilo(s, cabra) {
     pushLog(s, `${def.nome}: sozinha na Via ${cabra.lane + 1} — sem bônus.`);
     return { uid: cabra.uid, text: "sozinha", kind: "block", seq: s.effectSeq };
   }
-  aplicarBencao(s, cabra, def.animalNaVia, `${def.nome} — Animal na via`);
-  pushLog(s, `${def.nome}: +${def.animalNaVia} — ${byKey[companhia[0].key].nome} já ocupava a Via ${cabra.lane + 1}.`);
-  return { uid: cabra.uid, text: `+${def.animalNaVia}`, kind: "buff", seq: s.effectSeq };
+  const ganho = companhia.length * def.animalNaVia;
+  aplicarBencao(s, cabra, ganho, `${def.nome} — ${companhia.length} Animal(is) na via`);
+  pushLog(s, `${def.nome}: ${companhia.length} Animal(is) seu(s) na Via ${cabra.lane + 1} → +${ganho}.`);
+  return { uid: cabra.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
 }
 
 // ------------------------------ Garça do Nilo -------------------------------
