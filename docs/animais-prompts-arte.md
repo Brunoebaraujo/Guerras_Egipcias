@@ -9,23 +9,48 @@ Moisés, e nenhum recorte circular.
 
 ## Estado
 
-| # | Carta | Arquivo | `arteFoco` previsto | Estado |
-|---|-------|---------|--------------------|--------|
-| 1 | Cão do Deserto | `cao.webp` | — | ⬜ a gerar |
-| 2 | Cabra do Nilo | `cabra-nilo.webp` | — | ⬜ a gerar |
-| 3 | Ganso Doméstico | `ganso.webp` | — | ⬜ a gerar |
-| 4 | Gato Egípcio | `gato.webp` | — | ⬜ a gerar |
-| 5 | Macaco Sagrado | `macaco.webp` | suspeito de `center 0%` | ⬜ a gerar |
-| 6 | Hiena do Deserto | `hiena.webp` | — | ⬜ a gerar |
-| 7 | Garça do Nilo | `garca.webp` | suspeito de `center 0%` | ⬜ a gerar |
-| 8 | Rebanho de Cabras | `rebanho.webp` | — | ⬜ a gerar |
-| 9 | Domador de Animais | `domador.webp` | suspeito de `center 0%` | ⬜ a gerar |
-| 10 | Touro Ápis | `apis.webp` | **provável `center 0%`** (disco solar entre os chifres) | ⬜ a gerar |
-| 11 | Ganso Doméstico (ficha) | `token-ganso.webp` | — | ⬜ a gerar |
-| 12 | Cabra (ficha) | `token-cabra.webp` | — | ⬜ a gerar |
+| # | Carta | Arquivo | `arteFoco` | Estado |
+|---|-------|---------|-----------|--------|
+| 1 | Cão do Deserto | `cao.webp` | — | ✅ pronta |
+| 2 | Cabra do Nilo | `cabra-nilo.webp` | — | ✅ pronta |
+| 3 | Ganso Doméstico | `ganso.webp` | — | ✅ pronta |
+| 4 | Gato Egípcio | `gato.webp` | `center 0%` | ✅ pronta |
+| 5 | Macaco Sagrado | `macaco.webp` | — | ⚠️ ver nota |
+| 6 | Hiena do Deserto | `hiena.webp` | — | ✅ pronta |
+| 7 | Garça do Nilo | `garca.webp` | — | ✅ pronta |
+| 8 | Rebanho de Cabras | `rebanho.webp` | — | ✅ pronta |
+| 9 | Domador de Animais | `domador.webp` | `center 25%` | ⚠️ ver nota |
+| 10 | Touro Ápis | `apis.webp` | — | ✅ pronta |
+| 11 | Ganso Doméstico (ficha) | `token-ganso.webp` | — | ✅ pronta |
+| 12 | Cabra (ficha) | `token-cabra.webp` | — | ✅ pronta |
 
-Os "suspeitos" são palpite, não decisão: quem decide é o render depois da
-integração. O padrão continua sendo `arteFoco` vazio.
+### O que o render mediu
+
+O corte da janela descarta 17,58% da altura — 88 px de cada lado numa fonte de
+1000 px. Medindo o topo real do assunto em cada arte:
+
+| Carta | Topo do assunto | Decisão |
+|---|---|---|
+| Gato Egípcio | y = 39 | as orelhas eram cortadas até com `center 25%` → **`center 0%`** |
+| Domador | y = 51 (cajado) | o padrão decepava o cajado → **`center 25%`** |
+| Touro Ápis | y = 187 | o palpite estava errado: chifres e disco solar sobram com folga no padrão, e manter o padrão preserva mais rebanho embaixo → **sem `arteFoco`** |
+
+As outras nove passaram no padrão sem encostar em nada.
+
+### Notas sobre duas artes
+
+**Macaco Sagrado** — vieram dois babuínos correndo de frente, bocas abertas e
+presas à mostra. É uma boa pintura, mas diz *ataque*, e a carta **move um Animal
+seu de via**: não fere ninguém, nem inimigo nem aliado. É a única das doze em que
+a imagem contradiz a mecânica. Está integrada porque funciona visualmente, mas é
+a primeira candidata a regerar.
+
+**Domador de Animais** — o prompt pedia cajado BAIXADO e nada de gesto de
+comando, justamente porque a carta é fraca sozinha (Poder 2) e o valor está nos
+animais. Veio com o braço erguido em comando, e o rebanho ao fundo tem leões e
+bois, que não existem no arquétipo. Funciona, mas inverte a ênfase.
+
+
 
 ## A geometria que manda no enquadramento
 
