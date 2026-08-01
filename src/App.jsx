@@ -80,51 +80,74 @@ const FILTROS_VAZIOS = Object.fromEntries(DIMENSOES_FILTRO.map((d) => [d.id, []]
    dessa medida; por isso 3 colunas no celular exigem medir, não só um
    breakpoint de CSS. */
 
-/* ========================== BANNER DE VITÓRIA ============================== */
-function BannerVitoria({ finished, resultado, online, mySeat }) {
-  if (!finished || !resultado) return null;
+/* ========================== BANNER DE VITÓRIA ==============================
+   A frase não fica centrada no ARQUIVO, e sim no PAINEL DE PEDRA de dentro da
+   moldura. São coisas diferentes: os escaravelhos das quinas sobem acima da
+   moldura, então o miolo é assimétrico no eixo vertical (24,95% de margem em
+   cima contra 10% embaixo). Centrar na imagem jogava o texto para fora — foi
+   exatamente o que aconteceu na primeira versão.
 
+   Os quatro números vieram de medição na arte (varredura das bandas de ouro e
+   lápis), não de estimativa: painel de pedra em (249,368)-(1262,717) da imagem
+   original, convertido para % do recorte. Se a arte for trocada, é aqui que se
+   remede.
+
+   O corpo do texto escala pelo COMPRIMENTO da frase, para "Lado A venceu" e
+   "Vitória" ocuparem bem o mesmo painel sem uma estourar e a outra sumir. */
+const BANNER = { ar: 1277 / 537, painel: { left: 10.26, top: 24.95, width: 79.33, height: 64.99 } };
+
+function BannerVitoria({ g, online, mySeat, onFechar }) {
+  if (!g?.finished) return null;
   const base = import.meta.env.BASE_URL;
+  const r = matchResult(g);
+  const empate = r.side === -1;
 
-  let text, glowColor;
-  if (online) {
-    const ganhei = resultado.side === mySeat;
-    text = ganhei ? "Vitória" : "Derrota";
-    glowColor = ganhei ? "#fbbf24" : "#f87171";  // âmbar vs vermelho
+  let texto, cor;
+  if (empate) { texto = "Empate"; cor = "#e7e5e4"; }
+  else if (online) {
+    const ganhei = r.side === mySeat;
+    texto = ganhei ? "Vitória" : "Derrota";
+    cor = ganhei ? "#fbbf24" : "#f87171";
   } else {
-    text = `Lado ${resultado.side === 0 ? "A" : resultado.side === 1 ? "B" : ""} venceu`;
-    glowColor = "#fbbf24";
+    texto = `Lado ${r.side === 0 ? "A" : "B"} venceu`;
+    cor = "#fbbf24";
   }
 
-  return (
-    <div style={{
-      position: "fixed", inset: 0, pointerEvents: "none", zIndex: 40,
-      display: "flex", alignItems: "center", justifyContent: "center",
-    }}>
-      <style>{`
-        @keyframes bannerFadeIn {
-          from { opacity: 0; transform: scale(0.8); }
-          to { opacity: 1; transform: scale(1); }
-        }
-        .duat-banner {
-          animation: bannerFadeIn 0.6s cubic-bezier(0.23, 1, 0.320, 1);
-        }
-      `}</style>
+  /* Corpo derivado da largura do banner: cabe na largura do painel pelo número
+     de letras, com teto pela altura do painel para frases curtas não virarem
+     outdoor. `L` é a mesma expressão usada na largura do elemento. */
+  const L = "min(92vw, 860px)";
+  const porLargura = BANNER.painel.width / 100 / (0.62 * texto.length);
+  const teto = (1 / BANNER.ar) * (BANNER.painel.height / 100) * 0.62;
+  const corpo = `calc(${L} * ${Math.min(porLargura, teto).toFixed(4)})`;
 
-      <div className="duat-banner" style={{
-        position: "relative", width: "min(90vw, 900px)", aspectRatio: "1536 / 1024",
-        backgroundImage: `url(${base}banner-vitoria.webp)`,
-        backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
-        display: "flex", alignItems: "center", justifyContent: "center",
-      }}>
-        <span style={{
-          fontFamily: "Georgia, serif", fontWeight: 900, fontSize: "clamp(48px, 8vw, 96px)",
-          color: glowColor, lineHeight: 1, textShadow: `0 0 20px ${glowColor}, 0 2px 8px rgba(0,0,0,.95)`,
-          textTransform: "uppercase", letterSpacing: 2,
+  return (
+    <div onClick={onFechar} style={{
+      position: "fixed", inset: 0, zIndex: 60, cursor: "pointer",
+      display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+      background: "rgba(6,5,3,.55)", backdropFilter: "blur(1.5px)",
+    }}>
+      <div className="duat-banner" style={{ position: "relative", width: L, aspectRatio: `${BANNER.ar}` }}>
+        {/* A moldura é <img>, e não background: assim o alfa do arquivo é o alfa
+            na tela, sem nada opaco por baixo para o brilho colar. */}
+        <img src={`${base}banner-vitoria.webp`} alt="" style={{ display: "block", width: "100%", height: "100%" }} />
+        <div style={{
+          position: "absolute",
+          left: `${BANNER.painel.left}%`, top: `${BANNER.painel.top}%`,
+          width: `${BANNER.painel.width}%`, height: `${BANNER.painel.height}%`,
+          display: "flex", alignItems: "center", justifyContent: "center", padding: "0 1%",
         }}>
-          {text}
-        </span>
+          <span style={{
+            fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 900,
+            fontSize: corpo, lineHeight: 1, color: cor, whiteSpace: "nowrap",
+            textTransform: "uppercase", letterSpacing: "0.02em",
+            textShadow: `0 0 ${corpo === "0" ? "0" : "0.22em"} ${cor}88, 0 0.03em 0.06em rgba(0,0,0,.95)`,
+          }}>{texto}</span>
+        </div>
       </div>
+      <span style={{ marginTop: 14, color: "#a8a29e", fontFamily: "Georgia, serif", fontSize: 13 }}>
+        toque para ver o tabuleiro
+      </span>
     </div>
   );
 }
@@ -219,6 +242,8 @@ const DUAT_KEYFRAMES = `
   @keyframes duatFloat { 0%{opacity:0;transform:translate(-50%,3px)} 25%{opacity:1} 100%{opacity:0;transform:translate(-50%,-22px)} }
   @keyframes duatVanish { 0%{opacity:1;transform:scale(1)} 30%{opacity:.9;transform:scale(1.04)} 100%{opacity:0;transform:scale(.5) rotate(-8deg)} }
   @keyframes duatZoomIn { 0%{transform:scale(.85);opacity:0} 100%{transform:scale(1);opacity:1} }
+  @keyframes duatBanner { 0%{opacity:0;transform:scale(.86)} 100%{opacity:1;transform:scale(1)} }
+  .duat-banner { animation: duatBanner .55s cubic-bezier(.23,1,.32,1); }
   @keyframes duatCharge { 0%,100%{ box-shadow:0 0 3px 1px rgba(251,191,36,.5), 0 0 8px 2px rgba(251,191,36,.22) } 50%{ box-shadow:0 0 7px 2px rgba(251,191,36,.95), 0 0 17px 5px rgba(251,191,36,.5) } }
   .duat-pop { animation: duatPop .42s ease-out; }
   .duat-badge { animation: duatFloat .9s ease-out forwards; }
@@ -290,6 +315,10 @@ export default function App() {
   const aim = g.awaitingAim;                  // mira pendente vive no ESTADO (match.js)
   const [moving, setMoving] = useState(null); // {uid, side, lane} — Escaravelho
   const [zoom, setZoom] = useState(null);     // {def, printed, baked, current, sub}
+  /* O banner cobre o tabuleiro, então precisa sair do caminho: um toque o
+     dispensa. Volta a valer sozinho quando uma partida nova começa. */
+  const [bannerVisto, setBannerVisto] = useState(false);
+  useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
   const [msg, setMsg] = useState("");
   const [fast, setFast] = useState(false);
   const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
@@ -626,7 +655,7 @@ export default function App() {
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
         {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
-        {g.finished && <BannerVitoria finished={g.finished} resultado={matchResult(g)} online={false} />}
+        {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
       </>
     );
   }
@@ -720,7 +749,7 @@ export default function App() {
       </div>
 
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
-      {g.finished && <BannerVitoria finished={g.finished} resultado={matchResult(g)} online={false} />}
+      {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
     </div>
   );
 }
@@ -1502,6 +1531,10 @@ function OnlineGame({ send, data, note, onLeave }) {
   const [sel, setSel] = useState(null);
   const [moving, setMoving] = useState(null);
   const [zoom, setZoom] = useState(null);
+  /* O banner cobre o tabuleiro, então precisa sair do caminho: um toque o
+     dispensa. Volta a valer sozinho quando uma partida nova começa. */
+  const [bannerVisto, setBannerVisto] = useState(false);
+  useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
 
   const myReady = !!readyArr[seat];
   const oppReady = !!readyArr[1 - seat];
@@ -1574,7 +1607,7 @@ function OnlineGame({ send, data, note, onLeave }) {
         applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
         zoomBoard={zoomBoard} zoomHand={zoomHand} />
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
-      {g.finished && <BannerVitoria finished={g.finished} resultado={matchResult(g)} online={true} mySeat={seat} />}
+      {!bannerVisto && <BannerVitoria g={g} online={true} mySeat={seat} onFechar={() => setBannerVisto(true)} />}
     </>
   );
 }
