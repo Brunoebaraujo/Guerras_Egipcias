@@ -174,13 +174,8 @@ describe("Apófis / Dilúvio", () => {
     expect(power(apofis, ctxOf(s))).toBe(10);                          // 3 + 7
   });
 
-  it("Dilúvio destrói sem absorver", () => {
-    const dil = mk("diluvio");
-    const s = mkState([dil, mk("carruagem")]);
-    resolveDestroyOwnLane(s, dil, false);
-    expect(power(dil, ctxOf(s))).toBe(7);
-    expect(s.board.filter((c) => c.dying)).toHaveLength(1);
-  });
+  // O Dilúvio deixou de ser sacrifício da própria via: virou afogamento por
+  // faixa de custo. A suíte dele vive agora em diluvio.test.js.
 });
 
 /* --------------------------- Assassino Medjay ------------------------------- */

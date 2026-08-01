@@ -41,7 +41,7 @@ import {
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
-  resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco,
+  resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
   viaCheia, podeSerAlvo,
 } from "./engine.js";
 
@@ -391,7 +391,7 @@ const ACTIONS = {
       if (def.buffNext) { s.effect = resolveHeka(s, card); return ok(s); }
       if (def.key === "sobek") { s.effect = resolveSobek(s, card); return ok(s); }
       if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true); return ok(s); }
-      if (def.sacrificeAll) { s.effect = resolveDestroyOwnLane(s, card, false); return ok(s); }
+      if (def.afogaCusto) { s.effect = resolveAfogamento(s, card); return ok(s); }
       if (def.fuse) { s.effect = resolveArmadura(s, card); return ok(s); }
       if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return ok(s); }
       if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return ok(s); }

@@ -103,10 +103,10 @@ export const CARDS = [
     trigger: "entrar", absorb: true,
     lore: "Serpente do caos primordial, Apófis se enrosca nas trevas para engolir o sol a cada noite. Devora tudo o que encontra — até os seus — e de cada presa retira a força para o próximo bote.",
     texto: "Ao Entrar: destrói suas outras cartas nesta via e ganha o Poder total delas." },
-  { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 7, arch: "sacrificio",
-    trigger: "entrar", sacrificeAll: true, arte: "diluvio", arteFoco: "center 0%",
+  { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 5, arch: "sacrificio",
+    trigger: "entrar", afogaCusto: [1, 2], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
-    texto: "Ao Entrar: destrói todas as suas outras cartas nesta via." },
+    texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas." },
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
     trigger: "morrer", arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
@@ -1058,6 +1058,46 @@ export function resolveEnxame(s, card) {
 }
 
 // Destrói as OUTRAS cartas do próprio dono na via (Apófis absorve; Dilúvio só destrói).
+/* DILÚVIO DE HÁPI — afoga a via por FAIXA DE CUSTO, não por dono.
+   A cheia não distinguia amigo de plantação: pega os dois lados, e pega as
+   cartas baratas do próprio jogador junto. É o preço de jogá-la num tabuleiro
+   de ocupação.
+
+   Duas decisões que valem a leitura:
+
+   1. O GATO EGÍPCIO PROTEGE. O Dilúvio lê o custo de cada carta e decide uma a
+      uma — isso é escolher alvo, mesmo sem interface de mira. Por isso passa
+      por `podeSerAlvo`, ao contrário da Sekhmet (varre um custo no tabuleiro
+      inteiro) e da Peste (varre uma via inteira sem olhar carta). A regra que
+      separa as três continua sendo a mesma: quem aponta, é bloqueado.
+      O Gato só protege o lado DELE — as cartas baratas do dono do Dilúvio
+      afundam de qualquer jeito, porque contra o próprio dono não há proteção.
+
+   2. AFUNDA A SI MESMO se o custo entrar na faixa. Custo 5 impresso, mas
+      Praga dos Piolhos e afins mexem em `custoDe`. Se o Dilúvio virar custo 2,
+      ele é uma carta de custo 2 na via como qualquer outra — a água não sabe
+      quem a invocou. */
+export function resolveAfogamento(s, card) {
+  const def = byKey[card.key];
+  const [min, max] = def.afogaCusto;
+  const victims = s.board.filter((c) => {
+    if (c.lane !== card.lane || c.dying) return false;
+    const cst = custoDe(c);
+    if (cst < min || cst > max) return false;
+    return podeSerAlvo(s.board, c, card);      // o Gato protege o lado inimigo
+  });
+  if (victims.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta de custo ${min} a ${max} nesta via.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  const proprias = victims.filter((c) => c.owner === card.owner).length;
+  const returns = destroyList(s, victims);
+  pushLog(s, `${def.nome} afogou ${victims.length} carta(s) de custo ${min}–${max} na Via ${card.lane + 1}`
+    + (proprias ? ` (${proprias} sua(s))` : "") + "."
+    + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
+  return { uid: card.uid, text: `☥ ${victims.length}✕`, kind: "sac", seq: s.effectSeq };
+}
+
 export function resolveDestroyOwnLane(s, card, absorb) {
   if (card.key === "enxame") return resolveEnxame(s, card);
   const def = byKey[card.key];

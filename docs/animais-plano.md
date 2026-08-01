@@ -388,3 +388,45 @@ Três decisões dentro da correção:
 O log do renascimento passou a ler o Poder do tabuleiro depois de recolocada a
 carta, então mostra faixa, mods retidos e auras — antes ele imprimia
 `printed + baked`, que já era enganoso.
+
+
+---
+
+## 18. Dilúvio de Hápi reescrito
+
+Era 5/7, "destrói todas as suas outras cartas nesta via" — um sacrifício
+unilateral, irmão do Sobek e do Apófis. Passou a **5/5, destrói todas as cartas
+de custo 1 ou 2 nesta via, dos dois lados**.
+
+A carta mudou de família: saiu do sacrifício e entrou na remoção por custo, ao
+lado da Sekhmet. O que a separa das outras varreduras:
+
+| Carta | Recorte | Alcance |
+|---|---|---|
+| Sekhmet | um custo exato | tabuleiro inteiro |
+| **Dilúvio** | **faixa de custo (1–2)** | **uma via, dois lados** |
+| Peste nos Animais | um tipo | uma via, lado inimigo |
+| Assassino Medjay | um tipo (Divindade) | uma via |
+
+Duas decisões tomadas com o Bruno:
+
+**1. O Gato Egípcio protege.** O Dilúvio lê o custo de cada carta e decide uma a
+uma — isso é escolher alvo, mesmo sem interface de mira. Passa por
+`podeSerAlvo`. A Sekhmet e a Peste continuam furando o Gato, porque varrem sem
+olhar carta a carta. A regra que separa as três segue sendo: **quem aponta, é
+bloqueado**. O Gato só cobre o lado dele; as cartas baratas do dono do Dilúvio
+afundam de qualquer forma, já que contra o próprio dono não existe proteção.
+
+**2. Afunda a si mesmo** se o custo cair para a faixa (Praga dos Piolhos e
+afins). Custo 5 impresso, mas a leitura é de `custoDe`: se o Dilúvio virar custo
+2, ele é uma carta de custo 2 na via como qualquer outra. A água não sabe quem a
+invocou.
+
+**Alcance na coleção atual:** 19 das 45 definições estão na faixa 1–2. É a
+varredura mais ampla do jogo depois da Sekhmet, e cai com força particular sobre
+o arquétipo Animal, cujo corpo médio é barato — Gato, Macaco, Hiena, Garça,
+Cabra do Nilo e Ganso morrem todos, junto com as fichas de custo 1. As fichas de
+Ganso e Cabra (custo 0) sobrevivem, o que dá ao arquétipo uma resposta parcial.
+
+`sacrificeAll` deixou de existir: era usado só aqui. `resolveDestroyOwnLane`
+continua servindo Sobek e Apófis.
