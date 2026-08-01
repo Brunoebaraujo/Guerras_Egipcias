@@ -728,7 +728,7 @@ function ScoreDisc({ cx, cy, d, px, v, tone, lead }) {
     }}>
       <span style={{
         fontFamily: "Georgia, serif", fontWeight: 800, color: "#3a2b12", lineHeight: 1,
-        fontSize: Math.max(13, px(v >= 100 ? 1.5 : 2.0)),
+        fontSize: Math.max(15, px(v >= 100 ? 1.9 : 2.5)),
         textShadow: "0 1px 0 rgba(255,255,255,.45)",
       }}>{v}</span>
     </div>
@@ -751,7 +751,7 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: px(0.5), width: "100%", height: "100%", padding: px(0.35) }}>
         {[0, 1, 2, 3].map((slot) => {
           const c = cards[slot];
-          if (!c) return <div key={slot} style={{ borderRadius: px(0.5), border: active ? `1px dashed ${ringColor}` : "1px dashed rgba(247,233,192,.14)" }} />;
+          if (!c) return <div key={slot} style={{ borderRadius: px(0.5), border: active ? `1px dashed ${ringColor}` : "1px dashed rgba(247,233,192,.06)" }} />;
           const canTarget = aim && aimable(c);
           const movable = isMovable(c);
           const isMoving = moving && moving.uid === c.uid;
@@ -791,7 +791,14 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
   const base = import.meta.env.BASE_URL;
   const def = byKey[c.key];
   const f = (n) => Math.max(8, (bw * n) / 100);       // fontes proporcionais ao tabuleiro
+  /* ESPAÇAMENTO ≠ FONTE. `f` tem piso de 8px porque fonte menor que isso não se
+     lê. Aplicar esse mesmo piso a padding/gap era um defeito silencioso: numa
+     carta de ~45px de largura, f(0.25) virava 8px de respiro por lado — 35% da
+     carta gasta em margem, espremendo a arte. `u` escala de verdade. */
+  const u = (n) => Math.max(1, (bw * n) / 100);
   const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
+  // Lado dono: ouro para A, lápis para B. Leitura de posse sem depender da posição.
+  const ladoCor = c.owner === 0 ? "rgba(251,191,36,.62)" : "rgba(125,211,252,.62)";
 
   const common = {
     position: "relative", width: "100%", height: "100%", borderRadius: (bw * 0.5) / 100,
@@ -807,8 +814,8 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
     return (
       <div onClick={onClick} className={dying ? "duat-vanish" : ""} style={common} title={`${def.nome} — por revelar`}>
         <EffectBadge badge={badge} size={f(1.05)} />
-        <div style={{ ...frame, background: "rgba(20,15,8,.82)", border: "1px dashed rgba(247,233,192,.45)", padding: f(0.3) }}>
-          {onRemove && <button onClick={onRemove} style={{ position: "absolute", top: 0, right: f(0.3), color: "#a8a29e", fontSize: f(1.1), zIndex: 7 }}>✕</button>}
+        <div style={{ ...frame, background: "rgba(20,15,8,.82)", border: `1px dashed ${ladoCor}`, padding: u(0.3) }}>
+          {onRemove && <button onClick={onRemove} style={{ position: "absolute", top: 0, right: u(0.3), color: "#a8a29e", fontSize: f(1.1), zIndex: 7 }}>✕</button>}
           <div className={ARCH_COLOR[def.arch]} style={{ fontSize: f(1.2), lineHeight: 1, opacity: 0.7 }}>{GLYPH[def.arch]}</div>
           <div style={{ color: "#a8a29e", fontSize: f(0.85), lineHeight: 1.1, textAlign: "center", overflow: "hidden" }}>{def.nome}</div>
           <div style={{ color: "#78716c", fontSize: f(0.8), textAlign: "center" }}>oculta · {prov}</div>
@@ -829,7 +836,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
     : canTarget ? "2px solid #818cf8"
     : isMoving ? "2px solid #38bdf8"
     : movable ? "1.5px solid #0ea5e9"
-    : "1px solid rgba(247,233,192,.5)";
+    : `1.5px solid ${ladoCor}`;
 
   return (
     <div onClick={onClick} className={dying ? "duat-vanish" : reveal ? "duat-pop" : ""} style={common} title={def.texto || def.nome}>
@@ -853,34 +860,52 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
       })}
       <EffectBadge badge={badge} size={f(1.05)} />
       <div style={{ ...frame, border, background: artSrc ? "#000" : "rgba(28,24,17,.9)", boxShadow: canTarget ? "0 0 10px rgba(129,140,248,.8)" : "0 2px 6px rgba(0,0,0,.55)" }}>
-        {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }} />}
-        {artSrc && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.55) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0) 55%, rgba(0,0,0,.65) 100%)" }} />}
-        <div style={{ position: "relative", display: "flex", justifyContent: "space-between", padding: `${f(0.25)}px ${f(0.35)}px 0` }}>
-          <span className={ARCH_COLOR[def.arch]} style={{ fontSize: f(1.0), lineHeight: 1 }}>{GLYPH[def.arch]}</span>
-          <span style={{ display: "flex", alignItems: "center", gap: f(0.2) }}>
-            {protegida && <span title="Protegida pelo Gato Egípcio — efeitos inimigos não podem escolhê-la"
-              style={{ color: "#bef264", fontSize: f(0.85), lineHeight: 1 }}>⛨</span>}
-            <span style={{ color: custoDe(c) > byKey[c.key].custo ? "#fda4af" : "#d6d3d1", fontSize: f(0.8), lineHeight: 1 }}>{movable ? "⇄" : `${custoDe(c)}⚡`}</span>
-          </span>
+        {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.92 }} />}
+        {/* Véu: escuro no topo (para os glifos) e na base (para a faixa do nome).
+            O miolo fica limpo — é o assunto da ilustração. */}
+        {artSrc && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 54%, rgba(0,0,0,.5) 76%, rgba(0,0,0,.86) 100%)" }} />}
+
+        {/* Topo: arquétipo e sinais de estado. O CUSTO saiu daqui de propósito —
+            depois de revelada a carta, custo não é mais informação acionável;
+            ele continua na mão e no zoom, que é onde decide alguma coisa. */}
+        <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: u(0.25), padding: `${u(0.3)}px ${u(0.35)}px 0` }}>
+          <span className={ARCH_COLOR[def.arch]} style={{ fontSize: f(1.0), lineHeight: 1, textShadow: "0 1px 2px rgba(0,0,0,.95)" }}>{GLYPH[def.arch]}</span>
+          {protegida && <span title="Protegida pelo Gato Egípcio — efeitos inimigos não podem escolhê-la"
+            style={{ color: "#bef264", fontSize: f(0.85), lineHeight: 1, textShadow: "0 1px 2px rgba(0,0,0,.95)" }}>⛨</span>}
+          {movable && <span title="Pode ser movida nesta rodada"
+            style={{ color: "#7dd3fc", fontSize: f(0.85), lineHeight: 1, textShadow: "0 1px 2px rgba(0,0,0,.95)" }}>⇄</span>}
+          {c.ulceras && <span title="Ulcerada — perde 1 de Poder no início de cada rodada"
+            style={{ color: "#fda4af", fontSize: f(0.85), lineHeight: 1, textShadow: "0 1px 2px rgba(0,0,0,.95)" }}>☠</span>}
         </div>
-        <div style={{ position: "relative", color: "#e7e5e4", fontSize: f(0.82), lineHeight: 1.08, textAlign: "center", padding: `0 ${f(0.25)}px`, overflow: "hidden", textShadow: "0 1px 2px rgba(0,0,0,.9)" }}>{def.nome}</div>
-        <div style={{ position: "relative", textAlign: "center", paddingBottom: f(0.2) }}>
-          {ehPraga ? (
-            /* Praga não tem Poder: mostra o número da praga, não um zero mentiroso. */
-            <span title="Praga — resolve o efeito e deixa o campo" style={{
-              display: "inline-flex", alignItems: "center", justifyContent: "center",
-              width: f(1.5), height: f(1.5), borderRadius: "50%", background: "#c8a24a",
-              color: "#2b2010", fontWeight: 800, fontSize: f(0.9), lineHeight: 1,
-            }}>{def.ordem}</span>
-          ) : (
-            <span style={{ fontWeight: 800, fontSize: f(1.7), lineHeight: 1, color: pColor, textShadow: "0 1px 3px rgba(0,0,0,.95)" }}>{p}</span>
-          )}
-        </div>
-        {/* Úlceras: o -1 por rodada não pode ser invisível */}
-        {c.ulceras && (
-          <span title="Ulcerada — perde 1 de Poder no início de cada rodada"
-            style={{ position: "absolute", bottom: f(0.15), left: f(0.3), fontSize: f(0.9), lineHeight: 1, color: "#fda4af", textShadow: "0 1px 2px #000" }}>☠</span>
-        )}
+
+        {/* a arte respira: nada escrito por cima do miolo da ilustração */}
+        <div style={{ flex: 1 }} />
+
+        {/* FAIXA DO NOME — placa própria na base, fora da arte. Antes o nome caía
+            no centro da ilustração, exatamente onde ela tem mais detalhe. */}
+        <div style={{
+          position: "relative", background: "rgba(8,6,4,.74)", borderTop: "1px solid rgba(247,233,192,.16)",
+          padding: `${u(0.24)}px ${u(0.28)}px ${u(0.3)}px`, color: "#ece9e4",
+          fontSize: f(0.72), lineHeight: 1.04, textAlign: "center", letterSpacing: -0.1,
+          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+          wordBreak: "break-word", textShadow: "0 1px 2px rgba(0,0,0,.9)",
+        }}>{def.nome}</div>
+      </div>
+
+      {/* PODER — plaqueta opaca atravessando o canto superior direito. É o único
+          número da carta em campo, então tem que ganhar de tudo o mais. */}
+      <div style={{
+        position: "absolute", right: -u(0.32), top: -u(0.32), zIndex: 8, pointerEvents: "none",
+        minWidth: f(1.85), height: f(1.85), padding: `0 ${u(0.3)}px`, borderRadius: f(0.65),
+        display: "inline-flex", alignItems: "center", justifyContent: "center",
+        background: ehPraga ? "#c8a24a" : "rgba(7,6,4,.94)",
+        border: `1.5px solid ${ehPraga ? "rgba(43,32,16,.8)" : ladoCor}`,
+        boxShadow: "0 1px 4px rgba(0,0,0,.85)",
+        fontFamily: "Georgia, serif", fontWeight: 900, lineHeight: 1,
+        color: ehPraga ? "#2b2010" : pColor, fontSize: f(1.2),
+      }} title={ehPraga ? "Praga — resolve o efeito e deixa o campo" : "Poder"}>
+        {/* Praga não tem Poder: mostra o número da praga, não um zero mentiroso. */}
+        {ehPraga ? def.ordem : p}
       </div>
     </div>
   );
@@ -1035,7 +1060,7 @@ function MScore({ v, tone, lead }) {
     <div style={{
       minWidth: 30, textAlign: "center", padding: "2px 9px", borderRadius: 999,
       background: bg, border: lead ? `2px solid ${ring}` : "1px solid rgba(120,113,108,.4)",
-      color: lead ? col : "#f5f5f4", fontWeight: 800, fontSize: 16, fontFamily: "Georgia, serif",
+      color: lead ? col : "#f5f5f4", fontWeight: 800, fontSize: 19, fontFamily: "Georgia, serif",
       boxShadow: lead ? `0 0 8px ${ring}` : "none", transition: "box-shadow .3s ease", lineHeight: 1.15,
     }}>{v}</div>
   );
@@ -1057,7 +1082,7 @@ function MobileZone({ side, lane, g, ctx, planning, sel, aim, moving, placeCard,
     }}>
       {[0, 1, 2, 3].map((slot) => {
         const c = cards[slot];
-        if (!c) return <div key={slot} style={{ aspectRatio: "5 / 7", borderRadius: 4, border: active ? `1px dashed ${ring}` : "1px dashed rgba(247,233,192,.12)" }} />;
+        if (!c) return <div key={slot} style={{ aspectRatio: "5 / 7", borderRadius: 4, border: active ? `1px dashed ${ring}` : "1px dashed rgba(247,233,192,.06)" }} />;
         const canTarget = aim && isAimable(c);
         const movable = isMovable(c);
         const isMoving = moving && moving.uid === c.uid;
@@ -1091,14 +1116,19 @@ function MobileZone({ side, lane, g, ctx, planning, sel, aim, moving, placeCard,
    O `config` guarda as coordenadas — é o que se ajusta no render-and-inspect.
    Lados: topo = B (azul, side 1); base = A (âmbar, side 0).
    ========================================================================== */
+/* A arte foi recortada em 44px de cada lado (de 1000x1333 para 912x1245): a
+   moldura externa era DUPLA, e o filete de fora mais a margem escura comiam ~7%
+   da altura no celular sem carregar informação nenhuma. Sobrou um filete só.
+   As coordenadas abaixo foram RECALCULADAS a partir das antigas pela mesma
+   transformação do recorte — não foram medidas de novo no olho. */
 const BOARD_MOBILE = {
   art: "tabuleiro-mobile.webp",
-  ar: 1086 / 1448,            // largura/altura da arte
-  laneX: [20.5, 50, 79.5],    // % X do centro de cada via
-  colDX: 6.4,                 // % de afastamento das colunas esquerda/direita
-  cardW: 11.5,                // % da largura de um slot
-  rowY: { 1: [17.9, 32.0], 0: [67.9, 82.2] }, // % Y das duas linhas — [topo, baixo] por lado (medido pelos divisores da arte)
-  scoreY: { 1: 43, 0: 56.5 }, // % Y dos discos de placar (B em cima, A embaixo)
+  ar: 912 / 1245,             // largura/altura da arte
+  laneX: [17.654, 50, 82.346],// % X do centro de cada via
+  colDX: 7.018,               // % de afastamento das colunas esquerda/direita
+  cardW: 12.61,               // % da largura de um slot
+  rowY: { 1: [15.631, 30.728], 0: [69.165, 84.476] }, // % Y das duas linhas — [topo, baixo] por lado
+  scoreY: { 1: 42.505, 0: 56.959 },                   // % Y dos discos de placar (B em cima, A embaixo)
 };
 
 function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
@@ -1133,10 +1163,19 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                 {/* cartas nos slots */}
                 {[0, 1, 2, 3].map((slot) => {
                   const c = cards[slot];
-                  if (!c) return null;
                   const col = slot % 2, row = slot < 2 ? 0 : 1;
                   const x = config.laneX[lane] + (col === 0 ? -config.colDX : config.colDX);
                   const y = rows[row];
+                  /* Slot vazio: a moldura de pedra está PINTADA na arte do tabuleiro,
+                     então não dá para apagá-la por CSS — dá para abafá-la. Sem isto,
+                     o olho é puxado para onde não há informação nenhuma. */
+                  if (!c) return (
+                    <div key={`v${slot}`} style={{
+                      position: "absolute", left: `${x}%`, top: `${y}%`, width: `${config.cardW}%`,
+                      aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 2,
+                      borderRadius: 5, background: "rgba(6,9,13,.5)", pointerEvents: "none",
+                    }} />
+                  );
                   const canTarget = aim && isAimable(c);
                   const movable = isMovable(c);
                   const isMoving = moving && moving.uid === c.uid;
@@ -1165,12 +1204,25 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                   const lead = s > other;
                   const col = side === 0 ? "#fcd34d" : "#7dd3fc";
                   return (
+                    /* O total da via é o placar da partida: quem leva duas vias vence.
+                       Era o número menor da tela. Agora é o maior, e a liderança se lê
+                       pelo halo, não por uma diferença sutil de matiz. */
                     <div style={{
                       position: "absolute", left: `${config.laneX[lane]}%`, top: `${config.scoreY[side]}%`, transform: "translate(-50%,-50%)",
-                      zIndex: 5, minWidth: 22, textAlign: "center", fontFamily: "Georgia, serif", fontWeight: 800,
-                      fontSize: "clamp(13px, 2.4vw, 20px)", color: lead ? col : "#3a2f1a",
-                      textShadow: lead ? `0 0 6px ${col}, 0 1px 2px rgba(0,0,0,.6)` : "0 1px 1px rgba(255,255,255,.4)",
-                    }}>{s}</div>
+                      zIndex: 5, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center",
+                      width: "clamp(28px, 5.6vw, 44px)", aspectRatio: "1", borderRadius: "50%",
+                      boxShadow: lead ? `0 0 0 2px ${col}, 0 0 10px 2px ${col}88` : "none",
+                      transition: "box-shadow .3s ease",
+                    }}>
+                      <span style={{
+                        fontFamily: "Georgia, serif", fontWeight: 900, lineHeight: 1,
+                        fontSize: s >= 100 ? "clamp(13px, 2.6vw, 20px)" : "clamp(16px, 3.4vw, 26px)",
+                        color: lead ? col : "#241c10",
+                        textShadow: lead
+                          ? `0 0 7px ${col}, 0 1px 2px rgba(0,0,0,.95), 0 -1px 2px rgba(0,0,0,.85)`
+                          : "0 1px 0 rgba(255,255,255,.5)",
+                      }}>{s}</span>
+                    </div>
                   );
                 })()}
               </React.Fragment>
