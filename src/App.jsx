@@ -79,6 +79,56 @@ const FILTROS_VAZIOS = Object.fromEntries(DIMENSOES_FILTRO.map((d) => [d.id, []]
    A carta precisa de largura NUMÉRICA porque toda a tipografia dela é derivada
    dessa medida; por isso 3 colunas no celular exigem medir, não só um
    breakpoint de CSS. */
+
+/* ========================== BANNER DE VITÓRIA ============================== */
+function BannerVitoria({ finished, resultado, online, mySeat }) {
+  if (!finished || !resultado) return null;
+
+  const base = import.meta.env.BASE_URL;
+
+  let text, glowColor;
+  if (online) {
+    const ganhei = resultado.side === mySeat;
+    text = ganhei ? "Vitória" : "Derrota";
+    glowColor = ganhei ? "#fbbf24" : "#f87171";  // âmbar vs vermelho
+  } else {
+    text = `Lado ${resultado.side === 0 ? "A" : resultado.side === 1 ? "B" : ""} venceu`;
+    glowColor = "#fbbf24";
+  }
+
+  return (
+    <div style={{
+      position: "fixed", inset: 0, pointerEvents: "none", zIndex: 40,
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <style>{`
+        @keyframes bannerFadeIn {
+          from { opacity: 0; transform: scale(0.8); }
+          to { opacity: 1; transform: scale(1); }
+        }
+        .duat-banner {
+          animation: bannerFadeIn 0.6s cubic-bezier(0.23, 1, 0.320, 1);
+        }
+      `}</style>
+
+      <div className="duat-banner" style={{
+        position: "relative", width: "min(90vw, 900px)", aspectRatio: "1536 / 1024",
+        backgroundImage: `url(${base}banner-vitoria.webp)`,
+        backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}>
+        <span style={{
+          fontFamily: "Georgia, serif", fontWeight: 900, fontSize: "clamp(48px, 8vw, 96px)",
+          color: glowColor, lineHeight: 1, textShadow: `0 0 20px ${glowColor}, 0 2px 8px rgba(0,0,0,.95)`,
+          textTransform: "uppercase", letterSpacing: 2,
+        }}>
+          {text}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 function GradeGaleria({ cartas, onAmpliar }) {
   const ref = useRef(null);
   const [grade, setGrade] = useState(null);
@@ -576,6 +626,7 @@ export default function App() {
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
         {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+        {g.finished && <BannerVitoria finished={g.finished} resultado={matchResult(g)} online={false} />}
       </>
     );
   }
@@ -669,6 +720,7 @@ export default function App() {
       </div>
 
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+      {g.finished && <BannerVitoria finished={g.finished} resultado={matchResult(g)} online={false} />}
     </div>
   );
 }
@@ -1522,6 +1574,7 @@ function OnlineGame({ send, data, note, onLeave }) {
         applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
         zoomBoard={zoomBoard} zoomHand={zoomHand} />
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+      {g.finished && <BannerVitoria finished={g.finished} resultado={matchResult(g)} online={true} mySeat={seat} />}
     </>
   );
 }
