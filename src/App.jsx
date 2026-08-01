@@ -817,7 +817,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
         <div style={{ ...frame, background: "rgba(20,15,8,.82)", border: `1px dashed ${ladoCor}`, padding: u(0.3) }}>
           {onRemove && <button onClick={onRemove} style={{ position: "absolute", top: 0, right: u(0.3), color: "#a8a29e", fontSize: f(1.1), zIndex: 7 }}>✕</button>}
           <div className={ARCH_COLOR[def.arch]} style={{ fontSize: f(1.2), lineHeight: 1, opacity: 0.7 }}>{GLYPH[def.arch]}</div>
-          <div style={{ color: "#a8a29e", fontSize: f(0.85), lineHeight: 1.1, textAlign: "center", overflow: "hidden" }}>{def.nome}</div>
+          <div style={{ color: "#a8a29e", fontSize: f(0.85), lineHeight: 1.1, textAlign: "center", overflow: "hidden" }}>{def.nomeCurto}</div>
           <div style={{ color: "#78716c", fontSize: f(0.8), textAlign: "center" }}>oculta · {prov}</div>
         </div>
       </div>
@@ -882,14 +882,17 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
         <div style={{ flex: 1 }} />
 
         {/* FAIXA DO NOME — placa própria na base, fora da arte. Antes o nome caía
-            no centro da ilustração, exatamente onde ela tem mais detalhe. */}
+            no centro da ilustração, exatamente onde ela tem mais detalhe.
+            Uma linha só: `nomeCurto` é sempre uma palavra, então não há o que
+            quebrar, e a faixa de duas linhas devolveu altura para a arte. Nome
+            comprido demais para a largura degrada em reticências, não em corte. */}
         <div style={{
           position: "relative", background: "rgba(8,6,4,.74)", borderTop: "1px solid rgba(247,233,192,.16)",
-          padding: `${u(0.24)}px ${u(0.28)}px ${u(0.3)}px`, color: "#ece9e4",
-          fontSize: f(0.72), lineHeight: 1.04, textAlign: "center", letterSpacing: -0.1,
-          overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
-          wordBreak: "break-word", textShadow: "0 1px 2px rgba(0,0,0,.9)",
-        }}>{def.nome}</div>
+          padding: `${u(0.26)}px ${u(0.28)}px ${u(0.32)}px`, color: "#ece9e4",
+          fontSize: f(0.82), lineHeight: 1.06, textAlign: "center", letterSpacing: -0.1,
+          overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+          textShadow: "0 1px 2px rgba(0,0,0,.9)",
+        }}>{def.nomeCurto}</div>
       </div>
 
       {/* PODER — plaqueta opaca atravessando o canto superior direito. É o único
@@ -991,7 +994,7 @@ function HandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
     <div className={`relative rounded border bg-stone-800 border-stone-700 ${ring} ${drawn ? "duat-draw" : ""} ${disabled ? "opacity-40" : afford ? "hover:border-stone-500" : "opacity-50"}`} style={{ width: 122 }}>
       <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })} title={def.texto || "Carta base (sem efeito)"}
         className="text-left w-full p-1 pr-5">
-        <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nome}</div>
+        <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nomeCurto}</div>
         <div className="text-xs text-stone-400 mt-0.5"><span className={agravada ? "text-rose-300 font-semibold" : ""}>{custo}⚡</span>{faixa}</div>
       </button>
       <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar carta"
@@ -1289,7 +1292,7 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
           <span style={{ position: "absolute", top: 2, left: 3, fontSize: 11, fontWeight: 800, color: custo > def.custo ? "#fda4af" : "#fde68a", textShadow: "0 1px 2px #000" }}>{custo}⚡</span>
         </div>
         <div style={{ padding: "3px 5px 4px" }}>
-          <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 10.5, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{def.nome}</div>
+          <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 10.5, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{def.nomeCurto}</div>
           <div style={{ fontSize: 9.5, color: "#a8a29e", marginTop: 1 }}>{faixa}</div>
         </div>
       </button>

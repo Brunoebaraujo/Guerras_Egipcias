@@ -268,6 +268,49 @@ export const TOKENS = [
 
 export const byKey = Object.fromEntries([...CARDS, ...PRAGAS, ...TOKENS].map((c) => [c.key, c]));
 
+/* ------------------------------ NOME CURTO ---------------------------------
+   Uma miniatura tem ~49px de largura. "Am-heh, o Devorador de Milhões" não cabe
+   ali de jeito nenhum: quebrava em duas linhas e ainda truncava, e a faixa do
+   nome comia a arte. Então cada carta ganha um NOME DE MINIATURA de uma palavra
+   só — a palavra que identifica a carta — usado APENAS na mão e no tabuleiro.
+   O nome completo continua no zoom, na carta grande e na montagem de deck.
+
+   Fica numa tabela única, e não espalhado por 55 definições, porque é uma
+   decisão de apresentação: quem for rebatizar alguma coisa mexe num lugar só e
+   vê todas as escolhas lado a lado — que é como se percebe colisão.
+
+   Só entram aqui as que MUDAM. Quem já é de uma palavra (Hathor, Sobek, Bennu,
+   Anúbis...) cai no fallback para `nome` e não precisa de linha.
+
+   Duas colisões resolvidas de propósito:
+   - "Cabra do Nilo" e a ficha "Cabra" ficariam idênticas no tabuleiro, e o
+     Rebanho de Cabras cria exatamente essas fichas. A CARTA leva "Cabra"; a
+     FICHA vira "Cabrita" na miniatura (o nome real dela segue "Cabra").
+   - A praga 8 é "Nuvem", e não "Gafanhotos", para não ficar encostada na ficha
+     "Gafanhoto" e na carta "Enxame" — três coisas parecidas na mesma via. */
+const NOME_CURTO = {
+  // Guerreiros
+  servo: "Servo", arqueiro: "Arqueiro", lanceiro: "Lanceiro", carruagem: "Carruagem",
+  guardareal: "Guarda", general: "General", colosso: "Colosso",
+  "assassino-medjay": "Medjay", enxame: "Enxame",
+  // Divindades de nome composto
+  amheh: "Am-heh", moises: "Moisés",
+  // Criaturas e demais
+  escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
+  selo: "Silêncio", diluvio: "Dilúvio",
+  // Animais
+  cao: "Cão", "cabra-nilo": "Cabra", ganso: "Ganso", gato: "Gato",
+  macaco: "Macaco", hiena: "Hiena", garca: "Garça", rebanho: "Rebanho",
+  domador: "Domador", apis: "Ápis",
+  // Pragas — o número da praga já aparece na plaqueta, então o nome pode ser curto
+  sangue: "Sangue", ras: "Rãs", piolhos: "Piolhos", moscas: "Moscas",
+  peste: "Peste", ulceras: "Úlceras", granizo: "Granizo", gafanhotos: "Nuvem",
+  trevas: "Trevas", primogenitos: "Primogênitos",
+  // Fichas
+  "token-ganso": "Ganso", "token-cabra": "Cabrita",
+};
+for (const c of [...CARDS, ...PRAGAS, ...TOKENS]) c.nomeCurto = NOME_CURTO[c.key] || c.nome;
+
 /* --------------------------- ASSINATURA DA COLEÇÃO -------------------------
    No multiplayer o servidor roda ESTE MESMO arquivo, mas o deploy dele é
    separado do deploy do site. Se um dos dois ficar para trás, o app manda uma
