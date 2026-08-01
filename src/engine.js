@@ -106,7 +106,7 @@ export const CARDS = [
   { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 5, arch: "sacrificio",
     trigger: "entrar", afogaCusto: [1, 2], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
-    texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas." },
+    texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas. Não alcança quem estiver sob um Gato Egípcio." },
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
     trigger: "morrer", arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
@@ -384,9 +384,16 @@ export const animaisEmJogo = (board, { owner = null, lane = null, exceto = null 
 export const laneProtegida = (board, owner, lane) =>
   board.some((c) => c.key === "gato" && c.owner === owner && c.lane === lane && emJogo(c));
 
-export function podeSerAlvo(board, alvo, fonte) {
+/* `ignoraDono` inverte a regra do dono para efeitos INDISCRIMINADOS — os que
+   varrem a via sem separar amigo de inimigo, hoje só o Dilúvio de Hápi. Nesses,
+   o Gato é abrigo contra a coisa em si, e não contra quem a invocou: a cheia não
+   pergunta de quem é a carta, e o gato leva todo mundo para o alto.
+   Fora daí a regra continua sendo "efeito próprio nunca é bloqueado", que é o
+   que mantém a Hathor capaz de abençoar um aliado numa via com Gato. */
+export function podeSerAlvo(board, alvo, fonte, { ignoraDono = false } = {}) {
   if (!alvo) return false;
-  if (!fonte || fonte.owner === alvo.owner) return true;   // efeito próprio nunca é bloqueado
+  if (!fonte) return true;
+  if (fonte.owner === alvo.owner && !ignoraDono) return true;
   return !laneProtegida(board, alvo.owner, alvo.lane);
 }
 
@@ -1065,13 +1072,14 @@ export function resolveEnxame(s, card) {
 
    Duas decisões que valem a leitura:
 
-   1. O GATO EGÍPCIO PROTEGE. O Dilúvio lê o custo de cada carta e decide uma a
-      uma — isso é escolher alvo, mesmo sem interface de mira. Por isso passa
-      por `podeSerAlvo`, ao contrário da Sekhmet (varre um custo no tabuleiro
-      inteiro) e da Peste (varre uma via inteira sem olhar carta). A regra que
-      separa as três continua sendo a mesma: quem aponta, é bloqueado.
-      O Gato só protege o lado DELE — as cartas baratas do dono do Dilúvio
-      afundam de qualquer jeito, porque contra o próprio dono não há proteção.
+   1. O GATO EGÍPCIO PROTEGE, DOS DOIS LADOS. O Dilúvio lê o custo de cada carta
+      e decide uma a uma — isso é escolher alvo, mesmo sem interface de mira.
+      Por isso passa por `podeSerAlvo`, ao contrário da Sekhmet (varre um custo
+      no tabuleiro inteiro) e da Peste (varre uma via inteira sem olhar carta).
+      Quem aponta, é bloqueado.
+      Aqui o Gato vale mesmo contra o Dilúvio do PRÓPRIO dono (`ignoraDono`):
+      a cheia é indiscriminada, e o gato é abrigo contra a água, não contra o
+      adversário. Cada lado é abrigado pelo Gato do seu lado.
 
    2. AFUNDA A SI MESMO se o custo entrar na faixa. Custo 5 impresso, mas
       Praga dos Piolhos e afins mexem em `custoDe`. Se o Dilúvio virar custo 2,
@@ -1084,7 +1092,7 @@ export function resolveAfogamento(s, card) {
     if (c.lane !== card.lane || c.dying) return false;
     const cst = custoDe(c);
     if (cst < min || cst > max) return false;
-    return podeSerAlvo(s.board, c, card);      // o Gato protege o lado inimigo
+    return podeSerAlvo(s.board, c, card, { ignoraDono: true });
   });
   if (victims.length === 0) {
     pushLog(s, `${def.nome}: nenhuma carta de custo ${min} a ${max} nesta via.`);

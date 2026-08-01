@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, ctxOf, resolveAfogamento, resolveSekhmet, resolveDestroyAllOfTypeInLane,
-  resetUid, nextUid, CARDS,
+  resetUid, nextUid, CARDS, validTargets,
 } from "./engine.js";
 
 const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], ...rest } = {}) => ({
@@ -38,11 +38,11 @@ describe("Dilúvio de Hápi — a quem alcança", () => {
       dil,
       mk("cao"),          // custo 0 — sobrevive
       mk("bennu"),        // custo 1 — afoga
-      mk("gato"),         // custo 2 — afoga
+      mk("hiena"),        // custo 2 — afoga
       mk("carruagem"),    // custo 3 — sobrevive
     ]);
     resolveAfogamento(s, dil);
-    expect(mortas(s)).toEqual(["bennu", "gato"]);
+    expect(mortas(s)).toEqual(["bennu", "hiena"]);
   });
 
   it("pega os DOIS lados da via", () => {
@@ -58,7 +58,7 @@ describe("Dilúvio de Hápi — a quem alcança", () => {
 
   it("não toca em outras vias", () => {
     const dil = mk("diluvio", { lane: 1 });
-    const fora = mk("gato", { lane: 0 }), dentro = mk("gato", { lane: 1 });
+    const fora = mk("hiena", { lane: 0 }), dentro = mk("hiena", { lane: 1 });
     const s = mkState([dil, fora, dentro]);
     resolveAfogamento(s, dil);
     expect(fora.dying).toBeFalsy();
@@ -137,7 +137,7 @@ describe("Dilúvio de Hápi — o Gato Egípcio protege", () => {
     expect(fx.kind).toBe("block");
   });
 
-  it("mas as cartas do PRÓPRIO dono afundam mesmo com Gato inimigo em campo", () => {
+  it("o Gato INIMIGO não abriga o meu lado: só cobre a via dele mesmo", () => {
     const dil = mk("diluvio");
     const minhaBarata = mk("bennu");
     const s = mkState([dil, minhaBarata, mk("gato", { owner: 1 })]);
@@ -145,12 +145,55 @@ describe("Dilúvio de Hápi — o Gato Egípcio protege", () => {
     expect(minhaBarata.dying).toBeTruthy();
   });
 
-  it("o MEU Gato não me protege do meu próprio Dilúvio", () => {
+  /* O Dilúvio é INDISCRIMINADO: o Gato abriga contra a água, não contra o
+     adversário. Por isso vale também contra o Dilúvio do próprio dono — é a
+     única carta do jogo com esse tratamento (`ignoraDono`). */
+  it("o MEU Gato me protege até do MEU próprio Dilúvio", () => {
     const dil = mk("diluvio");
     const meuGato = mk("gato");
-    const s = mkState([dil, meuGato]);
+    const minhaBarata = mk("bennu");
+    const s = mkState([dil, meuGato, minhaBarata]);
     resolveAfogamento(s, dil);
-    expect(meuGato.dying).toBeTruthy();
+    expect(meuGato.dying).toBeFalsy();
+    expect(minhaBarata.dying).toBeFalsy();
+  });
+
+  it("cada lado é abrigado pelo Gato do SEU lado, não pelo do vizinho", () => {
+    const dil = mk("diluvio");
+    const meuGato = mk("gato");
+    const minhaBarata = mk("bennu");
+    const dele = mk("hiena", { owner: 1 });        // lado 1 sem Gato
+    const s = mkState([dil, meuGato, minhaBarata, dele]);
+    resolveAfogamento(s, dil);
+    expect(minhaBarata.dying).toBeFalsy();
+    expect(dele.dying).toBeTruthy();
+  });
+
+  it("com Gato dos dois lados, o Dilúvio não afoga ninguém", () => {
+    const dil = mk("diluvio");
+    const s = mkState([dil, mk("gato"), mk("bennu"), mk("gato", { owner: 1 }), mk("hiena", { owner: 1 })]);
+    const fx = resolveAfogamento(s, dil);
+    expect(mortas(s)).toEqual([]);
+    expect(fx.kind).toBe("block");
+  });
+
+  it("a Hathor continua abençoando aliados numa via com Gato", () => {
+    // Prova de que `ignoraDono` é local ao Dilúvio e não vazou para a regra geral.
+    const gato = mk("gato");
+    const aliado = mk("cao");
+    const hathor = mk("hathor");
+    const s = mkState([gato, aliado, hathor]);
+    expect(validTargets(hathor, "ally", s.board).map((c) => c.key).sort()).toEqual(["cao", "gato"]);
+  });
+
+  it("Gato ainda OCULTO não abriga: aura só vale depois de revelada", () => {
+    const dil = mk("diluvio");
+    const gato = mk("gato", { owner: 1, revealed: false });
+    const junto = mk("bennu", { owner: 1, revealed: false });
+    const s = mkState([dil, gato, junto]);
+    resolveAfogamento(s, dil);
+    expect(gato.dying).toBeTruthy();
+    expect(junto.dying).toBeTruthy();
   });
 
   it("Gato numa via, Dilúvio na outra: a proteção não atravessa", () => {
@@ -186,7 +229,7 @@ describe("Dilúvio de Hápi — interações", () => {
   it("alimenta a Hiena do dono ao afogar os Animais dele", () => {
     const dil = mk("diluvio");
     const hiena = mk("hiena", { lane: 1 });      // custo 2, mas fora da via
-    const s = mkState([dil, mk("gato"), hiena]);
+    const s = mkState([dil, mk("macaco"), hiena]);   // Macaco: custo 2, Animal
     resolveAfogamento(s, dil);
     expect(power(hiena, ctxOf(s))).toBe(4);
     expect(hiena.dying).toBeFalsy();

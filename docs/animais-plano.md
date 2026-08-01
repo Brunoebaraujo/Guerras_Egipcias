@@ -410,12 +410,20 @@ lado da Sekhmet. O que a separa das outras varreduras:
 
 Duas decisões tomadas com o Bruno:
 
-**1. O Gato Egípcio protege.** O Dilúvio lê o custo de cada carta e decide uma a
-uma — isso é escolher alvo, mesmo sem interface de mira. Passa por
-`podeSerAlvo`. A Sekhmet e a Peste continuam furando o Gato, porque varrem sem
-olhar carta a carta. A regra que separa as três segue sendo: **quem aponta, é
-bloqueado**. O Gato só cobre o lado dele; as cartas baratas do dono do Dilúvio
-afundam de qualquer forma, já que contra o próprio dono não existe proteção.
+**1. O Gato Egípcio protege, dos dois lados.** O Dilúvio lê o custo de cada
+carta e decide uma a uma — isso é escolher alvo, mesmo sem interface de mira.
+Passa por `podeSerAlvo`. A Sekhmet e a Peste continuam furando o Gato, porque
+varrem sem olhar carta a carta. A regra que separa as três segue sendo: **quem
+aponta, é bloqueado**.
+
+O Dilúvio é a única carta do jogo em que o Gato vale **também contra o efeito do
+próprio dono** (`podeSerAlvo(..., { ignoraDono: true })`). A razão é que a cheia
+é indiscriminada: o Gato é abrigo contra a água, não contra o adversário. Cada
+lado é coberto pelo Gato do seu próprio lado — um Gato não abriga o vizinho.
+
+Fora do Dilúvio a regra geral continua intacta: efeito próprio nunca é
+bloqueado, e é isso que mantém a Hathor capaz de abençoar um aliado numa via
+com Gato. Há teste travando essa fronteira.
 
 **2. Afunda a si mesmo** se o custo cair para a faixa (Praga dos Piolhos e
 afins). Custo 5 impresso, mas a leitura é de `custoDe`: se o Dilúvio virar custo
@@ -430,3 +438,14 @@ Ganso e Cabra (custo 0) sobrevivem, o que dá ao arquétipo uma resposta parcial
 
 `sacrificeAll` deixou de existir: era usado só aqui. `resolveDestroyOwnLane`
 continua servindo Sobek e Apófis.
+
+
+### Adendo: o Gato precisa estar revelado
+
+Um Gato posto na mesma rodada do Dilúvio **não** abriga ninguém, nem a si mesmo.
+Isso não é exceção do Dilúvio: `laneProtegida` exige `emJogo` (revelada e não
+morrendo), como toda aura do motor — Amon, Domador, Garça e Maat seguem a mesma
+regra. Carta oculta ainda não está em jogo para efeito de aura.
+
+Consequência prática: o Gato é resposta *preventiva*, não reativa. Contra um
+Dilúvio, ele precisa já estar de pé na via quando a água chega.
