@@ -70,19 +70,19 @@ describe("power()", () => {
 /* --------------------------------- Múmia ------------------------------------ */
 describe("Múmia (Ao Morrer)", () => {
   it("volta à mão com o DOBRO do poder atual (marcadores incluídos)", () => {
-    const mumia = mk("mumia", { mods: [{ src: "Hathor", val: 2 }] }); // 2+2 = 4
+    const mumia = mk("mumia", { mods: [{ src: "Hathor", val: 2 }] }); // 1+2 = 3
     const s = mkState([mumia]);
     destroyList(s, [mumia]);
     expect(s.hand[0]).toHaveLength(1);
-    expect(s.hand[0][0].printed + s.hand[0][0].baked).toBe(8);        // 4 × 2
+    expect(s.hand[0][0].printed + s.hand[0][0].baked).toBe(6);        // 3 × 2
     expect(s.deaths[0]).toBe(1);
   });
 
   it("dobra também buffs contínuos (Amon) vigentes na morte", () => {
     const mumia = mk("mumia");
-    const s = mkState([mumia, mk("amon")]);                            // 2+1 = 3
+    const s = mkState([mumia, mk("amon")]);                            // 1+1 = 2
     destroyList(s, [mumia]);
-    expect(s.hand[0][0].printed + s.hand[0][0].baked).toBe(6);
+    expect(s.hand[0][0].printed + s.hand[0][0].baked).toBe(4);
   });
 });
 
@@ -248,8 +248,8 @@ describe("Sekhmet", () => {
     const s = mkState([sek, mk("mumia"), mk("arqueiro", { owner: 1, lane: 2 })]);
     resolveSekhmet(s, sek, 1);
     expect(s.board.filter((c) => c.dying)).toHaveLength(2);
-    expect(s.hand[0]).toHaveLength(1);                                 // Múmia voltou (4)
-    expect(s.hand[0][0].printed + s.hand[0][0].baked).toBe(4);
+    expect(s.hand[0]).toHaveLength(1);                                 // Múmia voltou (2)
+    expect(s.hand[0][0].printed + s.hand[0][0].baked).toBe(2);
   });
 });
 
@@ -816,5 +816,44 @@ describe("Bennu retém os bônus ao renascer", () => {
     destroyList(s, [bennu]);
     expect(resolveBennuRebirth(s, () => 0)).toHaveLength(0);
     expect(s.pendingReturn).toHaveLength(0);
+  });
+});
+
+/* Múmia — a espiral de Faixa depois do ajuste para 1/1 -------------------------
+   O valor que volta é sempre `Poder na morte × 2`, e o impresso sai da definição
+   (não de um literal). Estes testes prendem a progressão, que é o que o ajuste
+   de balanceamento estava mirando. */
+describe("Múmia — progressão da Faixa", () => {
+  it("é 1 de custo e 1 de Poder", () => {
+    expect(byKey["mumia"].custo).toBe(1);
+    expect(byKey["mumia"].poder).toBe(1);
+  });
+
+  it("sem buff nenhum: 1 vira 2 na mão", () => {
+    const mumia = mk("mumia");
+    const s = mkState([mumia]);
+    destroyList(s, [mumia]);
+    const h = s.hand[0][0];
+    expect([h.printed, h.baked]).toEqual([1, 1]);       // impresso 1 + Faixa 1
+  });
+
+  it("morrer três vezes seguidas: 1 → 2 → 4 → 8", () => {
+    let baked = 0;
+    for (const esperado of [2, 4, 8]) {
+      const mumia = mk("mumia", { baked });
+      const s = mkState([mumia]);
+      destroyList(s, [mumia]);
+      const h = s.hand[0][0];
+      expect(h.printed + h.baked).toBe(esperado);
+      baked = h.baked;
+    }
+  });
+
+  it("o impresso na mão acompanha a definição, sem literal solto no código", () => {
+    const mumia = mk("mumia", { baked: 7 });
+    const s = mkState([mumia]);
+    destroyList(s, [mumia]);
+    expect(s.hand[0][0].printed).toBe(byKey["mumia"].poder);
+    expect(s.hand[0][0].baked).toBe(16 - byKey["mumia"].poder);   // (1+7) × 2
   });
 });

@@ -449,3 +449,30 @@ regra. Carta oculta ainda não está em jogo para efeito de aura.
 
 Consequência prática: o Gato é resposta *preventiva*, não reativa. Contra um
 Dilúvio, ele precisa já estar de pé na via quando a água chega.
+
+
+---
+
+## 19. Múmia de 1/2 para 1/1
+
+Ajuste de balanceamento. O que muda de verdade não é o Poder inicial, é a
+progressão: a Múmia volta à mão com **o dobro do Poder que tinha ao morrer**, e
+esse dobro compõe.
+
+| Mortes | Antes (impresso 2) | Agora (impresso 1) |
+|---|---|---|
+| 1ª | 4 | 2 |
+| 2ª | 8 | 4 |
+| 3ª | 16 | 8 |
+| 4ª | 32 | 16 |
+
+A espiral continua existindo — é a identidade da carta —, mas cada ciclo passou
+a valer metade, o que custa ao jogador uma morte inteira para chegar ao mesmo
+número.
+
+**Um literal solto foi eliminado junto.** A função de retorno gravava
+`printed: 2` fixo. Mudar só a definição teria criado uma Múmia de mão com
+impresso 2 e uma Múmia de coleção com impresso 1 — divergência silenciosa, do
+tipo que só aparece semanas depois numa conta de Faixa que não fecha. Agora o
+impresso sai de `byKey["mumia"].poder`, então o próximo ajuste de Poder não
+precisa tocar em nada além da definição.

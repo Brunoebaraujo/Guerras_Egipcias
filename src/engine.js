@@ -61,7 +61,7 @@ export const CARDS = [
     trigger: "continuo", arte: "osiris", arteFoco: "center 0%",
     lore: "Assassinado e esquartejado por Set, Osíris renasceu como senhor dos mortos e juiz do além. Deus que morreu para reinar sobre a morte, ele cresce com cada fim.",
     texto: "Contínuo: +2 para cada carta destruída na partida, de qualquer lado." },
-  { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 2, arch: "sacrificio",
+  { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 1, arch: "sacrificio",
     trigger: "morrer", arte: "mumia",
     lore: "Os egípcios não mumificavam seus mortos para lembrar o passado, mas para prepará-los para o futuro. Se o corpo permanecesse intacto, a alma poderia retornar e erguer-se novamente. O corpo era preservado para que o Ka e o Ba pudessem reconhecê-lo após a morte.",
     texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
@@ -607,7 +607,12 @@ export function destroyList(s, victims) {
       pushLog(s, `✋ ${SIDE_NAME[r.owner]}: mão cheia (${MAO_MAX}) — a Múmia ficou na pilha de destruídas.`);
       continue;
     }
-    mao.push({ hid: nextUid(), key: "mumia", printed: 2, baked: r.val - 2 });
+    /* `printed` sai da DEFINIÇÃO, não de um literal: a carta que volta é uma
+       Múmia comum, e o excedente vira Faixa. Se o Poder impresso mudar de novo,
+       nada aqui precisa ser tocado — antes havia um 2 fixo aqui que teria
+       silenciosamente divergido da coleção. */
+    const impresso = byKey["mumia"].poder;
+    mao.push({ hid: nextUid(), key: "mumia", printed: impresso, baked: Math.max(0, r.val - impresso) });
     voltaram.push(r);
   }
   return voltaram;

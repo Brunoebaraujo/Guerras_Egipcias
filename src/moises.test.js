@@ -453,12 +453,12 @@ describe("teto de mão absoluto", () => {
   });
 
   it("a Múmia barrada continua contando como destruída — Am-heh e Osíris comem igual", () => {
-    const mumia = mk("mumia", { owner: 0, baked: 2 });
+    const mumia = mk("mumia", { owner: 0, baked: 2 });                 // 1 + 2 = 3
     const s = mkState([mumia]);
     s.hand[0] = encher(MAO_MAX);
     destroyList(s, [mumia]);
     expect(s.deaths[0]).toBe(1);
-    expect(s.destroyedPower[0]).toBe(4);
+    expect(s.destroyedPower[0]).toBe(3);
   });
 
   it("com uma vaga na mão a Múmia volta normalmente, dobrada", () => {
@@ -469,7 +469,7 @@ describe("teto de mão absoluto", () => {
     expect(voltaram).toHaveLength(1);
     expect(s.hand[0]).toHaveLength(MAO_MAX);
     const nova = s.hand[0].find((h) => h.key === "mumia");
-    expect(nova.printed + nova.baked).toBe(8);          // 4 × 2
+    expect(nova.printed + nova.baked).toBe(6);          // 3 × 2
   });
 
   it("duas Múmias e uma vaga só: a primeira volta, a segunda fica destruída", () => {
