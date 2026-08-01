@@ -38,6 +38,10 @@ import { byKey, CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
 
 const PORT = process.env.PORT || 8080;
 const STEP_MS = Number(process.env.STEP_MS) || 850;
+/* Pausa entre o fim da revelação e o começo da rodada seguinte. Mais longa que
+   um passo de revelação de propósito: é o único momento em que os dois jogadores
+   leem o tabuleiro resolvido antes de ele voltar a mudar. */
+const ROUND_PAUSE_MS = Number(process.env.ROUND_PAUSE_MS) || 2200;
 const DECK_SIZE = 12;
 
 /* --------------------------- BLINDAGEM DO PROCESSO ------------------------
@@ -131,7 +135,15 @@ function startReveal(room) {
     M.state = r.state;
     broadcastState(room);
     if (M.state.phase === "revealing") pumpReveal(room);
-    else { M.ready = [false, false]; broadcastState(room); }
+    else {
+      /* Ninguém posicionou nada: a fila já nasce vazia e a fase pula direto para
+         "revealed". Sem isto a partida ficava parada aqui, porque o botão que
+         destravava esse estado deixou de existir. */
+      M.ready = [false, false];
+      broadcastState(room);
+      clearTimeout(M.revealTimer);
+      M.revealTimer = setTimeout(() => advanceRound(room), ROUND_PAUSE_MS);
+    }
   }, () => abortMatch(room, "Erro ao revelar as cartas. Saia da sala e tente de novo."));
 }
 
@@ -150,8 +162,16 @@ function pumpReveal(room) {
       clearTimeout(M.revealTimer);
       M.revealTimer = setTimeout(() => pumpReveal(room), STEP_MS);
     } else {
+      /* Fila vazia: a rodada emenda sozinha. Antes o servidor zerava `ready` e
+         ficava esperando os DOIS jogadores clicarem "Pronto: próxima" — um
+         clique que não decidia nada, e que ainda prendia quem já tinha visto
+         tudo esperando o outro. A pausa é para o último efeito assentar na
+         tela dos dois antes de a rodada virar; na rodada 6 o redutor desvia
+         para `finish` e a partida encerra igual, sem clique. */
       M.ready = [false, false];
       broadcastState(room);
+      clearTimeout(M.revealTimer);
+      M.revealTimer = setTimeout(() => advanceRound(room), ROUND_PAUSE_MS);
     }
   }, () => abortMatch(room, "Erro no meio da revelação. Saia da sala e tente de novo."));
 }

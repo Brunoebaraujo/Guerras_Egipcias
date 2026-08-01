@@ -262,9 +262,23 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (g.phase !== "revealing" || aim) return;
-    const t = setTimeout(() => dispatch({ t: "step" }), esperaRevelacao());
-    return () => clearTimeout(t);
+    if (aim) return;
+    /* A revelação se conduz sozinha: um passo por vez até a fila esvaziar. */
+    if (g.phase === "revealing") {
+      const t = setTimeout(() => dispatch({ t: "step" }), esperaRevelacao());
+      return () => clearTimeout(t);
+    }
+    /* ...e emenda na rodada seguinte. O botão de avançar não pedia decisão
+       nenhuma: no fim da revelação só existia um caminho, e clicar nele era
+       cerimônia. A PAUSA, essa sim, é necessária — o último efeito precisa
+       assentar na tela antes de a rodada virar. Na rodada 6 o próprio redutor
+       desvia para `finish`, então a partida encerra sem clique também.
+       Ao chegar em "plan" (ou com a partida encerrada) a condição deixa de
+       valer e nada mais é agendado. */
+    if (g.phase === "revealed" && !g.finished) {
+      const t = setTimeout(() => nextRound(), fast ? 700 : 1800);
+      return () => clearTimeout(t);
+    }
   });
 
   const clone = (s) => JSON.parse(JSON.stringify(s));
@@ -556,7 +570,7 @@ export default function App() {
         <GameMobile
           g={g} ctx={ctx} wins={wins} planning={planning}
           sel={sel} setSel={setSel} aim={aim} moving={moving} msg={msg} fast={fast}
-          startReveal={startReveal} setFast={setFast} nextRound={nextRound} reset={reset}
+          startReveal={startReveal} setFast={setFast} reset={reset}
           setScreen={setScreen} setForceView={setForceView}
           placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
@@ -583,7 +597,9 @@ export default function App() {
             <Chip label="Energia B" value={g.energy[1]} tone="sky" />
             {planning && <button onClick={startReveal} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-stone-900 font-semibold text-sm">Revelar</button>}
             {g.phase === "revealing" && <button onClick={() => setFast((f) => !f)} className={`px-3 py-2 rounded-md text-sm font-semibold ${fast ? "bg-sky-500 text-stone-900" : "bg-stone-700 hover:bg-stone-600"}`}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
-            {g.phase === "revealed" && !g.finished && <button onClick={nextRound} className="px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-500 text-stone-900 font-semibold text-sm">{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>}
+            {/* Sem botão: a rodada emenda sozinha. O rótulo existe para a espera
+                não parecer travamento — é o único conteúdo desta fase. */}
+            {g.phase === "revealed" && !g.finished && <span className="px-3 py-2 rounded-md bg-stone-800 text-amber-200 font-semibold text-sm">{g.round >= 6 ? "Encerrando a partida…" : "Rodada resolvida — seguindo…"}</span>}
             <button onClick={reset} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Reiniciar</button>
             <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300">Decks</button>
             <button onClick={() => setForceView("mobile")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300" title="Ver a interface mobile">📱</button>
@@ -1340,7 +1356,7 @@ function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, onResetPlan = 
 function GameMobile(p) {
   const {
     g, ctx, wins, planning, sel, setSel, aim, moving, msg, fast,
-    startReveal, setFast, nextRound, reset, setScreen, setForceView,
+    startReveal, setFast, reset, setScreen, setForceView,
     placeCard, pickUp, resetPlan, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
     zoomBoard, zoomHand,
     online = false, seat = 0, myReady = false, oppReady = false, oppHand = 0,
@@ -1402,9 +1418,12 @@ function GameMobile(p) {
           : <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09" }}>Revelar</button>)}
         {g.phase === "revealing" && !online && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4" }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
         {g.phase === "revealing" && online && <span style={{ ...mBtnBig, background: "#1e1b4b", color: "#c7d2fe", textAlign: "center" }}>Revelando…</span>}
-        {g.phase === "revealed" && !g.finished && (online
-          ? <button onClick={nextRound} disabled={myReady} style={{ ...mBtnBig, background: myReady ? "#292524" : "#d97706", color: myReady ? "#a8a29e" : "#0c0a09" }}>{myReady ? "Aguardando adversário…" : (g.round >= 6 ? "Pronto: finalizar ✓" : "Pronto: próxima ✓")}</button>
-          : <button onClick={nextRound} style={{ ...mBtnBig, background: "#d97706", color: "#0c0a09" }}>{g.round >= 6 ? "Finalizar partida" : "Próxima rodada"}</button>)}
+        {/* Nos dois modos a rodada emenda sozinha — no local por temporizador,
+            no online pelo servidor, logo depois do último passo da revelação. */}
+        {g.phase === "revealed" && !g.finished && (
+          <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #78716c" }}>
+            {g.round >= 6 ? "Encerrando a partida…" : "Rodada resolvida — seguindo…"}
+          </span>)}
         {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{resultLabel(g)}</span>}
         {online
           ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏏</button>
@@ -1471,7 +1490,6 @@ function OnlineGame({ send, data, note, onLeave }) {
     sendAct({ t: "move", uid: moving.uid, lane }); setMoving(null);
   };
   const startReveal = () => { if (!planning || myReady) return; setSel(null); setMoving(null); send({ t: "ready" }); };
-  const nextRound = () => { if (g.phase !== "revealed" || myReady) return; send({ t: "ready" }); };
   const applyAim = (target) => { if (!myAim) return; send({ t: "aim", targetUid: target.uid }); };
   const skipAim = () => { if (!myAim) return; send({ t: "skipAim" }); };
   const isAimable = (c) => !!myAim && podeMirar(g, c);
@@ -1498,7 +1516,7 @@ function OnlineGame({ send, data, note, onLeave }) {
         online seat={seat} myReady={myReady} oppReady={oppReady} oppHand={g.oppHand || 0} oppConnected={oppConnected}
         g={g} ctx={ctx} wins={wins} planning={planning}
         sel={sel} setSel={setSel} aim={myAim} moving={moving} msg={msg} fast={false}
-        startReveal={startReveal} setFast={() => {}} nextRound={nextRound} reset={onLeave}
+        startReveal={startReveal} setFast={() => {}} reset={onLeave}
         setScreen={onLeave} setForceView={() => {}}
         placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
         applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}

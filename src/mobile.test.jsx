@@ -43,7 +43,9 @@ describe("GameMobile smoke", () => {
     p.g.board.push({ uid: nextUid(), key, owner: 0, lane: 1, printed: byKey[key].poder, baked: 0, mods: [], revealed: true, enteredRound: 1, entryPlays: 1, moved: false });
     p.g.phase = "revealed"; p.planning = false; p.ctx = ctxOf(p.g); p.wins = laneWins(p.g);
     const html = renderToString(<GameMobile {...p} />);
-    expect(html).toContain("Próxima rodada");
+    // A rodada emenda sozinha: nesta fase há um aviso, não um botão.
+    expect(html).toContain("Rodada resolvida");
+    expect(html).not.toContain("Próxima rodada");
   });
 });
 
