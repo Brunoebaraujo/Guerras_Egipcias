@@ -102,24 +102,37 @@ function BannerVitoria({ g, online, mySeat, onFechar }) {
   const r = matchResult(g);
   const empate = r.side === -1;
 
-  let texto, cor;
-  if (empate) { texto = "Empate"; cor = "#e7e5e4"; }
+  let linhas, cor;
+  if (empate) { linhas = ["Empate"]; cor = "#e7e5e4"; }
   else if (online) {
     const ganhei = r.side === mySeat;
-    texto = ganhei ? "Vitória" : "Derrota";
+    linhas = [ganhei ? "Vitória" : "Derrota"];
     cor = ganhei ? "#fbbf24" : "#f87171";
   } else {
-    texto = `Lado ${r.side === 0 ? "A" : "B"} venceu`;
+    /* Duas linhas: "Lado A" em cima, "venceu" embaixo. Em uma linha só a frase
+       não cabe na largura do painel — o miolo é largo, mas não tanto. */
+    linhas = [`Lado ${r.side === 0 ? "A" : "B"}`, "venceu"];
     cor = "#fbbf24";
   }
 
-  /* Corpo derivado da largura do banner: cabe na largura do painel pelo número
-     de letras, com teto pela altura do painel para frases curtas não virarem
-     outdoor. `L` é a mesma expressão usada na largura do elemento. */
+  /* Corpo do texto: o MENOR entre o que cabe na largura (pela linha mais longa)
+     e o que cabe na altura (pelo número de linhas). Tudo em fração da largura
+     do banner, que é o único comprimento conhecido aqui.
+
+     0.80 é a largura média de uma letra em Georgia 900 versalete, em `em`.
+     A primeira tentativa usou 0.62 — valor de minúsculas — e a frase furou o
+     painel pelos dois lados. Versalete é bem mais largo do que a intuição diz.
+
+     O 0.88 e o 1.25 são folga deliberada. Sem eles "Vitória" enche a largura do
+     painel EXATO, e qualquer diferença de métrica da fonte (outro sistema, um
+     fallback entrando no lugar da Georgia) volta a encostar no ouro. */
   const L = "min(92vw, 860px)";
-  const porLargura = BANNER.painel.width / 100 / (0.62 * texto.length);
-  const teto = (1 / BANNER.ar) * (BANNER.painel.height / 100) * 0.62;
-  const corpo = `calc(${L} * ${Math.min(porLargura, teto).toFixed(4)})`;
+  const maiorLinha = Math.max(...linhas.map((t) => t.length));
+  const painelW = BANNER.painel.width / 100;                       // fração da largura
+  const painelH = (BANNER.painel.height / 100) / BANNER.ar;        // idem, via razão de aspecto
+  const porLargura = (painelW * 0.88) / (0.80 * maiorLinha);
+  const porAltura = painelH / (linhas.length * 1.25);
+  const corpo = `calc(${L} * ${Math.min(porLargura, porAltura).toFixed(4)})`;
 
   return (
     <div onClick={onFechar} style={{
@@ -135,14 +148,16 @@ function BannerVitoria({ g, online, mySeat, onFechar }) {
           position: "absolute",
           left: `${BANNER.painel.left}%`, top: `${BANNER.painel.top}%`,
           width: `${BANNER.painel.width}%`, height: `${BANNER.painel.height}%`,
-          display: "flex", alignItems: "center", justifyContent: "center", padding: "0 1%",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "0 1%",
         }}>
-          <span style={{
-            fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 900,
-            fontSize: corpo, lineHeight: 1, color: cor, whiteSpace: "nowrap",
-            textTransform: "uppercase", letterSpacing: "0.02em",
-            textShadow: `0 0 ${corpo === "0" ? "0" : "0.22em"} ${cor}88, 0 0.03em 0.06em rgba(0,0,0,.95)`,
-          }}>{texto}</span>
+          {linhas.map((t) => (
+            <span key={t} style={{
+              fontFamily: "Georgia, 'Times New Roman', serif", fontWeight: 900,
+              fontSize: corpo, lineHeight: 1.05, color: cor, whiteSpace: "nowrap",
+              textTransform: "uppercase", letterSpacing: "0.02em",
+              textShadow: `0 0 0.22em ${cor}88, 0 0.03em 0.06em rgba(0,0,0,.95)`,
+            }}>{t}</span>
+          ))}
         </div>
       </div>
       <span style={{ marginTop: 14, color: "#a8a29e", fontFamily: "Georgia, serif", fontSize: 13 }}>
