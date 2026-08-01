@@ -37,3 +37,19 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
+
+      # O servidor multiplayer (Render) importa src/match.js e src/engine.js, então
+      # precisa acompanhar cada mudança na coleção de cartas. O auto-deploy do Render
+      # não enxerga alterações fora de server/, o que congelava o servidor numa versão
+      # antiga e bloqueava o multiplayer pela divergência de CONTENT_SIG. O deploy hook
+      # equivale a apertar "Manual Deploy" e vale para qualquer commit.
+      - name: Redeploy do servidor no Render
+        env:
+          HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then
+            echo "RENDER_DEPLOY_HOOK não configurado — servidor não foi redeployado."
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" -o /dev/null
+          echo "Deploy do servidor disparado no Render."
