@@ -42,7 +42,7 @@ import {
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
-  viaCheia, podeSerAlvo,
+  viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel,
 } from "./engine.js";
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
@@ -174,6 +174,95 @@ export function applyAction(state, action, { rng = Math.random } = {}) {
 }
 
 const planning = (s) => s.phase === "plan" && !s.finished;
+
+/* =========================== EFEITO DE ENTRADA ==============================
+   O despacho do "Ao Entrar" mora aqui, e não mais dentro do step(), porque
+   agora tem DOIS chamadores: a carta que revela (`def` é a definição dela) e o
+   Ka Errante (`def` é a definição de OUTRA carta).
+
+   `card` e `def` foram separados de propósito. A instância que age é sempre
+   `card` — dela saem a via, o dono, o uid, o Poder e o custo. De `def` saem só
+   os PARÂMETROS do efeito. É essa separação que faz o Ka copiar o efeito sem
+   copiar atributo nenhum: um Ka de custo 3 que ecoa o Dilúvio de Hápi continua
+   custando 3, e por isso não se afoga na faixa 1–2 que ele mesmo criou.
+
+   Não há `return` de badge: quem despacha grava em `s.effect`, como antes. */
+function resolverEntrada(s, card, def, rng) {
+  if (def.judgeLane) {
+    const { nivel, julgadas } = resolveAnubis(s, card);
+    s.effect = { uid: card.uid, text: nivel === null ? "⚖ —" : `⚖ =${nivel}`, kind: julgadas.length ? "debuff" : "block", seq: s.effectSeq };
+    return;
+  }
+  if (def.scatterEnemies) {
+    const { movidas } = resolveSet(s, card, rng, def);
+    s.effect = { uid: card.uid, text: movidas.length ? `⇄ ${movidas.length}` : "⇄ —", kind: movidas.length ? "debuff" : "block", seq: s.effectSeq };
+    return;
+  }
+  /* Renenutet: o Ao Entrar dela é descarregar os gatilhos que ELA acumulou fora
+     de campo. É efeito de instância, não de definição — um Ka que a ecoe não tem
+     gatilho nenhum guardado e, corretamente, não faz nada. */
+  if (def.spreadOnBlessing) {
+    const { ondas } = descarregarPendentes(s, card, rng);
+    s.effect = ondas ? { uid: card.uid, text: `✦ ${ondas}×`, kind: "buff", seq: s.effectSeq } : null;
+    return;
+  }
+  if (def.buffNext) { s.effect = resolveHeka(s, card, def); return; }
+  if (def.key === "sobek") { s.effect = resolveSobek(s, card); return; }
+  if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true, def); return; }
+  if (def.afogaCusto) { s.effect = resolveAfogamento(s, card, def); return; }
+  if (def.fuse) { s.effect = resolveArmadura(s, card); return; }
+  if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return; }
+  if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return; }
+  // ---- Arquétipo Animal ----
+  if (def.invocar) { s.effect = resolveInvocar(s, card, def); return; }
+  if (def.animalNaVia) { s.effect = resolveCabraDoNilo(s, card, def); return; }
+  if (def.bonusPorAnimal) { s.effect = resolveApis(s, card, def); return; }
+  if (def.moverAnimal) { s.effect = resolveMacaco(s, card, rng, def); return; }
+  if (def.needs) {
+    const tg = validTargets(card, def.needs, s.board);
+    if (tg.length === 0) {
+      s.effect = { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+      pushLog(s, `${def.nome}: sem alvo — efeito perdido.`);
+      return;
+    }
+    /* Pausa de mira: vive no ESTADO, não no React. `uid` e `lane` são os do Ka
+       quando é ele que age (a mira acontece na via DELE); `srcKey` é a carta
+       ecoada, que é de onde sai o valor da bênção. */
+    s.awaitingAim = { uid: card.uid, side: card.owner, lane: card.lane, needs: def.needs, srcNome: def.nome, srcKey: def.key };
+  }
+}
+
+/* ============================ ECO ESPIRITUAL ================================
+   Ka Errante. Acha a última carta revelada que ainda esteja em campo e reexecuta
+   o Ao Entrar dela a partir da posição do Ka.
+
+   Três desfechos, e todos os três são "entrou normalmente":
+     1. não há candidata em campo          -> sem habilidade
+     2. a candidata não tem Ao Entrar      -> sem habilidade (Contínuo, Ao
+        Morrer, carta baunilha, ou outro Ka Errante)
+     3. tem                                -> resolverEntrada com a def dela
+
+   A candidata pode ser INIMIGA: a fila de revelação é uma só, e o documento não
+   restringe por dono. É daí que vem a tensão da carta — ela vale mais para quem
+   revela por último, que já viu o que o adversário fez. */
+function resolverEco(s, ka, rng) {
+  const nome = byKey[ka.key].nome;
+  const alvo = acharEcoAlvo(s, ka);
+  const semEco = (motivo) => {
+    s.effect = { uid: ka.uid, text: "⟳ sem eco", kind: "block", seq: s.effectSeq };
+    pushLog(s, `⟳ ${nome}: ${motivo} — entra sem habilidade.`);
+  };
+  if (!alvo) return semEco("nenhuma carta revelada antes dele continua em jogo");
+  const alvoDef = byKey[alvo.key];
+  if (!temEntradaCopiavel(alvoDef)) return semEco(`${alvoDef.nome} não tem efeito de Entrada para ecoar`);
+
+  pushLog(s, `⟳ ${nome} ecoa o Ao Entrar de ${alvoDef.nome} (${SIDE_NAME[alvo.owner]}, Via ${alvo.lane + 1}).`);
+  resolverEntrada(s, ka, alvoDef, rng);
+  // Sem badge próprio (e sem mira pendente): o olho ainda precisa ver que o eco
+  // aconteceu, então o nome da carta ecoada vira o badge.
+  if (!s.effect && !s.awaitingAim)
+    s.effect = { uid: ka.uid, text: `⟳ ${alvoDef.nomeCurto}`, kind: "buff", seq: s.effectSeq };
+}
 
 const ACTIONS = {
   // ------------------------------ PLANEJAR -------------------------------
@@ -314,6 +403,12 @@ const ACTIONS = {
 
     card.revealed = true;
     s.effectSeq = (s.effectSeq || 0) + 1;
+    /* Carimbo de ORDEM DE REVELAÇÃO. `s.lastReveal` guarda só a última e é
+       zerado a cada rodada; o Ka Errante precisa da sequência inteira da
+       partida, para poder pular quem já morreu e continuar procurando atrás.
+       Fica na carta, e não numa lista à parte, porque assim a carta que sai do
+       tabuleiro leva o próprio registro embora. */
+    card.revealSeq = s.effectSeq;
     s.lastReveal = { uid: card.uid, seq: s.effectSeq };
     s.effect = null;
 
@@ -373,44 +468,9 @@ const ACTIONS = {
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`);
         return ok(s);
       }
-      if (def.judgeLane) {
-        const { nivel, julgadas } = resolveAnubis(s, card);
-        s.effect = { uid: card.uid, text: nivel === null ? "⚖ —" : `⚖ =${nivel}`, kind: julgadas.length ? "debuff" : "block", seq: s.effectSeq };
-        return ok(s);
-      }
-      if (def.scatterEnemies) {
-        const { movidas } = resolveSet(s, card, rng);
-        s.effect = { uid: card.uid, text: movidas.length ? `⇄ ${movidas.length}` : "⇄ —", kind: movidas.length ? "debuff" : "block", seq: s.effectSeq };
-        return ok(s);
-      }
-      if (def.spreadOnBlessing) {
-        const { ondas } = descarregarPendentes(s, card, rng);
-        s.effect = ondas ? { uid: card.uid, text: `✦ ${ondas}×`, kind: "buff", seq: s.effectSeq } : null;
-        return ok(s);
-      }
-      if (def.buffNext) { s.effect = resolveHeka(s, card); return ok(s); }
-      if (def.key === "sobek") { s.effect = resolveSobek(s, card); return ok(s); }
-      if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true); return ok(s); }
-      if (def.afogaCusto) { s.effect = resolveAfogamento(s, card); return ok(s); }
-      if (def.fuse) { s.effect = resolveArmadura(s, card); return ok(s); }
-      if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return ok(s); }
-      if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return ok(s); }
-      // ---- Arquétipo Animal ----
-      if (def.invocar) { s.effect = resolveInvocar(s, card); return ok(s); }
-      if (def.animalNaVia) { s.effect = resolveCabraDoNilo(s, card); return ok(s); }
-      if (def.bonusPorAnimal) { s.effect = resolveApis(s, card); return ok(s); }
-      if (def.moverAnimal) { s.effect = resolveMacaco(s, card, rng); return ok(s); }
-      if (def.needs) {
-        const tg = validTargets(card, def.needs, s.board);
-        if (tg.length === 0) {
-          s.effect = { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
-          pushLog(s, `${def.nome}: sem alvo — efeito perdido.`);
-          return ok(s);
-        }
-        // Pausa de mira: agora VIVE NO ESTADO, não no React.
-        s.awaitingAim = { uid: card.uid, side: card.owner, lane: card.lane, needs: def.needs, srcNome: def.nome, srcKey: def.key };
-        return ok(s);
-      }
+      if (def.ecoUltimo) { resolverEco(s, card, rng); return ok(s); }
+      resolverEntrada(s, card, def, rng);
+      return ok(s);
     }
     return ok(s);
   },

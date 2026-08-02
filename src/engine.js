@@ -123,6 +123,15 @@ export const CARDS = [
     trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
+  /* KA ERRANTE — o ECO. Não tem efeito próprio: reexecuta o Ao Entrar da última
+     carta revelada que ainda esteja em campo, como se ele fosse essa carta.
+     A carta ecoada pode ser de QUALQUER lado — a fila de revelação é única, e é
+     por isso que a carta ganha valor com prioridade contrária: quem revela
+     depois escolhe entre os efeitos que acabou de ver. */
+  { key: "ka-errante", nome: "Ka Errante", tipo: "Criatura", custo: 3, poder: 3, arch: "renascimento",
+    trigger: "entrar", ecoUltimo: true,
+    lore: "O ka nascia junto com a pessoa, duplo exato dela, e continuava a ter fome depois da morte: por isso as tumbas recebiam pão e cerveja todos os dias, e uma estátua guardada no serdab servia de corpo reserva caso o primeiro apodrecesse. Quando as oferendas cessavam, o ka não morria — saía a vagar, repetindo os gestos de quem já não estava ali.",
+    texto: "Copia o último efeito ao entrar em jogo." },
   /* ------------------------------ ANIMAIS ---------------------------------
      Arquétipo de OCUPAÇÃO: corpo barato, pouco Poder por carta, presença nas
      três vias e finalizadores que escalam com o tabuleiro cheio. É o oposto
@@ -297,7 +306,7 @@ const NOME_CURTO = {
   amheh: "Am-heh", moises: "Moisés",
   // Criaturas e demais
   escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
-  selo: "Silêncio", diluvio: "Dilúvio",
+  selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",
   // Animais
   cao: "Cão", "cabra-nilo": "Cabra", ganso: "Ganso", gato: "Gato",
   macaco: "Macaco", hiena: "Hiena", garca: "Garça", rebanho: "Rebanho",
@@ -551,6 +560,47 @@ export function matchResult(s) {
   if (diff === 0) return { side: -1, tiebreak: false, margin: 0 };
   return { side: diff > 0 ? 0 : 1, tiebreak: true, margin: Math.abs(diff) };
 }
+
+/* ========================= ECO ESPIRITUAL (Ka Errante) =====================
+   "A última carta revelada antes dele, que ainda esteja em jogo."
+
+   A ORDEM é lida de `revealSeq`, um carimbo que o step() põe na carta no
+   instante em que ela revela. Não dá para usar a ordem do `board` (ela é de
+   COLOCAÇÃO, e a prioridade reordena a revelação) nem `s.lastReveal` (guarda
+   só a imediatamente anterior, e ela pode ter morrido).
+
+   Só recebe carimbo quem PASSA PELA REVELAÇÃO. Isso resolve de graça três
+   casos que o documento pede:
+     - fichas (Gafanhoto, Rã, Ganso, Cabra) nascem reveladas mas não foram
+       reveladas: não são eco;
+     - o Bennu que renasce é uma volta ao campo, não uma revelação;
+     - a carta recolhida para a mão nunca chegou a revelar.
+
+   "AINDA EM JOGO" é `emJogo()`. Quem foi destruído sai do board na purga do
+   passo seguinte e, antes dela, está `dying` — os dois caminhos são cobertos.
+   A Praga é excluída por NOME e não por `dying`: ela já sai do campo consumida,
+   mas a regra é "Praga nunca é eco válido", e regra escrita não depende de
+   coincidência de implementação. Excluída a Praga, a busca CONTINUA para trás.
+
+   Uma carta SEM Ao Entrar continua sendo um eco válido — ela é encontrada e
+   simplesmente não produz efeito. É a diferença entre a regra 7 (achou, nada a
+   copiar) e as regras 2 e 8 (nem chega a ser candidata). */
+export function acharEcoAlvo(s, ka) {
+  const limite = typeof ka.revealSeq === "number" ? ka.revealSeq : Infinity;
+  const candidatas = s.board.filter(
+    (c) => typeof c.revealSeq === "number" && c.revealSeq < limite && c.uid !== ka.uid
+      && emJogo(c) && !byKey[c.key]?.praga,
+  );
+  if (candidatas.length === 0) return null;
+  return candidatas.reduce((a, b) => (b.revealSeq > a.revealSeq ? b : a));
+}
+
+/* O que É um "efeito de Entrada" para fins de cópia. Fora daqui ficam, por
+   construção e não por lista: Contínuo (aura), Ao Morrer, e as cartas sem
+   gatilho nenhum. E fica também o próprio Eco: dois Ka Errantes em campo se
+   ecoariam em círculo, então o segundo encontra o primeiro e não copia nada. */
+export const temEntradaCopiavel = (def) =>
+  !!def && def.trigger === "entrar" && !def.praga && !def.ecoUltimo;
 
 export const onEnterBlocked = (card, board) =>
   board.some((b) => b.revealed && !b.dying && byKey[b.key].block && b.lane === card.lane && b.owner !== card.owner);
@@ -1021,8 +1071,7 @@ export function montarLogPartida(s) {
 // Empurra ate N cartas inimigas da via do Set para outra via sorteada. Cada
 // carta rola de forma independente, e falha sozinha se nao houver espaco.
 // Nao consome o movimento proprio da carta: a vitima nao escolheu sair.
-export function resolveSet(s, set, rng = Math.random) {
-  const def = byKey[set.key];
+export function resolveSet(s, set, rng = Math.random, def = byKey[set.key]) {
   // Dispersar é escolher quem sai do lugar: o Gato Egípcio bloqueia.
   const pool = s.board.filter(
     (c) => c.owner !== set.owner && c.lane === set.lane && c.revealed && !c.dying
@@ -1085,8 +1134,7 @@ function copyVisibleAuraBonus(s, card) {
   return amon + hinos;
 }
 
-export function resolveEnxame(s, card) {
-  const def = byKey[card.key];
+export function resolveEnxame(s, card, def = byKey[card.key]) {
   const occupied = ocupacaoDaVia(s.board, card.owner, card.lane);
   const copiesToCreate = Math.min(2, Math.max(0, LANE_CAP - occupied));
   if (copiesToCreate === 0) {
@@ -1133,8 +1181,7 @@ export function resolveEnxame(s, card) {
       Praga dos Piolhos e afins mexem em `custoDe`. Se o Dilúvio virar custo 2,
       ele é uma carta de custo 2 na via como qualquer outra — a água não sabe
       quem a invocou. */
-export function resolveAfogamento(s, card) {
-  const def = byKey[card.key];
+export function resolveAfogamento(s, card, def = byKey[card.key]) {
   const [min, max] = def.afogaCusto;
   const victims = s.board.filter((c) => {
     if (c.lane !== card.lane || c.dying) return false;
@@ -1154,9 +1201,8 @@ export function resolveAfogamento(s, card) {
   return { uid: card.uid, text: `☥ ${victims.length}✕`, kind: "sac", seq: s.effectSeq };
 }
 
-export function resolveDestroyOwnLane(s, card, absorb) {
-  if (card.key === "enxame") return resolveEnxame(s, card);
-  const def = byKey[card.key];
+export function resolveDestroyOwnLane(s, card, absorb, def = byKey[card.key]) {
+  if (def.key === "enxame") return resolveEnxame(s, card, def);
   const victims = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && !c.dying);
   if (victims.length === 0) { pushLog(s, `${def.nome}: nada para destruir na via.`); return { uid: card.uid, text: "sozinho", kind: "block", seq: s.effectSeq }; }
   let absorbed = 0;
@@ -1250,8 +1296,7 @@ export function applyPendingBuff(s, card) {
 // Ao revelar a Heka: reserva o buff para sua próxima carta revelada (agora ou em
 // rodadas futuras). Sempre reserva — quem consome é applyPendingBuff, quando a
 // próxima carta sua revelar.
-export function resolveHeka(s, heka) {
-  const def = byKey[heka.key];
+export function resolveHeka(s, heka, def = byKey[heka.key]) {
   const val = def.buffNext;
   if (!s.pendingBuff) s.pendingBuff = [null, null];
   s.pendingBuff[heka.owner] = val;
@@ -1292,8 +1337,7 @@ export function invocarFicha(s, { key, owner, lane }) {
 
 // Ganso (uma ficha na própria via) e Rebanho de Cabras (uma em cada OUTRA via).
 // Cada via é resolvida em separado: uma cheia não cancela a outra.
-export function resolveInvocar(s, card) {
-  const def = byKey[card.key];
+export function resolveInvocar(s, card, def = byKey[card.key]) {
   const { key, onde } = def.invocar;
   const nome = byKey[key].nome;
   const destinos = onde === "outras" ? [0, 1, 2].filter((l) => l !== card.lane) : [card.lane];
@@ -1316,8 +1360,7 @@ export function resolveInvocar(s, card) {
 // próprio dono, e só uma vez, na entrada. O bônus é permanente: não some se a
 // companhia sair, e não cresce se chegar mais gente depois.
 // Teto natural: três companheiros num lado de via (4 espaços), logo +3.
-export function resolveCabraDoNilo(s, cabra) {
-  const def = byKey[cabra.key];
+export function resolveCabraDoNilo(s, cabra, def = byKey[cabra.key]) {
   const companhia = animaisEmJogo(s.board, { owner: cabra.owner, lane: cabra.lane, exceto: cabra.uid });
   if (companhia.length === 0) {
     pushLog(s, `${def.nome}: sozinha na Via ${cabra.lane + 1} — sem bônus.`);
@@ -1332,8 +1375,7 @@ export function resolveCabraDoNilo(s, cabra) {
 // -------------------------------- Touro Ápis --------------------------------
 // +1 por OUTRO Animal revelado em jogo, dos dois lados, fichas inclusive.
 // Congelado na entrada: é uma fotografia do tabuleiro, não uma aura.
-export function resolveApis(s, apis) {
-  const def = byKey[apis.key];
+export function resolveApis(s, apis, def = byKey[apis.key]) {
   const outros = animaisEmJogo(s.board, { exceto: apis.uid });
   if (outros.length === 0) {
     pushLog(s, `${def.nome}: nenhum outro Animal em jogo — entra com o Poder impresso.`);
@@ -1351,8 +1393,7 @@ export function resolveApis(s, apis) {
 // sem pausa de mira, e a pausa existe hoje só para a Hathor.
 // Não consome o movimento próprio da carta movida (o Escaravelho continua com
 // o dele) e não redispara o Ao Entrar de quem foi movido.
-export function resolveMacaco(s, macaco, rng = Math.random) {
-  const def = byKey[macaco.key];
+export function resolveMacaco(s, macaco, rng = Math.random, def = byKey[macaco.key]) {
   const candidatos = animaisEmJogo(s.board, { owner: macaco.owner, exceto: macaco.uid })
     .filter((c) => viasComEspaco(s.board, c.owner, c.lane).length > 0);
   if (candidatos.length === 0) {
