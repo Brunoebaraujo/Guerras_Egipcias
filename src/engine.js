@@ -129,7 +129,7 @@ export const CARDS = [
      por isso que a carta ganha valor com prioridade contrária: quem revela
      depois escolhe entre os efeitos que acabou de ver. */
   { key: "ka-errante", nome: "Ka Errante", tipo: "Criatura", custo: 3, poder: 3, arch: "renascimento",
-    trigger: "entrar", ecoUltimo: true,
+    trigger: "entrar", ecoUltimo: true, arte: "ka-errante",
     lore: "O ka nascia junto com a pessoa, duplo exato dela, e continuava a ter fome depois da morte: por isso as tumbas recebiam pão e cerveja todos os dias, e uma estátua guardada no serdab servia de corpo reserva caso o primeiro apodrecesse. Quando as oferendas cessavam, o ka não morria — saía a vagar, repetindo os gestos de quem já não estava ali.",
     texto: "Copia o último efeito ao entrar em jogo." },
   /* ------------------------------ ANIMAIS ---------------------------------
