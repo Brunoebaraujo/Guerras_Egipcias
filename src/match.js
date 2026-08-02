@@ -42,7 +42,7 @@ import {
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
-  viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel,
+  viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo,
 } from "./engine.js";
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
@@ -541,7 +541,11 @@ const ACTIONS = {
    o servidor usa para validar a ação "aim"). */
 export function isAimable(s, c) {
   const a = s.awaitingAim;
-  if (!a || !c || c.dying || c.lane !== a.lane) return false;
+  /* REGRA DA REVELAÇÃO: `emJogo` e não `!dying`. Esta função é uma segunda
+     implementação da mesma regra do validTargets — é ela que decide o clique —
+     então tem de exigir `revealed` também, senão a mira aliada aceita uma carta
+     que o próprio dono acabou de posicionar e ainda não virou. */
+  if (!a || !c || !emJogo(c) || c.lane !== a.lane) return false;
   if (a.needs === "ally") return c.owner === a.side && c.uid !== a.uid;
   /* Mira inimiga revalida a proteção do Gato AQUI, e não só quando a interface
      pintou o realce: entre o realce e o clique o tabuleiro pode ter mudado, e é

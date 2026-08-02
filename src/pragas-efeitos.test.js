@@ -72,12 +72,12 @@ describe("Águas em Sangue", () => {
     expect(alvo.mods[0].val).toBe(-1);
   });
 
-  it("alcança carta ainda por revelar — quem tem prioridade acerta primeiro", () => {
+  it("NÃO alcança carta ainda por revelar — quem revela depois joga a salvo", () => {
     const praga = mk("sangue");
     const oculta = mk("colosso", { owner: 1, revealed: false });
     const s = mkState([praga, oculta]);
     resolvePraga(s, praga, primeiro);
-    expect(oculta.mods[0].val).toBe(-1);
+    expect(oculta.mods).toEqual([]);
   });
 });
 

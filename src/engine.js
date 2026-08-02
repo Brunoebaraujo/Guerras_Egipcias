@@ -395,11 +395,9 @@ export const contarViasCheias = (board, owner) =>
    Animais enquanto estiverem em campo, porque a ficha É uma carta de tabuleiro
    comum: só não existe fora dele.
 
-   `revelado` é o critério: identidade de arquétipo só conta o que já foi
-   revelado. Uma carta ainda oculta não tem tipo em jogo — do contrário a Cabra
-   se somaria a um Cão que só revela depois dela, e o Ápis contaria cartas que o
-   oponente ainda pode nem ter revelado. Efeitos de DESTRUIÇÃO seguem a regra
-   antiga (só `!dying`): quem some, some oculto. */
+   `revelado` é o critério, e vale para TUDO — contagem e destruição. Uma carta
+   ainda oculta não está em jogo para efeito nenhum: não tem tipo, não conta,
+   não pode ser atingida. Ver a REGRA DA REVELAÇÃO em `emJogo`. */
 /* TIPO DUPLO. A maioria das cartas tem um tipo só, declarado em `tipo`, que é
    também o que aparece na tarja da moldura. Quem tem mais de um declara `tipos`,
    e aí `tipo` vira apenas o rótulo legível ("Guerreiro · Animal").
@@ -410,6 +408,25 @@ export const temTipo = (c, tipo) => {
   const d = byKey[c.key];
   return d?.tipos ? d.tipos.includes(tipo) : d?.tipo === tipo;
 };
+/* ----------------------- REGRA DA REVELAÇÃO (única) -------------------------
+   Uma carta só EXISTE para os efeitos das outras depois de revelada. Enquanto
+   está de face para baixo ela ocupa o espaço da via e nada mais: não conta para
+   arquétipo, não recebe bênção nem maldição, não pode ser destruída, movida ou
+   escolhida como alvo.
+
+   A regra é única e vale para os DOIS LADOS — inclusive para as cartas do
+   próprio dono do efeito. Quem coloca Sobek e só depois um aliado na mesma via
+   revela Sobek primeiro, e o aliado ainda oculto não é devorado.
+
+   Consequência tática, que é o motivo da regra: a PRIORIDADE deixa de ser
+   vantagem pura. Revelar antes significa agir sobre um tabuleiro menor — o lado
+   que revela depois joga suas cartas a salvo dos Ao Entrar desta rodada, mas
+   entrega a leitura do campo ao adversário. Dentro do seu próprio lado, a ordem
+   de colocação vira decisão: alvo primeiro, efeito depois.
+
+   TODO efeito que olha o tabuleiro passa por aqui. Exceção deliberada e única:
+   `ocupacaoDaVia`, porque o espaço é ocupado no instante da colocação — do
+   contrário a via aceitaria mais cartas do que cabe. */
 export const emJogo = (c) => c.revealed && !c.dying;
 export const animaisEmJogo = (board, { owner = null, lane = null, exceto = null } = {}) =>
   board.filter((c) =>
@@ -612,9 +629,9 @@ export const onEnterBlocked = (card, board) =>
   board.some((b) => b.revealed && !b.dying && byKey[b.key].block && b.lane === card.lane && b.owner !== card.owner);
 
 export const validTargets = (card, needs, board) => {
-  if (needs === "ally") return board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && !c.dying);
+  if (needs === "ally") return board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && emJogo(c));
   // Mira inimiga é escolha de alvo: passa pelo Gato Egípcio.
-  if (needs === "enemy") return board.filter((c) => c.owner !== card.owner && c.lane === card.lane && !c.dying && podeSerAlvo(board, c, card));
+  if (needs === "enemy") return board.filter((c) => c.owner !== card.owner && c.lane === card.lane && emJogo(c) && podeSerAlvo(board, c, card));
   return [];
 };
 
@@ -849,11 +866,10 @@ export function registrarPraga(s, pragaKey) {
    de nada: a ordem do documento de design (efeito → consumo → Sinal do Moisés)
    fica lá; o QUE cada Praga faz fica aqui.
 
-   Alcance: as Pragas atingem cartas ainda por revelar, filtrando apenas
-   `!c.dying`. É o mesmo critério que a Sekhmet, o Assassino Medjay e o
-   validTargets já usam — o motor nunca exigiu `revealed` para efeito nenhum.
-   Consequência tática: quem tem prioridade acerta as cartas que o oponente
-   acabou de posicionar.
+   Alcance: as Pragas obedecem à REGRA DA REVELAÇÃO como todo Ao Entrar — só
+   atingem o que já revelou (`emJogo`). Quem tem prioridade dispara contra o
+   tabuleiro da rodada anterior; as cartas que o oponente acabou de posicionar
+   estão fora de alcance.
    ========================================================================== */
 
 const sorteioUm = (arr, rng) => (arr.length ? arr[Math.floor(rng() * arr.length)] : null);
@@ -864,7 +880,7 @@ const sorteioUm = (arr, rng) => (arr.length ? arr[Math.floor(rng() * arr.length)
 // A Peste nos Animais NÃO passa por aqui: ela varre a via inteira sem escolher,
 // e continua sendo a resposta ao arquétipo Animal.
 const inimigasNoCampo = (s, praga, lane = null) =>
-  s.board.filter((c) => c.owner !== praga.owner && !c.dying && (lane === null || c.lane === lane)
+  s.board.filter((c) => c.owner !== praga.owner && emJogo(c) && (lane === null || c.lane === lane)
     && podeSerAlvo(s.board, c, praga));
 
 const semAlvo = (s, praga, motivo) => {
@@ -1190,7 +1206,7 @@ export function resolveEnxame(s, card, def = byKey[card.key]) {
 export function resolveAfogamento(s, card, def = byKey[card.key]) {
   const [min, max] = def.afogaCusto;
   const victims = s.board.filter((c) => {
-    if (c.lane !== card.lane || c.dying) return false;
+    if (c.lane !== card.lane || !emJogo(c)) return false;
     const cst = custoDe(c);
     if (cst < min || cst > max) return false;
     return podeSerAlvo(s.board, c, card, { ignoraDono: true });
@@ -1209,7 +1225,7 @@ export function resolveAfogamento(s, card, def = byKey[card.key]) {
 
 export function resolveDestroyOwnLane(s, card, absorb, def = byKey[card.key]) {
   if (def.key === "enxame") return resolveEnxame(s, card, def);
-  const victims = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && !c.dying);
+  const victims = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && emJogo(c));
   if (victims.length === 0) { pushLog(s, `${def.nome}: nada para destruir na via.`); return { uid: card.uid, text: "sozinho", kind: "block", seq: s.effectSeq }; }
   let absorbed = 0;
   if (absorb) for (const v of victims) absorbed += power(v, ctxOf(s));
@@ -1220,7 +1236,7 @@ export function resolveDestroyOwnLane(s, card, absorb, def = byKey[card.key]) {
 }
 
 export function resolveSobek(s, sobek) {
-  const victims = s.board.filter((c) => c.owner === sobek.owner && c.lane === sobek.lane && c.uid !== sobek.uid);
+  const victims = s.board.filter((c) => c.owner === sobek.owner && c.lane === sobek.lane && c.uid !== sobek.uid && emJogo(c));
   if (victims.length === 0) { pushLog(s, `Sobek entrou sozinho — nada a destruir.`); return { uid: sobek.uid, text: "sozinho", kind: "block", seq: s.effectSeq }; }
   const returns = destroyList(s, victims);
   const sk = s.board.find((c) => c.uid === sobek.uid);
@@ -1230,7 +1246,7 @@ export function resolveSobek(s, sobek) {
 }
 
 export function resolveArmadura(s, arm) {
-  const allies = s.board.filter((c) => c.owner === arm.owner && c.lane === arm.lane && c.uid !== arm.uid);
+  const allies = s.board.filter((c) => c.owner === arm.owner && c.lane === arm.lane && c.uid !== arm.uid && emJogo(c));
   if (allies.length === 0) { pushLog(s, `Armadura de Ptah: sem aliado na via — permanece em campo (3).`); return { uid: arm.uid, text: "sem fusão", kind: "block", seq: s.effectSeq }; }
   const target = allies[Math.floor(Math.random() * allies.length)];
   const val = power(arm, ctxOf(s));
@@ -1247,7 +1263,7 @@ export function resolveArmadura(s, arm) {
 // que limpa a via inteira, inclusive as suas) ou "inimigos" (a Peste nos Animais).
 export function resolveDestroyAllOfTypeInLane(s, card, tipo, { escopo = "todos" } = {}) {
   const victims = s.board.filter((c) => {
-    if (c.dying) return false;
+    if (!emJogo(c)) return false;
     if (c.lane !== card.lane) return false;
     if (c.uid === card.uid) return false;
     if (escopo === "inimigos" && c.owner === card.owner) return false;
@@ -1271,7 +1287,7 @@ export function resolveDestroyAllOfTypeInLane(s, card, tipo, { escopo = "todos" 
 }
 
 export function resolveSekhmet(s, card, cost) {
-  const victims = s.board.filter((c) => custoDe(c) === cost && c.uid !== card.uid);
+  const victims = s.board.filter((c) => custoDe(c) === cost && c.uid !== card.uid && emJogo(c));
   if (victims.length === 0) { pushLog(s, `Sekhmet: nenhuma carta de custo ${cost} em jogo.`); return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq }; }
   const returns = destroyList(s, victims);
   pushLog(s, `Sekhmet destruiu ${victims.length} carta(s) de custo ${cost}.` + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));

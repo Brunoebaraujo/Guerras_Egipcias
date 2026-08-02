@@ -65,12 +65,13 @@ describe("Dilúvio de Hápi — a quem alcança", () => {
     expect(dentro.dying).toBeTruthy();
   });
 
-  it("afoga cartas ainda ocultas: a água não espera revelação", () => {
+  it("NÃO afoga cartas ainda ocultas: a água só sobe onde já revelou", () => {
     const dil = mk("diluvio");
     const oculta = mk("gato", { owner: 1, revealed: false });
     const s = mkState([dil, oculta]);
-    resolveAfogamento(s, dil);
-    expect(oculta.dying).toBeTruthy();
+    const fx = resolveAfogamento(s, dil);
+    expect(oculta.dying).toBeFalsy();
+    expect(fx.kind).toBe("block");
   });
 
   it("sem alvo na faixa: badge de bloqueio e ninguém morre", () => {
@@ -189,11 +190,11 @@ describe("Dilúvio de Hápi — o Gato Egípcio protege", () => {
   it("Gato ainda OCULTO não abriga: aura só vale depois de revelada", () => {
     const dil = mk("diluvio");
     const gato = mk("gato", { owner: 1, revealed: false });
-    const junto = mk("bennu", { owner: 1, revealed: false });
-    const s = mkState([dil, gato, junto]);
+    const exposta = mk("bennu", { owner: 1 });
+    const s = mkState([dil, gato, exposta]);
     resolveAfogamento(s, dil);
-    expect(gato.dying).toBeTruthy();
-    expect(junto.dying).toBeTruthy();
+    expect(exposta.dying).toBeTruthy();   // sem abrigo: o Gato ainda não está lá
+    expect(gato.dying).toBeFalsy();       // e ele mesmo, oculto, está fora de alcance
   });
 
   it("Gato numa via, Dilúvio na outra: a proteção não atravessa", () => {
