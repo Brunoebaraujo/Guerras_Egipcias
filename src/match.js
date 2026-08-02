@@ -242,9 +242,9 @@ function resolverEntrada(s, card, def, rng) {
         Morrer, carta baunilha, ou outro Ka Errante)
      3. tem                                -> resolverEntrada com a def dela
 
-   A candidata pode ser INIMIGA: a fila de revelação é uma só, e o documento não
-   restringe por dono. É daí que vem a tensão da carta — ela vale mais para quem
-   revela por último, que já viu o que o adversário fez. */
+   A candidata é sempre do PRÓPRIO DONO. O que o adversário revelou não é eco e
+   nem atrapalha: o Ka passa por cima e segue procurando o último efeito DELE,
+   venha da rodada que vier. */
 function resolverEco(s, ka, rng) {
   const nome = byKey[ka.key].nome;
   const alvo = acharEcoAlvo(s, ka);

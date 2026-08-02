@@ -135,14 +135,42 @@ describe("regra 1 e 5 — o eco executa da posição do Ka", () => {
     expect(ka(s).lane).toBe(1);
   });
 
-  it("pode ecoar a carta do ADVERSÁRIO — a fila de revelação é uma só", () => {
-    // Prioridade do Lado B: a Heka dele revela primeiro e reserva +3 para ele.
-    // O Ka do Lado A ecoa, e a reserva nasce para o Lado A.
+  it("NÃO ecoa carta do adversário", () => {
+    // Prioridade do Lado B: a Heka dele revela primeiro e reserva +3 só para ele.
+    // O Ka do Lado A não tem nada seu para ecoar.
     const { state: s } = revelar([
       ["heka", 0, 1], ["ka-errante", 0, 0],
     ], { priority: 1 });
-    expect(s.pendingBuff).toEqual([3, 3]);
-    expect(trilha(s)).toContain("Ka Errante ecoa o Ao Entrar de Heka");
+    expect(s.pendingBuff).toEqual([null, 3]);
+    expect(trilha(s)).toContain("nenhuma carta revelada antes dele continua em jogo");
+  });
+
+  it("a carta do adversário no meio do caminho não interrompe a busca", () => {
+    /* O caso que apareceu em partida: o Lado B revela um Guarda Real (sem Ao
+       Entrar) DEPOIS do Sobek do Lado A. Se a carta inimiga fosse candidata, o
+       Ka acharia uma baunilha e entraria sem habilidade. Ela não é: o Ka passa
+       por cima e ecoa o próprio Sobek. */
+    const { state: s } = revelar([
+      ["servo", 1], ["servo", 1], ["sobek", 0], ["guardareal", 2, 1], ["ka-errante", 1],
+    ], { priority: 0 });
+    expect(trilha(s)).toContain("ecoa o Ao Entrar de Sobek");
+    expect(vivas(s, "servo")).toBe(0);
+    expect(pw(s, ka(s))).toBe(3 + 2);
+  });
+
+  it("o caso da partida: Sobek numa rodada, Ka na seguinte, na mesma via", () => {
+    // Rodada 1: só o Sobek, sozinho na via — não destrói nada e fica em campo.
+    const r1 = revelar([["sobek", 0], ["colosso", 2, 1]], { priority: 1 });
+    let g = applyAction(r1.state, { t: "nextRound" }, { rng: () => 0 }).state;
+    g.energy = [40, 40];
+    const h = inHand("ka-errante");
+    g.hand[0].push(h);
+    g = applyAction(g, { t: "place", side: 0, hid: h.hid, lane: 0 }).state;
+    g = applyAction(g, { t: "startReveal" }).state;
+    const s = autoReveal(g, { rng: () => 0 }).state;
+    // O eco do Sobek destrói o próprio Sobek, que é a outra carta da via.
+    expect(acha(s, "sobek")).toBeUndefined();
+    expect(pw(s, ka(s))).toBe(3 + 1);
   });
 
   it("o eco vale entre RODADAS: a última revelada não precisa ser desta rodada", () => {

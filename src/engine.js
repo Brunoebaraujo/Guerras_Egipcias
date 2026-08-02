@@ -582,14 +582,20 @@ export function matchResult(s) {
    mas a regra é "Praga nunca é eco válido", e regra escrita não depende de
    coincidência de implementação. Excluída a Praga, a busca CONTINUA para trás.
 
-   Uma carta SEM Ao Entrar continua sendo um eco válido — ela é encontrada e
+   SÓ O PRÓPRIO LADO. A fila de revelação é única e entrelaça os dois jogadores,
+   mas o eco é do SEU último efeito: a carta do adversário não é candidata e
+   também não interrompe a busca — o Ka passa por cima dela e continua atrás.
+   Sem isso, uma carta baunilha do oponente revelada no meio do caminho apagava
+   o eco (achava, não tinha Ao Entrar, e o Ka entrava sem habilidade).
+
+   Uma carta SUA sem Ao Entrar continua sendo um eco válido — ela é encontrada e
    simplesmente não produz efeito. É a diferença entre a regra 7 (achou, nada a
    copiar) e as regras 2 e 8 (nem chega a ser candidata). */
 export function acharEcoAlvo(s, ka) {
   const limite = typeof ka.revealSeq === "number" ? ka.revealSeq : Infinity;
   const candidatas = s.board.filter(
     (c) => typeof c.revealSeq === "number" && c.revealSeq < limite && c.uid !== ka.uid
-      && emJogo(c) && !byKey[c.key]?.praga,
+      && c.owner === ka.owner && emJogo(c) && !byKey[c.key]?.praga,
   );
   if (candidatas.length === 0) return null;
   return candidatas.reduce((a, b) => (b.revealSeq > a.revealSeq ? b : a));
