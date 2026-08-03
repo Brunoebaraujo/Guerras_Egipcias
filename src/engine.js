@@ -124,33 +124,34 @@ export const CARDS = [
     lore: "Khnum, o deus oleiro que molda as almas dos deuses, reforja a si mesmo conforme trabalha em harmonia com seus pares abençoados. Sua forma se torna mais robusta, seu poder mais refinado — cada bênção que flui ao seu redor alimenta sua transformação divina.",
     texto: "Ao Entrar: ganha +1 de Poder para cada carta aliada com bênção revelada em jogo." },
   /* ASSASSINOS — Arquétipo de Veneno
-     Progressão simétrica: custo = poder. Cada um marca uma carta inimiga aleatória
-     na via com veneno (níveis 1, 2, 3). No início de cada rodada seguinte, o veneno
-     causa -1, -2 ou -3. Seqer-Mau (6/6) é o finisher: destrói 2 envenenadas aleatórias. */
+     Veneno acumula em marcas independentes (uma carta pode ter [1,1,2]). O dano é a
+     soma das marcas, aplicada no início de cada rodada seguinte. Senti marca 2 alvos;
+     Semerj replica os venenos da via para outras vias; Seqer-Mau (finisher) repete
+     imediatamente o dano de todas as cartas envenenadas do campo. */
   { key: "sicario", nome: "Sicário", tipo: "Guerreiro", custo: 1, poder: 1, arch: "debuff",
     trigger: "entrar", veneno: 1, arte: "sicario",
     lore: "Criminoso de rua que trabalha por migalhas. Sua faca é curta, seu veneno é letal.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno I (-1/rodada)." },
   { key: "senti", nome: "Senti, o Finalizador", tipo: "Guerreiro", custo: 2, poder: 2, arch: "debuff",
-    trigger: "entrar", veneno: 1, arte: "senti", arteFoco: "center 0%",
-    lore: "Executor cuja única função é acabar com vidas indesejadas. Quando entra numa via, alguém não sai vivo.",
-    texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno I (-1/rodada)." },
+    trigger: "entrar", veneno: 1, venenoAlvos: 2, arte: "senti", arteFoco: "center 0%",
+    lore: "Executor cuja função é semear a morte em dobro. Onde passa, dois caem em vez de um.",
+    texto: "Ao Entrar: marca até 2 cartas inimigas aleatórias nesta via com Veneno I (-1/rodada cada)." },
   { key: "hemsu", nome: "Hemsu, o Golpeador", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff",
     trigger: "entrar", veneno: 2, arte: "hemsu",
     lore: "Assassino treinado que acerta sempre na fraqueza. Seu veneno corrói corpo e espírito.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno II (-2/rodada)." },
   { key: "semerj", nome: "Semerj, o Executor", tipo: "Guerreiro", custo: 4, poder: 4, arch: "debuff",
-    trigger: "entrar", veneno: 2, arte: "semerj", arteFoco: "center 0%",
-    lore: "Executor da lei, elimina sem piedade. Seus alvos nunca chegam ao julgamento.",
-    texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno II (-2/rodada)." },
+    trigger: "entrar", replicaVeneno: true, arte: "semerj", arteFoco: "center 0%",
+    lore: "Executor que propaga a peste. O veneno de uma via, ele espalha por todo o campo de batalha.",
+    texto: "Ao Entrar: replica os venenos das cartas inimigas desta via para cartas inimigas de outras vias (1 por carta). Nulo se não houver venenos aqui ou cartas em outras vias." },
   { key: "akhu", nome: "Akhu, o Espírito", tipo: "Criatura", custo: 5, poder: 5, arch: "debuff",
     trigger: "entrar", veneno: 3, arte: "akhu", arteFoco: "center 0%",
     lore: "Espírito vingativo dos mortos, sem repouso. Seu veneno é a própria raiva dos séculos.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno III (-3/rodada)." },
   { key: "seqer-mau", nome: "Seqer-Mau, o Destruidor", tipo: "Criatura", custo: 6, poder: 6, arch: "debuff",
     trigger: "entrar", finalizador: true, arte: "seqer-mau", arteFoco: "center 0%",
-    lore: "O grande assassino das eras, lenda de destruição. Sua tarefa é simples: eliminar os envenenados.",
-    texto: "Ao Entrar: destrói 2 cartas inimigas envenenadas aleatórias do campo (todas as vias)." },
+    lore: "O grande assassino das eras. Quando surge, todo o veneno do campo ferve de uma só vez.",
+    texto: "Ao Entrar: repete imediatamente o dano de veneno de todas as cartas inimigas envenenadas do campo (todas as vias)." },
   { key: "amheh", nome: "Am-heh, o Devorador de Milhões", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio",
     trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
@@ -1075,24 +1076,29 @@ export function aplicarUlceras(s) {
 }
 
 // --------------------- Veneno: marcação e dano por rodada ----------------------
-// Veneno tem 3 níveis (1, 2, 3). Ao marcar: apenas registra. A cada rodada: -1, -2 ou -3.
-// A marca `veneno` vive no objeto da carta e acompanha mudanças de via.
+// Veneno tem 3 níveis (1, 2, 3). Cada marca é INDEPENDENTE e se acumula: uma carta
+// pode ter [1, 1, 2] (duas marcas de Veneno I + uma de Veneno II = -4 por rodada).
+// A lista `venenos` vive no objeto da carta e acompanha mudanças de via; some com a morte.
+// Ao marcar: apenas registra a marca. A cada rodada: soma todas as marcas e desconta.
 export function marcarVeneno(s, alvo, nivel, assassinoNome) {
   if (!alvo || alvo.dying) return;
-  if (alvo.veneno === undefined || alvo.veneno < nivel) {
-    alvo.veneno = nivel;
-  }
+  if (!alvo.venenos) alvo.venenos = [];
+  alvo.venenos.push(nivel);
   pushLog(s, `${assassinoNome} marcou ${byKey[alvo.key].nome} (Via ${alvo.lane + 1}) com Veneno ${nivel}.`);
 }
 
+// Soma total das marcas de veneno de uma carta.
+export function totalVeneno(c) {
+  return (c.venenos || []).reduce((a, b) => a + b, 0);
+}
+
 export function aplicarVeneno(s) {
-  const afetadas = s.board.filter((c) => c.veneno && !c.dying);
+  const afetadas = s.board.filter((c) => c.venenos && c.venenos.length > 0 && !c.dying);
   for (const c of afetadas) {
-    const dano = -(c.veneno);
-    aplicarBencao(s, c, dano, `Veneno ${c.veneno}`);
+    aplicarBencao(s, c, -totalVeneno(c), `Veneno`);
   }
   if (afetadas.length)
-    pushLog(s, `☠ Veneno: ${afetadas.map((c) => `${byKey[c.key].nome} (${c.veneno})`).join(", ")}.`);
+    pushLog(s, `☠ Veneno: ${afetadas.map((c) => `${byKey[c.key].nome} (-${totalVeneno(c)})`).join(", ")}.`);
   return afetadas;
 }
 
@@ -1406,34 +1412,80 @@ export function resolveHeka(s, heka, def = byKey[heka.key]) {
 }
 
 // ----------------------- Assassinos: marcar veneno ----------------------
+// Marca `def.venenoAlvos` (padrão 1) cartas inimigas DISTINTAS aleatórias na via,
+// cada uma com uma marca de nível `def.veneno`.
 export function resolveAssassino(s, card, def = byKey[card.key]) {
-  const alvos = s.board.filter((c) => c.owner !== card.owner && c.lane === card.lane && emJogo(c));
-  
-  if (alvos.length === 0) {
+  const pool = s.board.filter((c) => c.owner !== card.owner && c.lane === card.lane && emJogo(c));
+
+  if (pool.length === 0) {
     pushLog(s, `${def.nome}: nenhuma carta inimiga nesta via.`);
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
   }
-  
-  const alvo = alvos[Math.floor(Math.random() * alvos.length)];
-  marcarVeneno(s, alvo, def.veneno, def.nome);
-  return { uid: card.uid, text: `☠ V${def.veneno}`, kind: "debuff", seq: s.effectSeq };
+
+  const qtd = def.venenoAlvos || 1;
+  const alvos = [...pool].sort(() => Math.random() - 0.5).slice(0, qtd);
+  for (const alvo of alvos) marcarVeneno(s, alvo, def.veneno, def.nome);
+
+  const suf = alvos.length > 1 ? `×${alvos.length}` : "";
+  return { uid: card.uid, text: `☠ V${def.veneno}${suf}`, kind: "debuff", seq: s.effectSeq };
 }
 
-// ----------------------- Seqer-Mau: destruir envenenadas ----------------------
-// Finisher do arquétipo: destrói 2 cartas inimigas envenenadas aleatórias do
-// CAMPO INTEIRO (todas as vias), não apenas da via em que foi jogado.
-export function resolveSeqerMau(s, card, def = byKey[card.key]) {
-  const envenenadas = s.board.filter((c) => c.veneno && c.owner !== card.owner && emJogo(c));
-  const alvos = envenenadas.sort(() => Math.random() - 0.5).slice(0, 2);
-  
+// ----------------------- Semerj: replicar venenos da via -----------------------
+// Coleta TODAS as marcas de veneno das cartas inimigas na via em que foi jogado
+// (na ordem em que aparecem) e as distribui para cartas inimigas de OUTRAS vias,
+// 1 marca por carta, copiando o nível exato. Se não houver marcas na via de origem
+// OU não houver cartas em outras vias, o efeito é nulo.
+export function resolveSemerj(s, card, def = byKey[card.key]) {
+  // 1. Coleta as marcas da via de origem (cartas inimigas), preservando ordem.
+  const origem = s.board.filter((c) => c.lane === card.lane && c.owner !== card.owner && emJogo(c) && c.venenos && c.venenos.length > 0);
+  const marcas = [];
+  for (const c of origem) for (const n of c.venenos) marcas.push(n);
+
+  if (marcas.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta envenenada nesta via — efeito nulo.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+
+  // 2. Alvos: cartas inimigas em OUTRAS vias (diferentes da origem), ordem por via.
+  const alvos = s.board
+    .filter((c) => c.lane !== card.lane && c.owner !== card.owner && emJogo(c))
+    .sort((a, b) => a.lane - b.lane);
+
   if (alvos.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta inimiga em outras vias — efeito nulo.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+
+  // 3. Distribui 1 marca por carta, na ordem das marcas encontradas.
+  const n = Math.min(marcas.length, alvos.length);
+  for (let i = 0; i < n; i++) marcarVeneno(s, alvos[i], marcas[i], def.nome);
+
+  pushLog(s, `${def.nome} replicou ${n} veneno(s) para outras vias.`);
+  return { uid: card.uid, text: `☠ ${n}→`, kind: "debuff", seq: s.effectSeq };
+}
+
+// ----------------------- Seqer-Mau: repetir dano de veneno -----------------------
+// Finisher do arquétipo: para cada carta inimiga envenenada do CAMPO INTEIRO,
+// aplica IMEDIATAMENTE o dano total das suas marcas de veneno (um "tique" extra).
+// As marcas permanecem, então continuam a apodrecer nas rodadas seguintes. Marcas
+// recém-aplicadas nesta rodada (que ainda não tiquearam) também contam.
+export function resolveSeqerMau(s, card, def = byKey[card.key]) {
+  const envenenadas = s.board.filter((c) => c.venenos && c.venenos.length > 0 && c.owner !== card.owner && emJogo(c));
+
+  if (envenenadas.length === 0) {
     pushLog(s, `${def.nome}: nenhuma carta inimiga envenenada no campo.`);
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
   }
-  
-  destroyList(s, alvos);
-  pushLog(s, `${def.nome} destruiu ${alvos.length} carta(s) envenenada(s).`);
-  return { uid: card.uid, text: `☠ ${alvos.length}✕`, kind: "debuff", seq: s.effectSeq };
+
+  let totalDano = 0;
+  for (const c of envenenadas) {
+    const dano = totalVeneno(c);
+    aplicarBencao(s, c, -dano, def.nome);
+    totalDano += dano;
+  }
+
+  pushLog(s, `${def.nome} repetiu o veneno em ${envenenadas.length} carta(s), causando -${totalDano} no total.`);
+  return { uid: card.uid, text: `☠ -${totalDano}`, kind: "debuff", seq: s.effectSeq };
 }
 
 /* ==========================================================================

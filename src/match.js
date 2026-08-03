@@ -38,7 +38,7 @@ import {
   byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, MAO_MAX, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
-  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveAssassino, resolveSeqerMau,
+  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveAssassino, resolveSeqerMau, resolveSemerj,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet, resolveKhnum,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
@@ -214,6 +214,7 @@ function resolverEntrada(s, card, def, rng) {
   if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return; }
   if (def.buffsPerBlessing) { s.effect = resolveKhnum(s, card, def); return; }
   if (def.veneno) { s.effect = resolveAssassino(s, card, def); return; }
+  if (def.replicaVeneno) { s.effect = resolveSemerj(s, card, def); return; }
   if (def.finalizador) { s.effect = resolveSeqerMau(s, card, def); return; }
   if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return; }
   // ---- Arquétipo Animal ----
