@@ -38,11 +38,11 @@ import {
   byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, MAO_MAX, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
-  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
+  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveAssassino, resolveSeqerMau,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet, resolveKhnum,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
-  viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo,
+  viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
 } from "./engine.js";
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
@@ -213,6 +213,8 @@ function resolverEntrada(s, card, def, rng) {
   if (def.fuse) { s.effect = resolveArmadura(s, card); return; }
   if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return; }
   if (def.buffsPerBlessing) { s.effect = resolveKhnum(s, card, def); return; }
+  if (def.veneno) { s.effect = resolveAssassino(s, card, def); return; }
+  if (def.finalizador) { s.effect = resolveSeqerMau(s, card, def); return; }
   if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return; }
   // ---- Arquétipo Animal ----
   if (def.invocar) { s.effect = resolveInvocar(s, card, def); return; }
@@ -524,6 +526,7 @@ const ACTIONS = {
     const eMsg = (eBonus[0] || eBonus[1]) ? ` Energia: A ${s.energy[0]}, B ${s.energy[1]} (bônus Bennu).` : ` ${s.round} de energia.`;
     pushLog(s, `— Rodada ${s.round} —${eMsg} Compra 1. Prioridade: ${SIDE_NAME[s.priority]} (${s.priorityReason}).`);
     aplicarUlceras(s);   // início de rodada: cada carta ulcerada perde 1 de Poder
+    aplicarVeneno(s);    // início de rodada: cada carta envenenada perde seu nível de veneno
     return ok(s);
   },
 
