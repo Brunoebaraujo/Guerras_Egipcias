@@ -65,6 +65,18 @@ describe("DeckMobile smoke", () => {
     // ao menos uma carta da coleção na grade
     expect(html).toContain(CARDS[0].nome);
   });
+  it("mostra os botões da biblioteca de decks com a contagem", () => {
+    const libApi = {
+      decks: [{ id: "d1", name: "X", cards: [] }, { id: "d2", name: "Y", cards: [] }],
+      loadedId: [null, null], max: 20, nameMax: 40,
+      salvar: () => false, atualizar: () => false, renomear: () => false,
+      duplicar: () => false, apagar: () => false, carregar: () => false,
+    };
+    const html = renderToString(<DeckMobile {...baseProps} libApi={libApi} />);
+    expect(html).toContain("💾 Salvar");
+    expect(html).toContain("Meus decks");
+    expect(html).toContain("(2)");
+  });
   it("a carta ampliada (Carta) renderiza com efeito e lore", () => {
     const def = CARDS.find((c) => c.texto && c.lore) || CARDS[0];
     const html = renderToString(

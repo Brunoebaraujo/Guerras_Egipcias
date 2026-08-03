@@ -1,0 +1,200 @@
+import { describe, it, expect } from "vitest";
+import { CARDS, CONTENT_SIG } from "./engine.js";
+import {
+  emptyStore, parseStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
+  deckValido, deckIntegro, nomeValido, MAX_DECKS, NAME_MAX, DECK_SIZE,
+} from "./deckLibrary.js";
+
+// Um deck válido de 12 chaves escolhíveis distintas, tirado da própria coleção.
+const doze = CARDS.slice(0, DECK_SIZE).map((c) => c.key);
+const outroDoze = CARDS.slice(1, DECK_SIZE + 1).map((c) => c.key);
+
+describe("deckValido", () => {
+  it("aceita 12 cartas únicas e escolhíveis", () => {
+    expect(deckValido(doze).ok).toBe(true);
+  });
+  it("rejeita quantidade diferente de 12", () => {
+    expect(deckValido(doze.slice(0, 11)).ok).toBe(false);
+    expect(deckValido([...doze, CARDS[DECK_SIZE].key]).ok).toBe(false);
+  });
+  it("rejeita repetição", () => {
+    const rep = [...doze.slice(0, 11), doze[0]];
+    expect(deckValido(rep).ok).toBe(false);
+  });
+  it("rejeita chave inexistente ou não escolhível", () => {
+    const bad = [...doze.slice(0, 11), "nao-existe"];
+    expect(deckValido(bad).ok).toBe(false);
+    // Uma Praga não é escolhível: não pode ser salva num deck.
+    const comPraga = [...doze.slice(0, 11), "sangue"];
+    expect(deckValido(comPraga).ok).toBe(false);
+  });
+});
+
+describe("nomeValido", () => {
+  it("exige nome não vazio e apara espaços", () => {
+    expect(nomeValido("   ").ok).toBe(false);
+    expect(nomeValido("  Meu Deck  ")).toEqual({ ok: true, nome: "Meu Deck" });
+  });
+  it("rejeita nome longo demais", () => {
+    expect(nomeValido("x".repeat(NAME_MAX + 1)).ok).toBe(false);
+  });
+});
+
+describe("addDeck", () => {
+  it("adiciona, carimba sig e timestamps", () => {
+    const { store, deck, error } = addDeck(emptyStore(), { name: "Sacrifício", cards: doze, now: 1000 });
+    expect(error).toBeUndefined();
+    expect(store.decks).toHaveLength(1);
+    expect(deck.name).toBe("Sacrifício");
+    expect(deck.cards).toEqual(doze);
+    expect(deck.sig).toBe(CONTENT_SIG);
+    expect(deck.createdAt).toBe(1000);
+    expect(deck.updatedAt).toBe(1000);
+    expect(typeof deck.id).toBe("string");
+  });
+
+  it("não muta o store recebido", () => {
+    const s0 = emptyStore();
+    addDeck(s0, { name: "A", cards: doze });
+    expect(s0.decks).toHaveLength(0);
+  });
+
+  it("rejeita nome inválido e deck inválido", () => {
+    expect(addDeck(emptyStore(), { name: "", cards: doze }).error).toBeTruthy();
+    expect(addDeck(emptyStore(), { name: "ok", cards: doze.slice(0, 5) }).error).toBeTruthy();
+  });
+
+  it("bloqueia no teto de 20 decks", () => {
+    let store = emptyStore();
+    for (let i = 0; i < MAX_DECKS; i++) {
+      const r = addDeck(store, { name: `Deck ${i}`, cards: doze });
+      expect(r.error).toBeUndefined();
+      store = r.store;
+    }
+    expect(store.decks).toHaveLength(MAX_DECKS);
+    const cheio = addDeck(store, { name: "Excedente", cards: doze });
+    expect(cheio.error).toMatch(/Limite/);
+    expect(cheio.store.decks).toHaveLength(MAX_DECKS);
+  });
+
+  it("gera ids distintos", () => {
+    let store = emptyStore();
+    store = addDeck(store, { name: "A", cards: doze }).store;
+    store = addDeck(store, { name: "B", cards: doze }).store;
+    expect(store.decks[0].id).not.toBe(store.decks[1].id);
+  });
+});
+
+describe("updateDeck / renameDeck", () => {
+  const base = () => addDeck(emptyStore(), { name: "Original", cards: doze, now: 1 }).store;
+
+  it("troca as cartas, reassina e avança updatedAt", () => {
+    const store = base();
+    const id = store.decks[0].id;
+    const { store: s2, error } = updateDeck(store, id, { cards: outroDoze, now: 999 });
+    expect(error).toBeUndefined();
+    expect(s2.decks[0].cards).toEqual(outroDoze);
+    expect(s2.decks[0].sig).toBe(CONTENT_SIG);
+    expect(s2.decks[0].updatedAt).toBe(999);
+    expect(s2.decks[0].createdAt).toBe(1); // preserva a criação
+  });
+
+  it("renomeia sem tocar nas cartas", () => {
+    const store = base();
+    const id = store.decks[0].id;
+    const { store: s2 } = renameDeck(store, id, "Novo Nome");
+    expect(s2.decks[0].name).toBe("Novo Nome");
+    expect(s2.decks[0].cards).toEqual(doze);
+  });
+
+  it("rejeita cartas inválidas na atualização", () => {
+    const store = base();
+    const id = store.decks[0].id;
+    const r = updateDeck(store, id, { cards: doze.slice(0, 3) });
+    expect(r.error).toBeTruthy();
+    expect(r.store.decks[0].cards).toEqual(doze); // inalterado
+  });
+
+  it("erro quando o id não existe", () => {
+    expect(updateDeck(base(), "inexistente", { name: "x" }).error).toBeTruthy();
+  });
+});
+
+describe("duplicateDeck", () => {
+  it("clona com novo id e sufixo (cópia)", () => {
+    const store = addDeck(emptyStore(), { name: "Meu", cards: doze }).store;
+    const { store: s2, deck } = duplicateDeck(store, store.decks[0].id);
+    expect(s2.decks).toHaveLength(2);
+    expect(deck.name).toBe("Meu (cópia)");
+    expect(deck.cards).toEqual(doze);
+    expect(deck.id).not.toBe(store.decks[0].id);
+  });
+  it("respeita o teto", () => {
+    let store = emptyStore();
+    for (let i = 0; i < MAX_DECKS; i++) store = addDeck(store, { name: `D${i}`, cards: doze }).store;
+    const r = duplicateDeck(store, store.decks[0].id);
+    expect(r.error).toMatch(/Limite/);
+  });
+});
+
+describe("deleteDeck", () => {
+  it("remove pelo id", () => {
+    let store = addDeck(emptyStore(), { name: "A", cards: doze }).store;
+    store = addDeck(store, { name: "B", cards: doze }).store;
+    const id = store.decks[0].id;
+    const { store: s2, error } = deleteDeck(store, id);
+    expect(error).toBeUndefined();
+    expect(s2.decks).toHaveLength(1);
+    expect(s2.decks.find((d) => d.id === id)).toBeUndefined();
+  });
+  it("erro se o id não existe", () => {
+    expect(deleteDeck(emptyStore(), "x").error).toBeTruthy();
+  });
+});
+
+describe("parseStore — robustez de persistência", () => {
+  it("nulo/indefinido vira store vazio", () => {
+    expect(parseStore(null)).toEqual(emptyStore());
+    expect(parseStore(undefined)).toEqual(emptyStore());
+  });
+  it("JSON corrompido não quebra", () => {
+    expect(parseStore("{isso não é json")).toEqual(emptyStore());
+  });
+  it("formato inesperado degrada para vazio", () => {
+    expect(parseStore('{"decks": "não é array"}')).toEqual(emptyStore());
+    expect(parseStore("[]")).toEqual(emptyStore());
+  });
+  it("saneia decks individuais e descarta os podres", () => {
+    const raw = JSON.stringify({
+      v: 1,
+      decks: [
+        { id: "d1", name: "Bom", cards: doze, createdAt: 5, updatedAt: 6 },
+        { id: 42, name: "sem id string", cards: doze },   // descartado
+        { name: "sem id", cards: doze },                   // descartado
+        { id: "d2", name: "sem cards" },                   // descartado
+      ],
+    });
+    const store = parseStore(raw);
+    expect(store.decks).toHaveLength(1);
+    expect(store.decks[0].id).toBe("d1");
+    expect(store.decks[0].sig).toBeNull(); // faltava sig → null
+  });
+  it("aplica o teto mesmo se o arquivo veio inflado", () => {
+    const decks = Array.from({ length: 30 }, (_, i) => ({ id: `d${i}`, name: `D${i}`, cards: doze }));
+    const store = parseStore(JSON.stringify({ v: 1, decks }));
+    expect(store.decks.length).toBeLessThanOrEqual(MAX_DECKS);
+  });
+  it("round-trip: salvar e reler preserva os decks", () => {
+    const salvo = addDeck(emptyStore(), { name: "Persistente", cards: doze, now: 7 }).store;
+    const relido = parseStore(JSON.stringify({ v: 1, decks: salvo.decks }));
+    expect(relido.decks[0].name).toBe("Persistente");
+    expect(relido.decks[0].cards).toEqual(doze);
+  });
+});
+
+describe("deckIntegro", () => {
+  it("true para deck de 12 válidas, false para incompleto", () => {
+    expect(deckIntegro({ cards: doze })).toBe(true);
+    expect(deckIntegro({ cards: doze.slice(0, 8) })).toBe(false);
+  });
+});

@@ -10,6 +10,10 @@ import {
   CONTENT_SIG, CARD_KEYS, laneProtegida,
 } from "./engine.js";
 import { freshMatch, applyAction, isAimable as podeMirar } from "./match.js";
+import {
+  loadStore, saveStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
+  deckIntegro, SCHEMA_V, MAX_DECKS, NAME_MAX,
+} from "./deckLibrary.js";
 
 /* ==========================================================================
    Guerras Egípcias — playtest (revelação simultânea com prioridade) sobre o tabuleiro
@@ -53,6 +57,131 @@ function AvisoOutorga({ deck, estilo = "web" }) {
   return <div style={{ fontSize: 11, color: "#fcd34d", padding: "0 10px 6px" }}>{txt}</div>;
 }
 const PRAGAS_ORDENADAS = [...PRAGAS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
+
+/* ==========================================================================
+   BIBLIOTECA DE DECKS — modal reutilizável (desktop e mobile).
+
+   Estilos inline propositalmente: o mesmo componente serve as duas interfaces
+   sem depender das classes Tailwind da tela desktop. Recebe o `api` centralizado
+   no App (que persiste no localStorage) e opera sempre sobre um `side`.
+   ========================================================================== */
+const custoMedio = (cards) => {
+  if (!cards.length) return 0;
+  const soma = cards.reduce((t, k) => t + (byKey[k]?.custo || 0), 0);
+  return Math.round((soma / cards.length) * 10) / 10;
+};
+
+function DeckLibraryModal({ api, side, sideLabel, accent = "#818cf8", cards, focusSave, onClose, onLoaded }) {
+  const loadedId = api.loadedId[side];
+  const loaded = api.decks.find((d) => d.id === loadedId) || null;
+  const [nome, setNome] = useState(loaded ? loaded.name : "");
+  const [renomeando, setRenomeando] = useState(null); // {id, valor}
+  const [confirmar, setConfirmar] = useState(null);    // id aguardando confirmação de apagar
+  const inputRef = useRef(null);
+  useEffect(() => { if (focusSave && inputRef.current) inputRef.current.focus(); }, [focusSave]);
+
+  const completo = cards.length === 12 && new Set(cards).size === 12;
+  const chip = { padding: "7px 10px", borderRadius: 8, border: "1px solid #44403c", background: "#292524", color: "#e7e5e4", fontSize: 12.5, cursor: "pointer" };
+  const chipOff = { ...chip, opacity: 0.45, cursor: "not-allowed" };
+
+  function salvarNovo() {
+    if (!completo) return;
+    if (api.salvar(side, nome)) { setNome(""); }
+  }
+  function atualizar() {
+    if (!completo || !loaded) return;
+    api.atualizar(side, loaded.id);
+  }
+  function confirmarRenome(id) {
+    if (api.renomear(id, renomeando.valor)) setRenomeando(null);
+  }
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 460, maxHeight: "88vh", display: "flex", flexDirection: "column",
+        background: "#0c0a09", border: `1px solid ${accent}`, borderRadius: 14, overflow: "hidden",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid #292524" }}>
+          <span style={{ fontWeight: 800, color: accent, fontSize: 15 }}>📂 Meus decks</span>
+          <span style={{ fontSize: 12, color: "#78716c" }}>{api.decks.length}/{api.max} · {sideLabel}</span>
+          <button onClick={onClose} aria-label="Fechar" style={{ marginLeft: "auto", ...chip, padding: "4px 11px", fontSize: 18, lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* salvar o build atual */}
+        <div style={{ padding: "12px 14px", borderBottom: "1px solid #1c1917", background: "#131110" }}>
+          <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 1, color: "#78716c", marginBottom: 7 }}>Salvar deck atual ({cards.length}/12)</div>
+          <div style={{ display: "flex", gap: 7 }}>
+            <input ref={inputRef} value={nome} onChange={(e) => setNome(e.target.value.slice(0, api.nameMax))}
+              onKeyDown={(e) => { if (e.key === "Enter") salvarNovo(); }}
+              placeholder="Nome do deck" maxLength={api.nameMax} style={{
+                flex: 1, minWidth: 0, padding: "9px 11px", borderRadius: 8, border: "1px solid #44403c",
+                background: "#1c1917", color: "#e7e5e4", fontSize: 13.5, outline: "none",
+              }} />
+            <button onClick={salvarNovo} disabled={!completo} style={completo ? { ...chip, background: "#059669", color: "#0c0a09", border: "none", fontWeight: 700 } : chipOff}>💾 Salvar</button>
+          </div>
+          {loaded && (
+            <button onClick={atualizar} disabled={!completo} style={{ ...(completo ? chip : chipOff), marginTop: 8, width: "100%", background: completo ? "rgba(129,140,248,.14)" : undefined, borderColor: accent, color: accent }}>
+              ⟳ Atualizar "{loaded.name}" com o deck atual
+            </button>
+          )}
+          {!completo && <div style={{ fontSize: 11.5, color: "#a8a29e", marginTop: 7 }}>Complete 12 cartas para salvar.</div>}
+        </div>
+
+        {/* lista de decks salvos */}
+        <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "8px 10px" }}>
+          {api.decks.length === 0 && (
+            <div style={{ textAlign: "center", color: "#78716c", fontSize: 13, padding: "26px 10px" }}>Nenhum deck salvo ainda.<br />Monte um deck e toque em 💾 Salvar.</div>
+          )}
+          {api.decks.map((d) => {
+            const integro = d.cards.length === 12 && new Set(d.cards).size === 12 && d.cards.every((k) => byKey[k] && CARDS.some((c) => c.key === k));
+            const isLoaded = d.id === loadedId;
+            return (
+              <div key={d.id} style={{
+                border: isLoaded ? `1.5px solid ${accent}` : "1px solid #292524", borderRadius: 10,
+                padding: "9px 11px", marginBottom: 7, background: isLoaded ? "rgba(129,140,248,.07)" : "#161311",
+              }}>
+                {renomeando?.id === d.id ? (
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input autoFocus value={renomeando.valor} maxLength={api.nameMax}
+                      onChange={(e) => setRenomeando({ id: d.id, valor: e.target.value.slice(0, api.nameMax) })}
+                      onKeyDown={(e) => { if (e.key === "Enter") confirmarRenome(d.id); if (e.key === "Escape") setRenomeando(null); }}
+                      style={{ flex: 1, minWidth: 0, padding: "7px 9px", borderRadius: 7, border: `1px solid ${accent}`, background: "#1c1917", color: "#e7e5e4", fontSize: 13, outline: "none" }} />
+                    <button onClick={() => confirmarRenome(d.id)} style={{ ...chip, background: "#059669", color: "#0c0a09", border: "none" }}>OK</button>
+                    <button onClick={() => setRenomeando(null)} style={chip}>✕</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
+                      <span style={{ fontWeight: 700, fontSize: 14, color: "#e7e5e4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
+                      {isLoaded && <span style={{ fontSize: 10.5, color: accent, flex: "0 0 auto" }}>carregado</span>}
+                      {!integro && <span style={{ fontSize: 10.5, color: "#fbbf24", flex: "0 0 auto" }} title="Incompatível com a coleção atual">⚠ desatualizado</span>}
+                    </div>
+                    <div style={{ fontSize: 11, color: "#78716c", marginTop: 2 }}>{d.cards.length} cartas · custo médio {custoMedio(d.cards)}</div>
+                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                      <button onClick={() => { api.carregar(side, d.id); onLoaded?.(); }} style={{ ...chip, background: "rgba(129,140,248,.16)", borderColor: accent, color: accent, fontWeight: 700 }}>📥 Carregar</button>
+                      <button onClick={() => setRenomeando({ id: d.id, valor: d.name })} style={chip}>✎ Renomear</button>
+                      <button onClick={() => api.duplicar(d.id)} style={chip}>⧉ Duplicar</button>
+                      {confirmar === d.id ? (
+                        <>
+                          <button onClick={() => { api.apagar(side, d.id); setConfirmar(null); }} style={{ ...chip, background: "#9f1239", color: "#fecdd3", border: "none", fontWeight: 700 }}>Confirmar</button>
+                          <button onClick={() => setConfirmar(null)} style={chip}>Cancelar</button>
+                        </>
+                      ) : (
+                        <button onClick={() => setConfirmar(d.id)} style={{ ...chip, color: "#fda4af", borderColor: "#7f1d1d" }}>🗑 Apagar</button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 
 const ARCH_NOME = {
   base: "Base", buff: "Bênção", debuff: "Maldição", sacrificio: "Sacrifício", reset: "Equilíbrio",
@@ -328,6 +457,13 @@ export default function App() {
   const [screen, setScreen] = useState("deck");                 // "deck" | "game" | "galeria"
   const [build, setBuild] = useState([[...DECK_LIST], [...DECK_LIST]]);
   const [chosen, setChosen] = useState([DECK_LIST, DECK_LIST]);
+  // Biblioteca de decks (persistente em localStorage). Carrega uma vez na
+  // montagem; toda mutação regrava e atualiza o estado. `libLoadedId` lembra,
+  // por lado, de qual deck salvo veio o build atual — para o "Salvar" oferecer
+  // atualizar em vez de sempre criar um novo.
+  const [libDecks, setLibDecks] = useState(() => loadStore().decks);
+  const [libLoadedId, setLibLoadedId] = useState([null, null]);
+  const [libModal, setLibModal] = useState(null); // {side, focusSave} — modal da biblioteca (desktop)
   const [sel, setSel] = useState(null);       // {side, hid}
   const aim = g.awaitingAim;                  // mira pendente vive no ESTADO (match.js)
   const [moving, setMoving] = useState(null); // {uid, side, lane} — Escaravelho
@@ -472,8 +608,69 @@ export default function App() {
     if (cur.includes(k)) setDeck(side, cur.filter((x) => x !== k));
     else if (cur.length < 12) setDeck(side, [...cur, k]);
     else flash("Deck cheio — 12 cartas (remova uma antes de trocar).");
+    // Editar as cartas desliga o "vínculo" com o deck salvo: o próximo Salvar
+    // pergunta se atualiza, e ao editar manualmente o usuário sabe que mexeu.
   }
   const randomDeck = (side) => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, 12));
+
+  /* ------------------------- BIBLIOTECA DE DECKS -------------------------- */
+  // Persiste `decks` no localStorage e sincroniza o estado. Toda operação da
+  // biblioteca passa por aqui, então a gravação é única e consistente.
+  function persistLib(decks) { saveStore({ v: SCHEMA_V, decks }); setLibDecks(decks); }
+  const libApi = {
+    decks: libDecks,
+    max: MAX_DECKS,
+    nameMax: NAME_MAX,
+    // Salva o build de um lado como deck novo.
+    salvar(side, nome) {
+      const { store, error } = addDeck({ v: SCHEMA_V, decks: libDecks }, { name: nome, cards: build[side] });
+      if (error) { flash(error); return false; }
+      persistLib(store.decks);
+      setLibLoadedId((ids) => { const n = ids.slice(); n[side] = store.decks[store.decks.length - 1].id; return n; });
+      flash(`Deck "${store.decks[store.decks.length - 1].name}" salvo.`);
+      return true;
+    },
+    // Atualiza um deck salvo com o build atual do lado.
+    atualizar(side, id) {
+      const { store, error, deck } = updateDeck({ v: SCHEMA_V, decks: libDecks }, id, { cards: build[side] });
+      if (error) { flash(error); return false; }
+      persistLib(store.decks);
+      flash(`Deck "${deck.name}" atualizado.`);
+      return true;
+    },
+    renomear(id, nome) {
+      const { store, error } = renameDeck({ v: SCHEMA_V, decks: libDecks }, id, nome);
+      if (error) { flash(error); return false; }
+      persistLib(store.decks);
+      return true;
+    },
+    duplicar(id) {
+      const { store, error } = duplicateDeck({ v: SCHEMA_V, decks: libDecks }, id);
+      if (error) { flash(error); return false; }
+      persistLib(store.decks);
+      return true;
+    },
+    apagar(side, id) {
+      const { store, error } = deleteDeck({ v: SCHEMA_V, decks: libDecks }, id);
+      if (error) { flash(error); return false; }
+      persistLib(store.decks);
+      // Se o lado tinha esse deck carregado, solta o vínculo.
+      setLibLoadedId((ids) => ids.map((x) => (x === id ? null : x)));
+      return true;
+    },
+    // Carrega um deck salvo no lado indicado e marca o vínculo.
+    carregar(side, id) {
+      const deck = libDecks.find((d) => d.id === id);
+      if (!deck) { flash("Deck não encontrado."); return false; }
+      if (!deckIntegro(deck)) { flash("Este deck está incompatível com a coleção atual — edite antes de jogar."); }
+      setDeck(side, deck.cards.slice());
+      setLibLoadedId((ids) => { const n = ids.slice(); n[side] = id; return n; });
+      flash(`Deck "${deck.name}" carregado.`);
+      return true;
+    },
+    loadedId: libLoadedId,
+  };
+
   function startMatch() {
     if (build[0].length !== 12 || build[1].length !== 12) { flash("Cada deck precisa ter exatamente 12 cartas."); return; }
     setChosen([build[0].slice(), build[1].slice()]);
@@ -566,13 +763,13 @@ export default function App() {
 
   // ============================ TELA: DECKS ================================
   if (screen === "mpdeck") {
-    return <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} />;
+    return <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} libApi={libApi} />;
   }
 
   if (screen === "deck") {
     if (isMobile) return (
       <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={startMatch}
-        setScreen={setScreen} setForceView={setForceView} msg={msg} />
+        setScreen={setScreen} setForceView={setForceView} msg={msg} libApi={libApi} />
     );
     const ready = build[0].length === 12 && build[1].length === 12;
     const DeckPanel = (side) => {
@@ -593,6 +790,9 @@ export default function App() {
             <button onClick={() => randomDeck(side)} className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">Aleatório</button>
             <button onClick={() => setDeck(side, [])} className="px-2 py-1 rounded bg-stone-800 hover:bg-stone-700 text-xs text-stone-400">Limpar</button>
             {side === 1 && <button onClick={() => setDeck(1, build[0].slice())} className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">Copiar A→B</button>}
+            <span className="w-px self-stretch bg-stone-700 mx-0.5" />
+            <button onClick={() => setLibModal({ side, focusSave: true })} className="px-2 py-1 rounded bg-emerald-800 hover:bg-emerald-700 text-xs text-emerald-100">💾 Salvar</button>
+            <button onClick={() => setLibModal({ side, focusSave: false })} className="px-2 py-1 rounded bg-indigo-800 hover:bg-indigo-700 text-xs text-indigo-100">📂 Meus decks{libDecks.length ? ` (${libDecks.length})` : ""}</button>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-1">
             {COLLECTION.map((def) => {
@@ -635,6 +835,11 @@ export default function App() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[0, 1].map((s) => DeckPanel(s))}</div>
           <p className="text-xs text-stone-500 mt-3">Dica: comece de um preset e ajuste, ou monte do zero clicando nas cartas. {CARDS.length} cartas na coleção, 12 por deck.</p>
         </div>
+        {libModal && (
+          <DeckLibraryModal api={libApi} side={libModal.side} sideLabel={SIDE_NAME[libModal.side]}
+            accent={libModal.side === 0 ? "#fbbf24" : "#38bdf8"} cards={build[libModal.side]}
+            focusSave={libModal.focusSave} onClose={() => setLibModal(null)} onLoaded={() => setLibModal(null)} />
+        )}
       </div>
     );
   }
@@ -1637,9 +1842,16 @@ export { OnlineGame };
    com stats/efeito/lore, X para fechar e botões Adicionar/Retirar do deck.
    Uma aba escolhe qual lado (A/B) está sendo editado.
    ========================================================================== */
-function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView, msg }) {
+const LIB_API_STUB = {
+  decks: [], loadedId: [null, null], max: MAX_DECKS, nameMax: NAME_MAX,
+  salvar: () => false, atualizar: () => false, renomear: () => false,
+  duplicar: () => false, apagar: () => false, carregar: () => false,
+};
+
+function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView, msg, libApi = LIB_API_STUB }) {
   const [side, setSide] = useState(0);
   const [detail, setDetail] = useState(null); // def da carta ampliada, ou null
+  const [lib, setLib] = useState(null);        // {focusSave} — modal da biblioteca
   const cur = build[side];
   const ready = build[0].length === 12 && build[1].length === 12;
   const accent = side === 0 ? "#fcd34d" : "#7dd3fc";
@@ -1693,6 +1905,11 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
         <button onClick={() => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(side, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
         {side === 1 && <button onClick={() => setDeck(1, build[0].slice())} style={chip}>Copiar A→B</button>}
+      </div>
+      {/* biblioteca de decks */}
+      <div style={{ display: "flex", gap: 6, padding: "0 10px 6px" }}>
+        <button onClick={() => setLib({ focusSave: true })} style={{ ...chip, flex: 1, background: "#065f46", color: "#d1fae5", border: "1px solid #047857" }}>💾 Salvar</button>
+        <button onClick={() => setLib({ focusSave: false })} style={{ ...chip, flex: 1, background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>📂 Meus decks{libApi.decks.length ? ` (${libApi.decks.length})` : ""}</button>
       </div>
       <AvisoOutorga deck={cur} estilo="mobile" />
 
@@ -1766,6 +1983,11 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
           </div>
         );
       })()}
+
+      {lib && (
+        <DeckLibraryModal api={libApi} side={side} sideLabel={SIDE_NAME[side]} accent={accent}
+          cards={cur} focusSave={lib.focusSave} onClose={() => setLib(null)} onLoaded={() => setLib(null)} />
+      )}
     </div>
   );
 }
@@ -1778,8 +2000,9 @@ export { DeckMobile };
    Adicionar/Retirar do deck e um X para fechar. Funciona em desktop e mobile.
    O deck do multiplayer é o Lado A (build[0]).
    ========================================================================== */
-function MpDeck({ build, setDeck, flash, setScreen, msg }) {
+function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }) {
   const [detail, setDetail] = useState(null);
+  const [lib, setLib] = useState(null);
   const cur = build[0];
   const full = cur.length === 12;
   const accent = "#818cf8";
@@ -1810,6 +2033,10 @@ function MpDeck({ build, setDeck, flash, setScreen, msg }) {
         ))}
         <button onClick={() => setDeck(0, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(0, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
+      </div>
+      <div style={{ display: "flex", gap: 6, padding: "0 10px 6px" }}>
+        <button onClick={() => setLib({ focusSave: true })} style={{ ...chip, flex: 1, background: "#065f46", color: "#d1fae5", border: "1px solid #047857" }}>💾 Salvar</button>
+        <button onClick={() => setLib({ focusSave: false })} style={{ ...chip, flex: 1, background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>📂 Meus decks{libApi.decks.length ? ` (${libApi.decks.length})` : ""}</button>
       </div>
       <AvisoOutorga deck={cur} estilo="mobile" />
 
@@ -1878,6 +2105,11 @@ function MpDeck({ build, setDeck, flash, setScreen, msg }) {
           </div>
         );
       })()}
+
+      {lib && (
+        <DeckLibraryModal api={libApi} side={0} sideLabel="Seu deck" accent="#818cf8"
+          cards={cur} focusSave={lib.focusSave} onClose={() => setLib(null)} onLoaded={() => setLib(null)} />
+      )}
     </div>
   );
 }
