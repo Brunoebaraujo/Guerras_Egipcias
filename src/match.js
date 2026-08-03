@@ -39,7 +39,7 @@ import {
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka,
-  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet,
+  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet, resolveKhnum,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo,
@@ -212,6 +212,7 @@ function resolverEntrada(s, card, def, rng) {
   if (def.afogaCusto) { s.effect = resolveAfogamento(s, card, def); return; }
   if (def.fuse) { s.effect = resolveArmadura(s, card); return; }
   if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return; }
+  if (def.buffsPerBlessing) { s.effect = resolveKhnum(s, card, def); return; }
   if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return; }
   // ---- Arquétipo Animal ----
   if (def.invocar) { s.effect = resolveInvocar(s, card, def); return; }

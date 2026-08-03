@@ -119,6 +119,10 @@ export const CARDS = [
     trigger: "entrar", judgeLane: true, arte: "anubis", arteFoco: "center 0%",
     lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
     texto: "Ao Entrar: todas as outras cartas desta via têm o Poder base nivelado ao menor entre elas. Buffs permanentes somem; auras permanecem. O julgamento persiste." },
+  { key: "khnum", nome: "Khnum, o Oleiro Divino", tipo: "Divindade", custo: 6, poder: 5, arch: "buff",
+    trigger: "entrar", buffsPerBlessing: 1, arte: "khnum", arteFoco: "center 0%",
+    lore: "Khnum, o deus oleiro que molda as almas dos deuses, reforja a si mesmo conforme trabalha em harmonia com seus pares abençoados. Sua forma se torna mais robusta, seu poder mais refinado — cada bênção que flui ao seu redor alimenta sua transformação divina.",
+    texto: "Ao Entrar: ganha +1 de Poder para cada carta aliada com bênção revelada em jogo." },
   { key: "amheh", nome: "Am-heh, o Devorador de Milhões", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio",
     trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
@@ -303,7 +307,7 @@ const NOME_CURTO = {
   guardareal: "Guarda", general: "General", colosso: "Colosso",
   "assassino-medjay": "Medjay", enxame: "Enxame",
   // Divindades de nome composto
-  amheh: "Am-heh", moises: "Moisés",
+  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum",
   // Criaturas e demais
   escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
   selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",
@@ -1292,6 +1296,21 @@ export function resolveSekhmet(s, card, cost) {
   const returns = destroyList(s, victims);
   pushLog(s, `Sekhmet destruiu ${victims.length} carta(s) de custo ${cost}.` + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
   return { uid: card.uid, text: `☾ ${victims.length}✕`, kind: "debuff", seq: s.effectSeq };
+}
+
+// ----------------------- Khnum: buff por cartas abençoadas ----------------------
+// Ao entrar, Khnum ganha +1 de Poder para cada carta aliada que esteja:
+// 1. Revelada (emJogo())
+// 2. Com bênção permanente (mods.length > 0)
+export function resolveKhnum(s, card, def = byKey[card.key]) {
+  const blessed = s.board.filter((c) => c.owner === card.owner && c.uid !== card.uid && emJogo(c) && c.mods && c.mods.length > 0).length;
+  if (blessed === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta aliada abençoada em jogo.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  aplicarBencao(s, card, blessed, def.nome);
+  pushLog(s, `${def.nome} ganhou +${blessed} de Poder (${blessed} carta(s) abençoada(s)).`);
+  return { uid: card.uid, text: `☀ +${blessed}`, kind: "buff", seq: s.effectSeq };
 }
 
 // -------------------------- Heka: buff do próximo ----------------------------
