@@ -194,13 +194,16 @@ describe("Seqer-Mau, o Destruidor", () => {
     expect(inimiga_env.dying).toBeTruthy();
   });
 
-  it("só destroi na mesma via", () => {
-    const seqer = mk("seqer-mau", { lane: 0 });
-    const env_outra = mk("servo", { owner: 1, lane: 1, veneno: 2 });
-    const s = mkState([seqer, env_outra]);
+  it("destrói cartas envenenadas de QUALQUER via (campo inteiro)", () => {
+    const seqer = mk("seqer-mau", { lane: 2 });
+    const env_via0 = mk("servo", { owner: 1, lane: 0, veneno: 2 });
+    const env_via1 = mk("arqueiro", { owner: 1, lane: 1, veneno: 1 });
+    const s = mkState([seqer, env_via0, env_via1]);
     
-    const effect = resolveSeqerMau(s, seqer);
+    resolveSeqerMau(s, seqer);
     
-    expect(effect.kind).toBe("block");
+    // Ambas devem ser destruídas mesmo estando em vias diferentes do Seqer
+    const mortas = s.board.filter((c) => c.dying);
+    expect(mortas).toHaveLength(2);
   });
 });

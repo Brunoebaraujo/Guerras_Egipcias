@@ -150,7 +150,7 @@ export const CARDS = [
   { key: "seqer-mau", nome: "Seqer-Mau, o Destruidor", tipo: "Criatura", custo: 6, poder: 6, arch: "debuff",
     trigger: "entrar", finalizador: true, arte: "seqer-mau", arteFoco: "center 0%",
     lore: "O grande assassino das eras, lenda de destruição. Sua tarefa é simples: eliminar os envenenados.",
-    texto: "Ao Entrar: destrói 2 cartas envenenadas aleatórias do campo (se houver)." },
+    texto: "Ao Entrar: destrói 2 cartas inimigas envenenadas aleatórias do campo (todas as vias)." },
   { key: "amheh", nome: "Am-heh, o Devorador de Milhões", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio",
     trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
@@ -1420,12 +1420,14 @@ export function resolveAssassino(s, card, def = byKey[card.key]) {
 }
 
 // ----------------------- Seqer-Mau: destruir envenenadas ----------------------
+// Finisher do arquétipo: destrói 2 cartas inimigas envenenadas aleatórias do
+// CAMPO INTEIRO (todas as vias), não apenas da via em que foi jogado.
 export function resolveSeqerMau(s, card, def = byKey[card.key]) {
-  const envenenadas = s.board.filter((c) => c.veneno && c.owner !== card.owner && emJogo(c) && c.lane === card.lane);
+  const envenenadas = s.board.filter((c) => c.veneno && c.owner !== card.owner && emJogo(c));
   const alvos = envenenadas.sort(() => Math.random() - 0.5).slice(0, 2);
   
   if (alvos.length === 0) {
-    pushLog(s, `${def.nome}: nenhuma carta inimiga envenenada nesta via.`);
+    pushLog(s, `${def.nome}: nenhuma carta inimiga envenenada no campo.`);
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
   }
   
