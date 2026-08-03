@@ -30,8 +30,8 @@ beforeEach(resetUid);
 describe("identidade do arquétipo", () => {
   it("as dez cartas existem na coleção com custo e Poder do documento", () => {
     const esperado = [
-      ["cao", 0, 1, "Animal"], ["cabra-nilo", 1, 1, "Animal"], ["ganso", 1, 0, "Animal"],
-      ["gato", 2, 2, "Animal"], ["macaco", 2, 1, "Animal"], ["hiena", 2, 2, "Animal"],
+      ["cao", 0, 1, "Animal"], ["cabra-nilo", 1, 1, "Animal"], ["ganso", 1, 1, "Animal"],
+      ["gato", 2, 2, "Animal"], ["macaco", 2, 4, "Animal"], ["hiena", 2, 2, "Animal"],
       ["garca", 2, 2, "Animal"], ["rebanho", 3, 2, "Animal"], ["domador", 3, 2, "Humano"],
       ["apis", 6, 7, "Animal"],
     ];

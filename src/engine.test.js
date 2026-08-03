@@ -39,7 +39,7 @@ describe("power()", () => {
   it("Montu dá +2 apenas a Guerreiros do dono", () => {
     const s = mkState([mk("montu"), mk("carruagem"), mk("hathor")]);
     expect(power(s.board[1], ctxOf(s))).toBe(8);      // 6 + 2
-    expect(power(s.board[2], ctxOf(s))).toBe(2);      // Divindade: sem buff
+    expect(power(s.board[2], ctxOf(s))).toBe(3);      // Divindade: sem buff
   });
 
   it("Maat prende TODA a via ao poder impresso (dos dois lados)", () => {
@@ -93,7 +93,7 @@ describe("Bennu (Ao Morrer)", () => {
     const s = mkState([bennu]);
     destroyList(s, [bennu]);
     expect(s.pendingEnergy[0]).toBe(1);
-    expect(s.pendingReturn).toEqual([{ owner: 0, lane: 1, printed: 0, baked: 1, mods: [] }]);
+    expect(s.pendingReturn).toEqual([{ owner: 0, lane: 1, printed: 0, baked: 1, mods: [], venenos: [] }]);
   });
 
   it("renasce na MESMA rodada, com +1 de Poder, e limpa a fila", () => {

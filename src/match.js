@@ -285,7 +285,7 @@ const ACTIONS = {
     s.board.push({
       uid: nextUid(), key: h.key, owner: side, lane,
       printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
-      custoMod: h.custoMod || 0,
+      custoMod: h.custoMod || 0, venenos: h.venenos ? [...h.venenos] : [],
       entryPlays: s.plays[side], enteredRound: s.round, moved: false,
     });
     s.energy[side] -= custo;
@@ -309,7 +309,7 @@ const ACTIONS = {
     const def = byKey[c.key];
     s.energy[c.owner] += custoDe(c);   // devolve o que foi realmente pago
     s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
-    s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0 });
+    s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
     s.board.splice(idx, 1);
     pushLog(s, `${SIDE_NAME[c.owner]} recolheu ${def.nome} para a mão.`);
     return ok(s);
@@ -332,7 +332,7 @@ const ACTIONS = {
     for (const c of voltando) {
       s.energy[c.owner] += custoDe(c);
       s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
-      s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0 });
+      s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
       s.board.splice(s.board.findIndex((x) => x.uid === c.uid), 1);
     }
     pushLog(s, `${SIDE_NAME[side]} reiniciou a rodada — ${voltando.length} carta(s) de volta à mão.`);

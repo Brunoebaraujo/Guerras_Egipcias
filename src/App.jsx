@@ -27,9 +27,11 @@ const START_HAND = 4;
 const PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "escaravelho", "heka", "lanceiro", "carruagem", "enxame", "montu", "guardareal", "amon", "general", "colosso"],
-  "Sacrifício": ["servo", "bennu", "mumia", "armadura", "hathor", "sobek", "enxame", "sekhmet", "apofis", "osiris", "diluvio", "set"],
+  "Sacrifício": ["servo", "bennu", "mumia", "armadura", "heka", "sobek", "enxame", "sekhmet", "apofis", "osiris", "diluvio", "amheh"],
   "Controle":   ["anubis", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "set"],
   "Bênção":     ["renenutet", "hathor", "heka", "armadura", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "escaravelho", "montu", "amon"],
+  // Assassinos: envenena por marcas acumuladas; Semerj espalha e Seqer-Mau finaliza.
+  "Assassinos": ["servo", "arqueiro", "sicario", "heka", "senti", "enxame", "hemsu", "montu", "semerj", "akhu", "general", "seqer-mau"],
   // Moisés traz +10 Pragas: 12 escolhidas viram 22 embaralhadas. As outras 11
   // vagas seguram as duas vias que o Moisés não ocupa.
   "Pragas":     ["moises", "servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "armadura", "hathor", "escaravelho", "selo"],
@@ -408,7 +410,7 @@ export default function App() {
   }
   function zoomHand(h) {
     const def = byKey[h.key];
-    setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
+    setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: (h.baked || 0) !== 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
   }
 
   // ----------------------------- PLANEJAR ----------------------------------
@@ -1051,7 +1053,7 @@ function ZoomModal({ zoom, onClose }) {
             </button>
           )}
           <div className="text-xs text-stone-400 mt-0.5">
-            Impresso {def.poder}{baked > 0 ? ` · Faixa +${baked}` : ""}{current != null && current !== printed + baked ? ` · Atual ${current}` : ""}
+            Impresso {def.poder}{(baked || 0) !== 0 ? ` · Faixa ${baked > 0 ? "+" : ""}${baked}` : ""}{current != null && current !== printed + baked ? ` · Atual ${current}` : ""}
           </div>
           {partes && partes.length > 1 && (
             <div className="mt-2 text-left rounded border border-stone-700 bg-stone-900/70 px-2 py-1.5" style={{ maxWidth: w }}>
@@ -1099,7 +1101,7 @@ function HandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const custo = custoDe(h);
   const afford = g.energy[side] >= custo;
   const agravada = custo > def.custo;
-  const faixa = h.baked > 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
+  const faixa = (h.baked || 0) !== 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
   const ring = isSel ? (tone === "amber" ? "ring-2 ring-amber-400" : "ring-2 ring-sky-400") : "";
   return (
@@ -1118,8 +1120,8 @@ function HandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
 function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
   const accent = tone === "amber" ? "border-amber-600 text-amber-200" : "border-sky-600 text-sky-200";
   const hand = g.hand[side];
-  const returned = hand.filter((h) => h.baked > 0);
-  const normal = hand.filter((h) => h.baked === 0);
+  const returned = hand.filter((h) => (h.baked || 0) !== 0 || (h.venenos && h.venenos.length > 0));
+  const normal = hand.filter((h) => (h.baked || 0) === 0 && !(h.venenos && h.venenos.length > 0));
   const isPrio = g.priority === side;
   const props = { side, tone, g, sel, setSel, disabled, onZoom };
   return (
@@ -1379,7 +1381,7 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const custo = custoDe(h);
   const afford = g.energy[side] >= custo;
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
-  const faixa = h.baked > 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
+  const faixa = (h.baked || 0) !== 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
   const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
   const ref = useRef(null);
@@ -1604,7 +1606,7 @@ function OnlineGame({ send, data, note, onLeave }) {
   }
   function zoomHand(h) {
     const def = byKey[h.key]; if (!def) return;
-    setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: h.baked > 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
+    setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: (h.baked || 0) !== 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
   }
 
   const oppAiming = rawAim && rawAim.side !== seat;

@@ -33,7 +33,7 @@ export const CARDS = [
   { key: "colosso",   nome: "Colosso de Mênfis",     tipo: "Guerreiro", custo: 6, poder: 14, arch: "base", arte: "colosso", arteFoco: "center 0%",
     lore: "O colosso de Ramsés ainda jaz em Mênfis, dez metros de calcário. Estátuas assim tinham culto próprio — o povo lhes rezava como intermediárias do rei." },
   // Efeito
-  { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 2, arch: "buff",
+  { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 3, arch: "buff",
     trigger: "entrar", needs: "ally", buffTarget: 3, arte: "hathor", arteFoco: "center 0%",
     lore: "Senhora do amor, da música e da alegria, Hathor tocava os corações e os fazia transbordar de coragem. Onde ela pousava a mão, o guerreiro esquecia o medo e lutava com o vigor de quem se sabe amado.",
     texto: "Ao Entrar: +3 de Poder a um aliado nesta via." },
@@ -177,7 +177,7 @@ export const CARDS = [
     trigger: "entrar", animalNaVia: 1,
     texto: "Ao Entrar: +1 de Poder para cada outro Animal seu nesta via.",
     lore: "A cabra dava leite onde a terra não sustentava vaca, e por isso era o gado de quem não tinha gado. Os escribas contavam bois cabeça por cabeça; cabra ninguém contava uma a uma — contava-se o rebanho." },
-  { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 0, arch: "animal", arte: "ganso",
+  { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 1, arch: "animal", arte: "ganso",
     trigger: "entrar", invocar: { key: "token-ganso", onde: "propria" },
     texto: "Ao Entrar: invoque um Ganso (0/1) nesta via.",
     lore: "Do ganso Gengen Wer, o Grande Grasnador, teria saído o ovo que continha o sol. Em terra, porém, o ganso do Nilo era o mais banal dos bens: engordado à força, salgado em jarras e oferecido aos milhares nos altares." },
@@ -185,7 +185,7 @@ export const CARDS = [
     trigger: "continuo", protegeVia: true,
     texto: "Contínuo: suas cartas nesta via não podem ser alvo escolhido por efeitos inimigos. Não impede efeitos globais nem de via inteira.",
     lore: "Matar um gato, ainda que sem querer, era crime capital: Diodoro conta que uma multidão linchou um romano por isso, em plena missão diplomática. O animal que guardava o celeiro dos ratos acabou guardado pela cidade inteira." },
-  { key: "macaco", nome: "Macaco Sagrado", tipo: "Animal", custo: 2, poder: 1, arch: "animal", arte: "macaco",
+  { key: "macaco", nome: "Macaco Sagrado", tipo: "Animal", custo: 2, poder: 4, arch: "animal", arte: "macaco",
     trigger: "entrar", moverAnimal: true,
     texto: "Ao Entrar: move outro Animal seu para outra via com espaço.",
     lore: "Babuínos vinham de Punt e viviam nos templos de Tot, com nome, ração e sepultura própria. Nas pinturas aparecem trepando em figueiras a mando dos donos: o Egito descobriu cedo que o macaco alcança o que o homem não alcança." },
@@ -721,7 +721,7 @@ export function destroyList(s, victims) {
   // (que absorve o Poder real de cada destruída, positivo ou negativo).
   const powerAtDeath = victims.map((v) => power(v, ctxOf(s)));
   victims.forEach((v, i) => {
-    if (v.key === "mumia") mumias.push({ owner: v.owner, val: powerAtDeath[i] * 2 });
+    if (v.key === "mumia") mumias.push({ owner: v.owner, val: powerAtDeath[i] * 2, venenos: (v.venenos || []).slice() });
     if (v.key === "bennu") {
       s.pendingEnergy[v.owner] += 1;
       /* A ave leva TUDO o que estava escrito nela: a faixa acumulada, mais um, e
@@ -733,6 +733,7 @@ export function destroyList(s, victims) {
       s.pendingReturn.push({
         owner: v.owner, lane: v.lane, printed: v.printed, baked: (v.baked || 0) + 1,
         mods: (v.mods || []).map((m) => ({ ...m })),
+        venenos: (v.venenos || []).slice(),
       });
     }
   });
@@ -763,7 +764,7 @@ export function destroyList(s, victims) {
        nada aqui precisa ser tocado — antes havia um 2 fixo aqui que teria
        silenciosamente divergido da coleção. */
     const impresso = byKey["mumia"].poder;
-    mao.push({ hid: nextUid(), key: "mumia", printed: impresso, baked: Math.max(0, r.val - impresso) });
+    mao.push({ hid: nextUid(), key: "mumia", printed: impresso, baked: Math.max(0, r.val - impresso), venenos: r.venenos || [] });
     voltaram.push(r);
   }
   return voltaram;
@@ -786,6 +787,7 @@ export function resolveBennuRebirth(s, rng = Math.random) {
     const card = {
       uid: nextUid(), key: "bennu", owner: r.owner, lane,
       printed: r.printed, baked: r.baked, mods: (r.mods || []).map((m) => ({ ...m })),
+      venenos: (r.venenos || []).slice(),
       revealed: true, dying: false,
       entryPlays: s.plays[r.owner], enteredRound: s.round, moved: false,
     };
@@ -1099,6 +1101,21 @@ export function aplicarVeneno(s) {
   }
   if (afetadas.length)
     pushLog(s, `☠ Veneno: ${afetadas.map((c) => `${byKey[c.key].nome} (-${totalVeneno(c)})`).join(", ")}.`);
+  // Cartas envenenadas na MÃO (Múmia que voltou carregando marcas) também sofrem
+  // o dano por rodada — mas na mão não há `mods`, então o desconto vai para a
+  // Faixa (`baked`), que pode ficar negativa. As marcas permanecem: o veneno
+  // continua corroendo enquanto a carta esperar para ser rejogada.
+  const naMao = [];
+  for (const lado of [0, 1]) {
+    for (const h of (s.hand[lado] || [])) {
+      if (h.venenos && h.venenos.length > 0) {
+        h.baked = (h.baked || 0) - totalVeneno(h);
+        naMao.push(h);
+      }
+    }
+  }
+  if (naMao.length)
+    pushLog(s, `☠ Veneno (mão): ${naMao.map((h) => `${byKey[h.key].nome} (-${totalVeneno(h)})`).join(", ")}.`);
   return afetadas;
 }
 
