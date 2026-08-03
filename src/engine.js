@@ -1301,9 +1301,17 @@ export function resolveSekhmet(s, card, cost) {
 // ----------------------- Khnum: buff por cartas abençoadas ----------------------
 // Ao entrar, Khnum ganha +1 de Poder para cada carta aliada que esteja:
 // 1. Revelada (emJogo())
-// 2. Com bênção permanente (mods.length > 0)
+// 2. Com bênção de qualquer tipo: permanente (mods) ou aura (recalculada)
+// A forma de detectar: power(card) > poder impresso
 export function resolveKhnum(s, card, def = byKey[card.key]) {
-  const blessed = s.board.filter((c) => c.owner === card.owner && c.uid !== card.uid && emJogo(c) && c.mods && c.mods.length > 0).length;
+  const ctx = ctxOf(s);
+  const blessed = s.board.filter((c) => 
+    c.owner === card.owner && 
+    c.uid !== card.uid && 
+    emJogo(c) && 
+    power(c, ctx) > byKey[c.key].poder
+  ).length;
+  
   if (blessed === 0) {
     pushLog(s, `${def.nome}: nenhuma carta aliada abençoada em jogo.`);
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };

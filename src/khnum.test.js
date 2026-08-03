@@ -18,7 +18,7 @@ beforeEach(resetUid);
 
 /* ------------------------------ Khnum ------------------------------------ */
 describe("Khnum, o Oleiro Divino", () => {
-  it("ganha +1 de Poder para cada carta aliada com bênção revelada", () => {
+  it("ganha +1 de Poder para cada carta aliada com bênção permanente (mods)", () => {
     const khnum = mk("khnum");
     const abencoad1 = mk("servo", { mods: [{ src: "Hathor", val: 1 }] });
     const abencoad2 = mk("arqueiro", { lane: 1, mods: [{ src: "Heka", val: 2 }] });
@@ -30,6 +30,20 @@ describe("Khnum, o Oleiro Divino", () => {
     expect(khnum.mods).toHaveLength(1);
     expect(khnum.mods[0].src).toBe("Khnum, o Oleiro Divino");
     expect(khnum.mods[0].val).toBe(2);
+  });
+
+  it("ganha +1 por cada carta aliada com aura (power > poder impresso)", () => {
+    const khnum = mk("khnum");
+    const amon = mk("amon", { owner: 0 });
+    const aliado = mk("servo", { owner: 0, lane: 1 }); // Amon dá +1 aura
+    const s = mkState([khnum, amon, aliado]);
+    
+    resolveKhnum(s, khnum);
+    
+    // Apenas 'aliado' tem power > impresso (por causa de Amon)
+    // Khnum deveria ter +1
+    expect(khnum.mods).toHaveLength(1);
+    expect(khnum.mods[0].val).toBe(1);
   });
 
   it("não ganha nada se não há cartas aliadas abençoadas", () => {
@@ -75,7 +89,7 @@ describe("Khnum, o Oleiro Divino", () => {
     const abencoad = mk("servo", { mods: [{ src: "Heka", val: 2 }] });
     const s = mkState([khnum, abencoad]);
     
-    const effect = resolveKhnum(s, khnum);
+    resolveKhnum(s, khnum);
     
     // Khnum deveria ter +1 (só a outra carta, não a si mesmo)
     const newMods = khnum.mods.filter((m) => m.src === "Khnum, o Oleiro Divino");
@@ -96,7 +110,7 @@ describe("Khnum, o Oleiro Divino", () => {
     expect(khnum.mods[0].val).toBe(1);
   });
 
-  it("múltiplas bênçãos na mesma carta contam como 1", () => {
+  it("múltiplas bênçãos na mesma carta contam como 1 (uma carta = um buff)", () => {
     const khnum = mk("khnum");
     const multi_buff = mk("servo", {
       mods: [{ src: "Hathor", val: 1 }, { src: "Heka", val: 2 }, { src: "Renenutet", val: 1 }],
@@ -120,5 +134,19 @@ describe("Khnum, o Oleiro Divino", () => {
     
     // Khnum: 5 (base) + 2 (bênção) = 7
     expect(power(khnum, ctxOf(s))).toBe(7);
+  });
+
+  it("conta cartas com buff permanente + cartas com aura juntas", () => {
+    const khnum = mk("khnum");
+    const mod_buff = mk("servo", { mods: [{ src: "Hathor", val: 1 }] }); // bênção permanente
+    const amon = mk("amon", { owner: 0 });
+    const aura_buff = mk("arqueiro", { owner: 0, lane: 1 }); // recebe aura de Amon
+    const s = mkState([khnum, mod_buff, amon, aura_buff]);
+    
+    resolveKhnum(s, khnum);
+    
+    // Khnum deveria ter +2 (uma com mod + uma com aura)
+    expect(khnum.mods).toHaveLength(1);
+    expect(khnum.mods[0].val).toBe(2);
   });
 });
