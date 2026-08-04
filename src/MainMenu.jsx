@@ -1,13 +1,25 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 /* Tela inicial: a arte épica preenche o fundo e três botões flutuam sobre ela.
    O caminho da imagem PRECISA passar por import.meta.env.BASE_URL — no GitHub
    Pages o site vive em /Guerras_Egipcias/, então um "/guerras-bg.webp" cru
    apontaria para a raiz do domínio (404). É o mesmo motivo pelo qual a arte
-   das cartas usa base + "cartas/...". */
+   das cartas usa base + "cartas/...".
+
+   Duas artes: retrato (mobile) e paisagem (desktop). A troca é por largura de
+   viewport — a mesma fronteira que o App usa para escolher a interface. */
 export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
   const base = import.meta.env.BASE_URL;
-  const bg = base + "guerras-bg.webp";
+
+  // Largura da tela decide qual arte usar. 820px é a mesma fronteira do App.
+  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
+  useEffect(() => {
+    const on = () => setW(window.innerWidth);
+    window.addEventListener("resize", on);
+    return () => window.removeEventListener("resize", on);
+  }, []);
+  const isDesktop = w >= 820;
+  const bg = base + (isDesktop ? "guerras-bg-desktop.webp" : "guerras-bg.webp");
 
   const btnBase = {
     padding: "14px 26px",
