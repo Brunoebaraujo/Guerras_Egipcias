@@ -473,10 +473,16 @@ export default function App() {
   const [bannerVisto, setBannerVisto] = useState(false);
   useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
   const [msg, setMsg] = useState("");
+  const [shownPlagueSeq, setShownPlagueSeq] = useState(null);  // Rastreia qual seq de praga já foi mostrada
   
-  // Quando uma praga é revelada, mostra o zoom por 6 segundos
+  // Reset plague showcase tracking on new round
   useEffect(() => {
-    if (g.lastPlagueRevealed) {
+    setShownPlagueSeq(null);
+  }, [g.round]);
+  
+  // Quando uma praga é revelada, mostra o zoom por 6 segundos (apenas uma vez por praga)
+  useEffect(() => {
+    if (g.lastPlagueRevealed && g.lastPlagueRevealed.seq !== shownPlagueSeq) {
       const plagueKey = g.lastPlagueRevealed.key;
       const plagueCard = byKey[plagueKey];
       if (plagueCard) {
@@ -490,11 +496,12 @@ export default function App() {
           sub: "Praga revelada",
           onReturn: null,
         });
+        setShownPlagueSeq(g.lastPlagueRevealed.seq);  // Marca que já mostrou essa praga
         const timer = setTimeout(() => setZoom(null), 6000);
         return () => clearTimeout(timer);
       }
     }
-  }, [g.lastPlagueRevealed]);
+  }, [g.lastPlagueRevealed, shownPlagueSeq]);
   const [fast, setFast] = useState(false);
   const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
