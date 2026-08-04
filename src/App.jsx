@@ -474,11 +474,11 @@ export default function App() {
   useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
   const [msg, setMsg] = useState("");
   
-  // Quando uma praga é revelada, mostra o showcase por 4 segundos
+  // Quando uma praga é revelada, mostra o showcase por 6 segundos
   useEffect(() => {
     if (g.lastPlagueRevealed) {
       setShownPlague({ key: g.lastPlagueRevealed.key });
-      const timer = setTimeout(() => setShownPlague(null), 4000);
+      const timer = setTimeout(() => setShownPlague(null), 6000);
       return () => clearTimeout(timer);
     }
   }, [g.lastPlagueRevealed]);
@@ -1752,11 +1752,18 @@ function GameMobile(p) {
 
 function PlagueShowcase({ plaque }) {
   const def = byKey[plaque.key];
+  const base = import.meta.env.BASE_URL;
   const [isVisible, setIsVisible] = React.useState(true);
   
   React.useEffect(() => {
-    // Trigger exit animation after 3.6 seconds (before 4s disappear)
-    const exitTimer = setTimeout(() => setIsVisible(false), 3600);
+    // Preload image to avoid "not found" errors
+    const img = new Image();
+    img.src = `${base}cartas/${def.key}.webp`;
+  }, [def.key, base]);
+  
+  React.useEffect(() => {
+    // Trigger exit animation after 5.6 seconds (before 6s disappear)
+    const exitTimer = setTimeout(() => setIsVisible(false), 5600);
     return () => clearTimeout(exitTimer);
   }, []);
   
@@ -1855,7 +1862,7 @@ function PlagueShowcase({ plaque }) {
               }} />
               
               <img
-                src={`/cartas/${def.key}.webp`}
+                src={`${base}cartas/${def.key}.webp`}
                 alt={def.nome}
                 style={{
                   width: "100%",
