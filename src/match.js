@@ -154,7 +154,7 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
-    lastPlagueRevealed: null,
+    lastPlagueRevealed: null, awaitingPlagueShowcase: false,
     log: [linha], trace: [linha], finished: false,
   };
   for (const side of [0, 1]) {

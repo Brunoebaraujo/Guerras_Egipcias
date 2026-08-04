@@ -474,10 +474,12 @@ export default function App() {
   useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
   const [msg, setMsg] = useState("");
   const [shownPlagueSeq, setShownPlagueSeq] = useState(null);  // Rastreia qual seq de praga já foi mostrada
+  const [pausedForPlague, setPausedForPlague] = useState(false);  // Pausa revelação enquanto praga é mostrada
   
   // Reset plague showcase tracking on new round
   useEffect(() => {
     setShownPlagueSeq(null);
+    setPausedForPlague(false);
   }, [g.round]);
   
   // Quando uma praga é revelada, mostra o zoom por 6 segundos (apenas uma vez por praga)
@@ -486,6 +488,7 @@ export default function App() {
       const plagueKey = g.lastPlagueRevealed.key;
       const plagueCard = byKey[plagueKey];
       if (plagueCard) {
+        setPausedForPlague(true);  // Pausa a revelação automática
         setZoom({
           def: plagueCard,
           custo: plagueCard.custo,
@@ -497,7 +500,10 @@ export default function App() {
           onReturn: null,
         });
         setShownPlagueSeq(g.lastPlagueRevealed.seq);  // Marca que já mostrou essa praga
-        const timer = setTimeout(() => setZoom(null), 6000);
+        const timer = setTimeout(() => {
+          setZoom(null);
+          setPausedForPlague(false);  // Despausa revelação
+        }, 6000);
         return () => clearTimeout(timer);
       }
     }
@@ -523,7 +529,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (aim) return;
+    if (aim || pausedForPlague) return;  // Pausa se em mira ou mostrando praga
     /* A revelação se conduz sozinha: um passo por vez até a fila esvaziar. */
     if (g.phase === "revealing") {
       const t = setTimeout(() => dispatch({ t: "step" }), esperaRevelacao());
@@ -540,7 +546,7 @@ export default function App() {
       const t = setTimeout(() => nextRound(), fast ? 700 : 1800);
       return () => clearTimeout(t);
     }
-  });
+  }, [aim, pausedForPlague, g.phase, g.finished, fast, g.blessings, g.round]);
 
   const clone = (s) => JSON.parse(JSON.stringify(s));
   const commit = (s) => setG(s);
