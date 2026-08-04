@@ -1062,8 +1062,12 @@ export default function App() {
             <Hand side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
           </div>
 
-          <div className="rounded-xl" style={{ flex: "1 1 auto", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-            <div style={{ maxHeight: "100%", maxWidth: "100%", aspectRatio: BOARD.ratio }}>
+          <div className="rounded-xl" style={{ flex: "1 1 auto", minHeight: 0, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            {/* O tabuleiro precisa de tamanho CONCRETO: as vias são posicionadas
+                em absoluto, então o wrapper não ganha altura sozinho. Deriva a
+                largura da altura disponível (height 100% + aspect-ratio) e limita
+                pela largura com max-width, para caber nos dois eixos. */}
+            <div style={{ height: "100%", aspectRatio: BOARD.ratio, maxWidth: "100%" }}>
               <Tabuleiro g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
                 placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
                 startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard} />
@@ -1101,7 +1105,7 @@ function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveTo, appl
 
   return (
     <div ref={ref} className="relative select-none" style={{
-      aspectRatio: BOARD.ratio, width: "100%", height: "100%",
+      width: "100%", height: "100%",
       backgroundImage: `url(${base}tabuleiro.webp)`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
       borderRadius: 12, boxShadow: "0 0 0 1px #44403c, 0 8px 30px rgba(0,0,0,.5)",
     }}>
