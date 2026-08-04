@@ -1401,33 +1401,74 @@ function Chip({ label, value, tone = "stone" }) {
   return <div className="px-2 py-1 rounded-md bg-stone-800 border border-stone-700 text-xs"><span className="text-stone-500">{label} </span><span className={`font-bold ${t}`}>{value}</span></div>;
 }
 
-/* Carta da mao, no NIVEL DO MODULO — e nao dentro de Hand.
-   Componente declarado dentro de outro componente ganha identidade nova a cada
-   render do pai. O React compara os tipos, ve funcoes diferentes, e em vez de
-   atualizar ele DESMONTA e REMONTA a subarvore inteira. Duas consequencias:
-   o DOM de toda a mao era destruido e reconstruido a cada clique, e a animacao
-   CSS `duat-draw` (o halo dourado da compra) recomecava do zero junto, porque
-   animacao de CSS reinicia quando o elemento monta.
-   Aqui em cima, a mao so e remontada quando uma carta entra ou sai dela — que
-   e exatamente quando o halo DEVE tocar. */
-function HandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
+/* Miniatura da carta na mão: arte de fundo + custo (canto esq. sup.) +
+   poder (canto dir. sup.) + nome na base. Substitui o chip de texto por uma
+   leitura visual mais rica quando há espaço (desktop). Cartas que voltaram à
+   mão com Faixa ganham uma borda âmbar e mostram a faixa acumulada, para o
+   jogador saber que aquela carta mudou — sem precisar de uma seção separada. */
+function HandThumb({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
+  const base = import.meta.env.BASE_URL;
   const def = byKey[h.key];
   const isSel = !!sel && sel.side === side && sel.hid === h.hid;
   const custo = custoDe(h);
   const afford = g.energy[side] >= custo;
   const agravada = custo > def.custo;
-  const faixa = (h.baked || 0) !== 0 ? ` · Faixa ${h.printed + h.baked}` : ` · P${h.printed}`;
+  const faixa = (h.baked || 0) !== 0;           // voltou à mão com poder alterado
+  const poderExib = h.printed + (h.baked || 0);
+  const envenenada = h.venenos && h.venenos.length > 0;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
-  const ring = isSel ? (tone === "amber" ? "ring-2 ring-amber-400" : "ring-2 ring-sky-400") : "";
+  const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
+  const accent = tone === "amber" ? "#fbbf24" : "#7dd3fc";
+  const ring = isSel ? `2px solid ${accent}` : faixa ? "1.5px solid #f59e0b" : envenenada ? "1.5px solid #a3e635" : "1px solid #44403c";
+
   return (
-    <div className={`relative rounded border bg-stone-800 border-stone-700 ${ring} ${drawn ? "duat-draw" : ""} ${disabled ? "opacity-40" : afford ? "hover:border-stone-500" : "opacity-50"}`} style={{ width: 122 }}>
-      <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })} title={def.texto || "Carta base (sem efeito)"}
-        className="text-left w-full p-1 pr-5">
-        <div className={`text-xs ${ARCH_COLOR[def.arch]} overflow-hidden`}>{GLYPH[def.arch]} {def.nomeCurto}</div>
-        <div className="text-xs text-stone-400 mt-0.5"><span className={agravada ? "text-rose-300 font-semibold" : ""}>{custo}⚡</span>{faixa}</div>
+    <div className={`relative ${drawn ? "duat-draw" : ""}`} style={{
+      width: 92, height: 128, borderRadius: 8, overflow: "hidden", flex: "0 0 auto",
+      border: ring, background: artSrc ? "#000" : "#1c1917",
+      opacity: disabled ? 0.5 : afford ? 1 : 0.55,
+      cursor: disabled ? "default" : "pointer",
+      boxShadow: isSel ? `0 0 10px ${accent}` : "0 2px 6px rgba(0,0,0,.5)",
+    }}>
+      <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
+        title={def.texto || "Carta base (sem efeito)"}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", padding: 0, border: "none", background: "transparent", cursor: "inherit" }}>
+        {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: 0.92 }} />}
+        {/* Véu escuro no topo e na base para os números e o nome lerem */}
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.7) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 58%, rgba(0,0,0,.55) 78%, rgba(0,0,0,.88) 100%)" }} />
+
+        {/* Custo (canto esq. sup.) */}
+        <div style={{
+          position: "absolute", top: 3, left: 3, minWidth: 18, height: 18, padding: "0 4px",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 5, background: "rgba(7,6,4,.9)", border: `1px solid ${agravada ? "#fb7185" : "rgba(247,233,192,.35)"}`,
+          fontFamily: "Georgia, serif", fontWeight: 900, fontSize: 11, lineHeight: 1,
+          color: agravada ? "#fda4af" : "#fde68a", textShadow: "0 1px 2px rgba(0,0,0,.9)",
+        }}>{custo}⚡</div>
+
+        {/* Poder (canto dir. sup.) */}
+        <div style={{
+          position: "absolute", top: 3, right: 3, minWidth: 18, height: 18, padding: "0 4px",
+          display: "inline-flex", alignItems: "center", justifyContent: "center",
+          borderRadius: 5, background: "rgba(7,6,4,.9)", border: `1px solid ${faixa ? "#f59e0b" : "rgba(247,233,192,.35)"}`,
+          fontFamily: "Georgia, serif", fontWeight: 900, fontSize: 11, lineHeight: 1,
+          color: faixa ? "#fbbf24" : "#f5f5f4", textShadow: "0 1px 2px rgba(0,0,0,.9)",
+        }} title={faixa ? `Faixa ${poderExib}` : `Poder ${poderExib}`}>{poderExib}</div>
+
+        {/* Arquétipo (glifo) logo abaixo do custo */}
+        <div className={ARCH_COLOR[def.arch]} style={{ position: "absolute", top: 24, left: 4, fontSize: 12, lineHeight: 1, textShadow: "0 1px 2px rgba(0,0,0,.95)" }}>{GLYPH[def.arch]}</div>
+
+        {/* Nome na base */}
+        <div style={{
+          position: "absolute", bottom: 0, left: 0, right: 0, padding: "3px 4px 4px",
+          color: "#ece9e4", fontSize: 11, lineHeight: 1.05, textAlign: "center", letterSpacing: -0.1,
+          overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis",
+          textShadow: "0 1px 2px rgba(0,0,0,.9)",
+        }}>{def.nomeCurto}</div>
       </button>
+
+      {/* Lupa para ampliar */}
       <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar carta"
-        className="absolute top-0.5 right-0.5 text-stone-500 hover:text-amber-300 text-xs leading-none p-0.5">🔍</button>
+        style={{ position: "absolute", bottom: 2, right: 2, zIndex: 3, color: "#d6d3d1", fontSize: 11, lineHeight: 1, padding: 2, background: "rgba(0,0,0,.4)", border: "none", borderRadius: 4, cursor: "pointer" }}>🔍</button>
     </div>
   );
 }
@@ -1435,26 +1476,20 @@ function HandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
 function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
   const accent = tone === "amber" ? "border-amber-600 text-amber-200" : "border-sky-600 text-sky-200";
   const hand = g.hand[side];
-  const returned = hand.filter((h) => (h.baked || 0) !== 0 || (h.venenos && h.venenos.length > 0));
-  const normal = hand.filter((h) => (h.baked || 0) === 0 && !(h.venenos && h.venenos.length > 0));
   const isPrio = g.priority === side;
   const props = { side, tone, g, sel, setSel, disabled, onZoom };
+  /* Fila única: as cartas que voltaram à mão (Múmia com Faixa, envenenadas)
+     entram junto com as demais. A distinção fica na borda/rótulo da própria
+     miniatura, não numa seção separada — que só roubava altura do tabuleiro. */
   return (
-    <div className={`rounded-lg border ${accent} p-3`} style={{ backgroundColor: "#1c1a17" }}>
-      <div className="flex items-center justify-between mb-2">
+    <div className={`rounded-lg border ${accent} p-2`} style={{ backgroundColor: "#1c1a17" }}>
+      <div className="flex items-center justify-between mb-1.5 px-1">
         <h3 className="text-sm font-semibold tracking-wide">{SIDE_NAME[side]} {isPrio && <span className="text-xs text-stone-400">· revela primeiro</span>}</h3>
         <span className="text-xs text-stone-400">energia {g.energy[side]} · deck {g.deck[side].length} · vistas {g.seen[side]} · mortes {g.deaths[side]}</span>
       </div>
-      {returned.length > 0 && (
-        <div className="mb-2">
-          <div className="text-xs uppercase tracking-widest text-stone-500 mb-1">Voltaram à mão</div>
-          <div className="flex flex-wrap gap-1">{returned.map((h) => <HandCard key={h.hid} h={h} {...props} />)}</div>
-        </div>
-      )}
-      <div className="text-xs uppercase tracking-widest text-stone-500 mb-1">Mão ({normal.length})</div>
-      <div className="flex flex-wrap gap-1">
-        {normal.length === 0 && <span className="text-xs text-stone-600">Mão vazia.</span>}
-        {normal.map((h) => <HandCard key={h.hid} h={h} {...props} />)}
+      <div className="flex flex-wrap gap-1.5 px-1">
+        {hand.length === 0 && <span className="text-xs text-stone-600 py-2">Mão vazia.</span>}
+        {hand.map((h) => <HandThumb key={h.hid} h={h} {...props} />)}
       </div>
     </div>
   );

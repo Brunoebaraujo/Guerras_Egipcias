@@ -42,10 +42,10 @@ describe("nenhum componente é declarado dentro de outro", () => {
     });
   }
 
-  it("a mão usa HandCard do nível do módulo", () => {
+  it("a mão usa HandThumb do nível do módulo", () => {
     const src = readFileSync("src/App.jsx", "utf8");
-    expect(src).toMatch(/^function HandCard\(/m);
-    expect(src).toContain("<HandCard key={h.hid}");
+    expect(src).toMatch(/^function HandThumb\(/m);
+    expect(src).toContain("<HandThumb key={h.hid}");
   });
 
   it("o halo da compra continua sendo uma animação de disparo único", () => {
