@@ -982,6 +982,7 @@ export default function App() {
       </div>
 
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+      {shownPlague && <PlagueShowcase plaque={shownPlague} />}
       {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
     </div>
   );
