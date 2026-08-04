@@ -154,6 +154,7 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
+    lastPlagueRevealed: null,
     log: [linha], trace: [linha], finished: false,
   };
   for (const side of [0, 1]) {
@@ -444,6 +445,7 @@ const ACTIONS = {
       }
       const badge = resolvePraga(s, card, rng);
       consumirCarta(s, card);
+      s.lastPlagueRevealed = card.key;  // Notifica UI para mostrar showcase
       pushLog(s, `${def.nome} resolveu e deixou o campo.`);
       // O Sinal do Moisés é o que o olho precisa ver; o badge da própria Praga
       // só aparece quando nenhum Moisés estava em campo para registrá-la.
