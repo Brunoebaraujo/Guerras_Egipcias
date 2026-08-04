@@ -475,10 +475,10 @@ export default function App() {
   const [msg, setMsg] = useState("");
   const [shownPlagueSeq, setShownPlagueSeq] = useState(null);  // Rastreia qual seq de praga já foi mostrada
   const [pausedForPlague, setPausedForPlague] = useState(false);  // Pausa revelação enquanto praga é mostrada
+  const plagueTimerRef = useRef(null);  // Ref para o timeout da praga
   
-  // Reset plague showcase tracking on new round
+  // Reset plague pause state on new round (but not shownPlagueSeq - it persists)
   useEffect(() => {
-    setShownPlagueSeq(null);
     setPausedForPlague(false);
   }, [g.round]);
   
@@ -501,11 +501,20 @@ export default function App() {
           isPlagueShowcase: true,  // Flag para identificar que é showcase de praga
         });
         setShownPlagueSeq(g.lastPlagueRevealed.seq);  // Marca que já mostrou essa praga
-        const timer = setTimeout(() => {
+        
+        // Auto-close after 6 seconds
+        plagueTimerRef.current = setTimeout(() => {
           setZoom(null);
           setPausedForPlague(false);  // Despausa revelação
+          plagueTimerRef.current = null;
         }, 6000);
-        return () => clearTimeout(timer);
+        
+        return () => {
+          if (plagueTimerRef.current) {
+            clearTimeout(plagueTimerRef.current);
+            plagueTimerRef.current = null;
+          }
+        };
       }
     }
   }, [g.lastPlagueRevealed, shownPlagueSeq]);
@@ -606,7 +615,12 @@ export default function App() {
   // Handler para fechar zoom e despausa se for praga
   function handleZoomClose() {
     setZoom(null);
+    // Se for praga showcase, limpa o timeout e despausa
     if (zoom?.isPlagueShowcase && pausedForPlague) {
+      if (plagueTimerRef.current) {
+        clearTimeout(plagueTimerRef.current);
+        plagueTimerRef.current = null;
+      }
       setPausedForPlague(false);
     }
   }
