@@ -1056,13 +1056,22 @@ export default function App() {
           </div>
         </aside>
 
-        {/* ============ COLUNA DIREITA: mãos + tabuleiro ============ */}
-        <main className="flex flex-col gap-2" style={{ flex: "1 1 auto", height: "100%", minHeight: 0, minWidth: 0 }}>
-          <div style={{ flex: "0 0 auto" }}>
+        {/* ============ COLUNA DO MEIO: mãos em grade ============
+            Lado A no topo, Lado B na base — cada mão vira uma grade de
+            miniaturas que rola sozinha se ficar longa. Tirar as mãos de cima e
+            de baixo do tabuleiro devolve TODA a altura vertical para ele. */}
+        <div className="flex flex-col gap-2" style={{ width: 232, flex: "0 0 232px", height: "100%", minHeight: 0 }}>
+          <div className="flex flex-col" style={{ flex: "1 1 50%", minHeight: 0 }}>
             <Hand side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
           </div>
+          <div className="flex flex-col" style={{ flex: "1 1 50%", minHeight: 0 }}>
+            <Hand side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
+          </div>
+        </div>
 
-          <div className="rounded-xl" style={{ flex: "1 1 auto", minHeight: 0, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+        {/* ============ COLUNA DIREITA: tabuleiro em tela cheia ============ */}
+        <main className="flex" style={{ flex: "1 1 auto", height: "100%", minHeight: 0, minWidth: 0, alignItems: "center", justifyContent: "center" }}>
+          <div className="rounded-xl" style={{ width: "100%", height: "100%", minHeight: 0, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             {/* O tabuleiro precisa de tamanho CONCRETO: as vias são posicionadas
                 em absoluto, então o wrapper não ganha altura sozinho. Deriva a
                 largura da altura disponível (height 100% + aspect-ratio) e limita
@@ -1072,10 +1081,6 @@ export default function App() {
                 placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
                 startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard} />
             </div>
-          </div>
-
-          <div style={{ flex: "0 0 auto" }}>
-            <Hand side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
           </div>
         </main>
       </div>
@@ -1423,7 +1428,7 @@ function HandThumb({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
 
   return (
     <div className={`relative ${drawn ? "duat-draw" : ""}`} style={{
-      width: 92, height: 128, borderRadius: 8, overflow: "hidden", flex: "0 0 auto",
+      width: "100%", aspectRatio: "92 / 128", borderRadius: 8, overflow: "hidden",
       border: ring, background: artSrc ? "#000" : "#1c1917",
       opacity: disabled ? 0.5 : afford ? 1 : 0.55,
       cursor: disabled ? "default" : "pointer",
@@ -1478,17 +1483,20 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
   const hand = g.hand[side];
   const isPrio = g.priority === side;
   const props = { side, tone, g, sel, setSel, disabled, onZoom };
-  /* Fila única: as cartas que voltaram à mão (Múmia com Faixa, envenenadas)
-     entram junto com as demais. A distinção fica na borda/rótulo da própria
-     miniatura, não numa seção separada — que só roubava altura do tabuleiro. */
+  /* Fila única em grade: as cartas que voltaram à mão (Múmia com Faixa,
+     envenenadas) entram junto com as demais. A distinção fica na borda/rótulo
+     da própria miniatura, não numa seção separada. A grade rola sozinha quando
+     há mais cartas do que cabe na metade da coluna. */
   return (
-    <div className={`rounded-lg border ${accent} p-2`} style={{ backgroundColor: "#1c1a17" }}>
-      <div className="flex items-center justify-between mb-1.5 px-1">
-        <h3 className="text-sm font-semibold tracking-wide">{SIDE_NAME[side]} {isPrio && <span className="text-xs text-stone-400">· revela primeiro</span>}</h3>
-        <span className="text-xs text-stone-400">energia {g.energy[side]} · deck {g.deck[side].length} · vistas {g.seen[side]} · mortes {g.deaths[side]}</span>
+    <div className={`rounded-lg border ${accent} p-2 flex flex-col`} style={{ backgroundColor: "#1c1a17", height: "100%", minHeight: 0 }}>
+      <div className="flex items-center justify-between mb-1.5 px-1" style={{ flex: "0 0 auto" }}>
+        <h3 className="text-xs font-semibold tracking-wide">{SIDE_NAME[side]} {isPrio && <span className="text-[10px] text-stone-400">· revela 1º</span>}</h3>
       </div>
-      <div className="flex flex-wrap gap-1.5 px-1">
-        {hand.length === 0 && <span className="text-xs text-stone-600 py-2">Mão vazia.</span>}
+      <div className="text-[10px] text-stone-500 px-1 mb-1" style={{ flex: "0 0 auto" }}>
+        E{g.energy[side]} · deck {g.deck[side].length} · vistas {g.seen[side]} · mortes {g.deaths[side]}
+      </div>
+      <div className="grid gap-1.5 px-1 overflow-y-auto" style={{ gridTemplateColumns: "repeat(3, 1fr)", flex: "1 1 auto", minHeight: 0, alignContent: "start" }}>
+        {hand.length === 0 && <span className="text-xs text-stone-600 py-2 col-span-3">Mão vazia.</span>}
         {hand.map((h) => <HandThumb key={h.hid} h={h} {...props} />)}
       </div>
     </div>
