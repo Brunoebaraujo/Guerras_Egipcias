@@ -752,7 +752,6 @@ export default function App() {
         }}
         onMultiplayer={() => setScreen("mpdeck")}
         onDecks={() => setScreen("deck")}
-        onGallery={() => setScreen("galeria")}
       />
     );
   }
