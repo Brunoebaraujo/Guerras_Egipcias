@@ -474,19 +474,31 @@ export default function App() {
   useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
   const [msg, setMsg] = useState("");
   
-  // Quando uma praga é revelada, mostra o showcase por 6 segundos
+  // Quando uma praga é revelada, mostra o zoom por 6 segundos
   useEffect(() => {
     if (g.lastPlagueRevealed) {
-      setShownPlague({ key: g.lastPlagueRevealed.key });
-      const timer = setTimeout(() => setShownPlague(null), 6000);
-      return () => clearTimeout(timer);
+      const plagueKey = g.lastPlagueRevealed.key;
+      const plagueCard = byKey[plagueKey];
+      if (plagueCard) {
+        setZoom({
+          def: plagueCard,
+          custo: plagueCard.custo,
+          printed: plagueCard.poder,
+          baked: 0,
+          current: null,
+          partes: null,
+          sub: "Praga revelada",
+          onReturn: null,
+        });
+        const timer = setTimeout(() => setZoom(null), 6000);
+        return () => clearTimeout(timer);
+      }
     }
   }, [g.lastPlagueRevealed]);
   const [fast, setFast] = useState(false);
   const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [cartaAmpliada, setCartaAmpliada] = useState(null);    // def da carta no zoom da Galeria
-  const [shownPlague, setShownPlague] = useState(null);        // {key, uid} — praga para showcase
   const flashRef = useRef(null);
 
   // Interface: "auto" segue a largura da tela; o usuário pode forçar uma delas.
@@ -886,7 +898,6 @@ export default function App() {
           placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
-        {shownPlague && <PlagueShowcase plaque={shownPlague} />}
         {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
         {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
       </>
@@ -982,7 +993,6 @@ export default function App() {
       </div>
 
       {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
-      {shownPlague && <PlagueShowcase plaque={shownPlague} />}
       {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
     </div>
   );
@@ -1750,187 +1760,6 @@ function GameMobile(p) {
   );
 }
 
-function PlagueShowcase({ plaque }) {
-  const def = byKey[plaque.key];
-  const base = import.meta.env.BASE_URL;
-  const [isVisible, setIsVisible] = React.useState(true);
-  
-  React.useEffect(() => {
-    // Preload image to avoid "not found" errors
-    const img = new Image();
-    img.src = `${base}cartas/${def.key}.webp`;
-  }, [def.key, base]);
-  
-  React.useEffect(() => {
-    // Trigger exit animation after 5.6 seconds (before 6s disappear)
-    const exitTimer = setTimeout(() => setIsVisible(false), 5600);
-    return () => clearTimeout(exitTimer);
-  }, []);
-  
-  if (!def || !def.praga) return null;
-  
-  return (
-    <>
-      <style>{`
-        @keyframes plagueSlideIn {
-          from {
-            opacity: 0;
-            transform: scale(0.85) translateY(20px);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-        }
-        
-        @keyframes plagueSlideOut {
-          from {
-            opacity: 1;
-            transform: scale(1) translateY(0);
-          }
-          to {
-            opacity: 0;
-            transform: scale(0.85) translateY(20px);
-          }
-        }
-        
-        @keyframes plagueBackdropIn {
-          from {
-            opacity: 0;
-            backdrop-filter: blur(0px);
-          }
-          to {
-            opacity: 1;
-            backdrop-filter: blur(3px);
-          }
-        }
-        
-        @keyframes plagueBackdropOut {
-          from {
-            opacity: 1;
-            backdrop-filter: blur(3px);
-          }
-          to {
-            opacity: 0;
-            backdrop-filter: blur(0px);
-          }
-        }
-      `}</style>
-      <div style={{
-        position: "fixed",
-        inset: 0,
-        zIndex: 100,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        animation: isVisible ? "plagueBackdropIn 0.3s ease-out forwards" : "plagueBackdropOut 0.4s ease-in forwards",
-        background: isVisible ? "rgba(0, 0, 0, 0.6)" : "rgba(0, 0, 0, 0)",
-        pointerEvents: isVisible ? "auto" : "none",
-      }}>
-        <div style={{
-          position: "relative",
-          animation: isVisible ? "plagueSlideIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards" : "plagueSlideOut 0.4s cubic-bezier(0.4, 0, 1, 1) forwards",
-        }}>
-          {/* Cartão da Praga */}
-          <div style={{
-            background: "linear-gradient(135deg, #1c1917 0%, #0c0a09 100%)",
-            borderRadius: 16,
-            border: "2px solid #78716c",
-            boxShadow: "0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(217, 119, 6, 0.15)",
-            overflow: "hidden",
-            maxWidth: "90vw",
-            maxHeight: "85dvh",
-            willChange: "transform, opacity",
-          }}>
-            {/* Imagem da Praga */}
-            <div style={{
-              width: 280,
-              height: 280,
-              background: "#0c0a09",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              position: "relative",
-              overflow: "hidden",
-            }}>
-              {/* Glow effect */}
-              <div style={{
-                position: "absolute",
-                inset: 0,
-                background: "radial-gradient(circle at center, rgba(217, 119, 6, 0.1) 0%, transparent 70%)",
-                pointerEvents: "none",
-              }} />
-              
-              <img
-                src={`${base}cartas/${def.key}.webp`}
-                alt={def.nome}
-                style={{
-                  width: "100%",
-                  height: "100%",
-                  objectFit: "cover",
-                  objectPosition: "center",
-                  userSelect: "none",
-                  WebkitUserSelect: "none",
-                }}
-                onError={(e) => {
-                  e.target.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect fill='%23292524' width='200' height='200'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23a8a29e' font-size='14'%3EImagem não encontrada%3C/text%3E%3C/svg%3E";
-                }}
-              />
-            </div>
-            
-            {/* Info da Praga */}
-            <div style={{
-              padding: "16px",
-              background: "linear-gradient(180deg, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%)",
-              borderTop: "1px solid #44403c",
-            }}>
-              <h2 style={{
-                margin: "0 0 8px 0",
-                fontSize: 16,
-                fontWeight: 700,
-                color: "#fcd34d",
-                letterSpacing: 0.5,
-                textShadow: "0 2px 4px rgba(0, 0, 0, 0.5)",
-              }}>
-                {def.nome}
-              </h2>
-              <p style={{
-                margin: "0 0 12px 0",
-                fontSize: 13,
-                color: "#d4d4d8",
-                lineHeight: 1.5,
-                minHeight: 26,
-                maxWidth: 280,
-              }}>
-                {def.texto || "Praga ativa…"}
-              </p>
-              <div style={{
-                display: "flex",
-                gap: 8,
-                fontSize: 12,
-                color: "#a8a29e",
-              }}>
-                <span>⚡ {def.custo}</span>
-                <span>•</span>
-                <span>{def.tipo}</span>
-              </div>
-            </div>
-          </div>
-          
-          {/* Decoração: glow atrás */}
-          <div style={{
-            position: "absolute",
-            inset: -40,
-            background: "radial-gradient(circle at center, rgba(217, 119, 6, 0.08) 0%, transparent 70%)",
-            borderRadius: "50%",
-            pointerEvents: "none",
-            zIndex: -1,
-          }} />
-        </div>
-      </div>
-    </>
-  );
-}
 
 export { GameMobile };
 
