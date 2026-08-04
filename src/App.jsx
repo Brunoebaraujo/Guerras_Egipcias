@@ -958,81 +958,79 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen w-full bg-stone-900 text-stone-100 p-3 sm:p-5 font-sans">
+    <div className="w-full bg-stone-900 text-stone-100 font-sans" style={{ height: "100dvh", overflow: "hidden" }}>
       <style>{DUAT_KEYFRAMES}</style>
-      <div className="max-w-6xl mx-auto">
-        <header className="flex flex-wrap items-center gap-3 justify-between mb-3">
-          <div>
-            <h1 className="text-2xl font-bold tracking-widest text-amber-200">
-              𓂀 Guerras Egípcias <span className="text-stone-500 text-base font-normal tracking-normal">· playtest</span>
-            </h1>
-            <p className="text-xs text-stone-400">Revelação por prioridade · abre com 3 · compra 1/rodada · clique numa carta para ampliá-la</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Chip label="Rodada" value={`${g.round}/6`} />
-            <Chip label="Energia A" value={g.energy[0]} tone="amber" />
-            <Chip label="Energia B" value={g.energy[1]} tone="sky" />
-            {planning && <button onClick={startReveal} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-stone-900 font-semibold text-sm">Revelar</button>}
-            {g.phase === "revealing" && <button onClick={() => setFast((f) => !f)} className={`px-3 py-2 rounded-md text-sm font-semibold ${fast ? "bg-sky-500 text-stone-900" : "bg-stone-700 hover:bg-stone-600"}`}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
-            {/* Sem botão: a rodada emenda sozinha. O rótulo existe para a espera
-                não parecer travamento — é o único conteúdo desta fase. */}
-            {g.phase === "revealed" && !g.finished && <span className="px-3 py-2 rounded-md bg-stone-800 text-amber-200 font-semibold text-sm">{g.round >= 6 ? "Encerrando a partida…" : "Rodada resolvida — seguindo…"}</span>}
-            <button onClick={reset} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Reiniciar</button>
-            <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300">Decks</button>
-            <button onClick={() => setForceView("mobile")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300" title="Ver a interface mobile">📱</button>
-          </div>
-        </header>
+      {/* Layout de duas colunas: painel de controle à esquerda, tabuleiro à
+          direita ocupando a altura toda. Sem scroll da página inteira — cada
+          coluna gerencia o próprio transbordo. */}
+      <div className="flex gap-3 p-3 sm:p-4" style={{ height: "100dvh", boxSizing: "border-box" }}>
 
-        <div className="flex items-center gap-3 mb-3 text-sm flex-wrap">
-          <span className={`px-2 py-1 rounded font-semibold ${planning ? "bg-stone-800 text-stone-200" : g.phase === "revealing" ? "bg-indigo-900 text-indigo-100" : "bg-emerald-900 text-emerald-100"}`}>
-            {planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado"}
-          </span>
-          <span className="text-stone-400">Prioridade:</span>
-          <span className={`font-bold ${g.priority === 0 ? "text-amber-300" : "text-sky-300"}`}>{SIDE_NAME[g.priority]}</span>
-          <span className="text-stone-500">({g.priorityReason})</span>
-          {g.trevas === g.round && (
-            <span className="px-2 py-1 rounded bg-indigo-950 border border-indigo-700 text-indigo-200 text-xs">
-              ⊘ Trevas — as cartas desta rodada permanecem ocultas
-            </span>
-          )}
-          <span className="ml-auto text-stone-400">Vias:</span>
-          <span className="text-amber-300 font-bold">A {wins[0]}</span><span className="text-stone-600">×</span><span className="text-sky-300 font-bold">{wins[1]} B</span>
-          {g.finished && <span className="px-3 py-1 rounded bg-stone-800 border border-amber-600 text-amber-200 font-semibold">{resultLabel(g)}</span>}
-        </div>
+        {/* ============ COLUNA ESQUERDA: painel de controle ============ */}
+        <aside className="flex flex-col gap-3" style={{ width: 380, flex: "0 0 380px", height: "100%", minHeight: 0 }}>
 
-        {msg && <div className="mb-3 px-3 py-2 rounded bg-rose-950 border border-rose-800 text-rose-200 text-sm">{msg}</div>}
-        {moving && <div className="mb-3 px-3 py-2 rounded bg-sky-950 border border-sky-700 text-sky-100 text-sm">⇄ Movendo o Escaravelho — clique numa via do {SIDE_NAME[moving.side]} para onde levá-lo (ou clique nele de novo para cancelar).</div>}
-        {aim && (
-          <div className="mb-3 px-3 py-2 rounded bg-indigo-950 border border-indigo-700 text-indigo-100 text-sm flex items-center gap-3">
-            <span>🎯 <b>{aim.srcNome}</b> ({SIDE_NAME[aim.side]}): escolha {aim.needs === "ally" ? "um aliado" : "uma carta inimiga"} na Via {aim.lane + 1}.</span>
-            <button onClick={skipAim} className="ml-auto px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">Pular alvo</button>
-          </div>
-        )}
+          {/* 1. Cabeçalho + controles */}
+          <div className="rounded-lg border border-stone-700 p-3" style={{ backgroundColor: "#1c1a17", flex: "0 0 auto" }}>
+            <div className="mb-2">
+              <h1 className="text-xl font-bold tracking-widest text-amber-200">
+                𓂀 Guerras Egípcias <span className="text-stone-500 text-sm font-normal tracking-normal">· playtest</span>
+              </h1>
+              <p className="text-xs text-stone-400 mt-0.5">Revelação por prioridade · abre com 3 · compra 1/rodada · clique numa carta para ampliá-la</p>
+            </div>
 
-        <Hand side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
-
-        <div className="mt-3 overflow-x-auto rounded-xl">
-          <Tabuleiro g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
-            placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
-            startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard} />
-        </div>
-
-        <div className="mt-3"><Hand side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} /></div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 mt-4">
-          <div className="lg:col-span-2 rounded-lg border border-stone-700 p-3" style={{ backgroundColor: "#1c1a17" }}>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs uppercase tracking-widest text-stone-400">Registro da partida</h3>
-              <div className="flex gap-1">
-                <button onClick={copiarLog} className="text-[10px] px-2 py-0.5 rounded border border-stone-600 text-stone-300 hover:bg-stone-700">Copiar</button>
-                <button onClick={baixarLog} className="text-[10px] px-2 py-0.5 rounded border border-stone-600 text-stone-300 hover:bg-stone-700">Baixar</button>
+            {/* Estado + prioridade */}
+            <div className="flex items-center gap-2 mb-2 text-sm flex-wrap">
+              <span className={`px-2 py-1 rounded font-semibold ${planning ? "bg-stone-800 text-stone-200" : g.phase === "revealing" ? "bg-indigo-900 text-indigo-100" : "bg-emerald-900 text-emerald-100"}`}>
+                {planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado"}
+              </span>
+              <span className="text-stone-400">Prioridade:</span>
+              <span className={`font-bold ${g.priority === 0 ? "text-amber-300" : "text-sky-300"}`}>{SIDE_NAME[g.priority]}</span>
+              <span className="text-stone-500 text-xs">({g.priorityReason})</span>
+            </div>
+            {g.trevas === g.round && (
+              <div className="mb-2 px-2 py-1 rounded bg-indigo-950 border border-indigo-700 text-indigo-200 text-xs">
+                ⊘ Trevas — as cartas desta rodada permanecem ocultas
               </div>
+            )}
+
+            {/* Chips de rodada e energia */}
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <Chip label="Rodada" value={`${g.round}/6`} />
+              <Chip label="Energia A" value={g.energy[0]} tone="amber" />
+              <Chip label="Energia B" value={g.energy[1]} tone="sky" />
             </div>
-            <div className="space-y-1 overflow-auto text-sm text-stone-300 pr-1" style={{ maxHeight: 220 }}>
-              {g.log.map((l, i) => (<div key={i} className={i === 0 ? "text-stone-100" : "text-stone-400"}>{l}</div>))}
+
+            {/* Botões de ação */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {planning && <button onClick={startReveal} className="px-3 py-2 rounded-md bg-emerald-600 hover:bg-emerald-500 text-stone-900 font-semibold text-sm">Revelar</button>}
+              {g.phase === "revealing" && <button onClick={() => setFast((f) => !f)} className={`px-3 py-2 rounded-md text-sm font-semibold ${fast ? "bg-sky-500 text-stone-900" : "bg-stone-700 hover:bg-stone-600"}`}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
+              {g.phase === "revealed" && !g.finished && <span className="px-3 py-2 rounded-md bg-stone-800 text-amber-200 font-semibold text-sm">{g.round >= 6 ? "Encerrando…" : "Rodada resolvida…"}</span>}
+              <button onClick={reset} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Reiniciar</button>
+              <button onClick={() => setScreen("deck")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300">Decks</button>
+              <button onClick={() => setForceView("mobile")} className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300" title="Ver a interface mobile">📱</button>
             </div>
+
+            {/* Placar de vias */}
+            <div className="flex items-center gap-2 mt-2 text-sm">
+              <span className="text-stone-400">Vias:</span>
+              <span className="text-amber-300 font-bold">A {wins[0]}</span>
+              <span className="text-stone-600">×</span>
+              <span className="text-sky-300 font-bold">{wins[1]} B</span>
+              {g.finished && <span className="px-2 py-0.5 rounded bg-stone-800 border border-amber-600 text-amber-200 font-semibold text-xs">{resultLabel(g)}</span>}
+            </div>
+
+            {/* Avisos contextuais (mira/movimento) */}
+            {moving && <div className="mt-2 px-2 py-1.5 rounded bg-sky-950 border border-sky-700 text-sky-100 text-xs">⇄ Movendo o Escaravelho — clique numa via do {SIDE_NAME[moving.side]} para onde levá-lo (ou clique nele de novo para cancelar).</div>}
+            {aim && (
+              <div className="mt-2 px-2 py-1.5 rounded bg-indigo-950 border border-indigo-700 text-indigo-100 text-xs flex items-center gap-2">
+                <span>🎯 <b>{aim.srcNome}</b> ({SIDE_NAME[aim.side]}): escolha {aim.needs === "ally" ? "um aliado" : "uma carta inimiga"} na Via {aim.lane + 1}.</span>
+                <button onClick={skipAim} className="ml-auto px-2 py-0.5 rounded bg-stone-700 hover:bg-stone-600 text-xs whitespace-nowrap">Pular alvo</button>
+              </div>
+            )}
+            {msg && <div className="mt-2 px-2 py-1.5 rounded bg-rose-950 border border-rose-800 text-rose-200 text-xs">{msg}</div>}
           </div>
-          <div className="rounded-lg border border-stone-700 p-3" style={{ backgroundColor: "#1c1a17" }}>
+
+          {/* 2. Como jogar */}
+          <div className="rounded-lg border border-stone-700 p-3" style={{ backgroundColor: "#1c1a17", flex: "0 0 auto" }}>
             <h3 className="text-xs uppercase tracking-widest text-stone-400 mb-2">Como jogar no tabuleiro</h3>
             <ul className="text-xs text-stone-400 space-y-1 list-disc pl-4">
               <li>Selecione uma carta na mão e clique na <b>área da via</b> (retângulo de pedra) para posicioná-la.</li>
@@ -1042,7 +1040,40 @@ export default function App() {
               <li>⚖ na faixa do rio indica que a Maat prende a via ao poder impresso.</li>
             </ul>
           </div>
-        </div>
+
+          {/* 3. Registro da partida — ocupa o resto e rola sozinho */}
+          <div className="rounded-lg border border-stone-700 p-3 flex flex-col" style={{ backgroundColor: "#1c1a17", flex: "1 1 auto", minHeight: 0 }}>
+            <div className="flex items-center justify-between mb-2" style={{ flex: "0 0 auto" }}>
+              <h3 className="text-xs uppercase tracking-widest text-stone-400">Registro da partida</h3>
+              <div className="flex gap-1">
+                <button onClick={copiarLog} className="text-[10px] px-2 py-0.5 rounded border border-stone-600 text-stone-300 hover:bg-stone-700">Copiar</button>
+                <button onClick={baixarLog} className="text-[10px] px-2 py-0.5 rounded border border-stone-600 text-stone-300 hover:bg-stone-700">Baixar</button>
+              </div>
+            </div>
+            <div className="space-y-1 overflow-y-auto text-sm text-stone-300 pr-1" style={{ flex: "1 1 auto", minHeight: 0 }}>
+              {g.log.map((l, i) => (<div key={i} className={i === 0 ? "text-stone-100" : "text-stone-400"}>{l}</div>))}
+            </div>
+          </div>
+        </aside>
+
+        {/* ============ COLUNA DIREITA: mãos + tabuleiro ============ */}
+        <main className="flex flex-col gap-2" style={{ flex: "1 1 auto", height: "100%", minHeight: 0, minWidth: 0 }}>
+          <div style={{ flex: "0 0 auto" }}>
+            <Hand side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
+          </div>
+
+          <div className="rounded-xl" style={{ flex: "1 1 auto", minHeight: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            <div style={{ maxHeight: "100%", maxWidth: "100%", aspectRatio: BOARD.ratio }}>
+              <Tabuleiro g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
+                placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
+                startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard} />
+            </div>
+          </div>
+
+          <div style={{ flex: "0 0 auto" }}>
+            <Hand side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
+          </div>
+        </main>
       </div>
 
       {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
@@ -1069,8 +1100,8 @@ function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveTo, appl
   };
 
   return (
-    <div ref={ref} className="relative w-full select-none" style={{
-      aspectRatio: BOARD.ratio, minWidth: 720,
+    <div ref={ref} className="relative select-none" style={{
+      aspectRatio: BOARD.ratio, width: "100%", height: "100%",
       backgroundImage: `url(${base}tabuleiro.webp)`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
       borderRadius: 12, boxShadow: "0 0 0 1px #44403c, 0 8px 30px rgba(0,0,0,.5)",
     }}>
