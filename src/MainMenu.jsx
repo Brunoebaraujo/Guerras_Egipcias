@@ -5,10 +5,11 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks, onGallery }) 
     <div style={{
       minHeight: "100dvh",
       width: "100%",
-      backgroundImage: "url(/guerras-bg.png)",
+      backgroundImage: "url(/guerras-bg.webp)",
       backgroundSize: "cover",
-      backgroundPosition: "center",
+      backgroundPosition: "center top",
       backgroundAttachment: "fixed",
+      backgroundRepeat: "no-repeat",
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
