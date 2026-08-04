@@ -498,6 +498,7 @@ export default function App() {
           partes: null,
           sub: "Praga revelada",
           onReturn: null,
+          isPlagueShowcase: true,  // Flag para identificar que é showcase de praga
         });
         setShownPlagueSeq(g.lastPlagueRevealed.seq);  // Marca que já mostrou essa praga
         const timer = setTimeout(() => {
@@ -600,6 +601,14 @@ export default function App() {
     const c = g.board.find((x) => x.uid === cardUid);
     if (!c || c.revealed) return;
     if (dispatch({ t: "pickup", side: c.owner, uid: cardUid })) setSel(null);
+  }
+
+  // Handler para fechar zoom e despausa se for praga
+  function handleZoomClose() {
+    setZoom(null);
+    if (zoom?.isPlagueShowcase && pausedForPlague) {
+      setPausedForPlague(false);
+    }
   }
 
   // ------------------------------ MOVIMENTO --------------------------------
@@ -911,7 +920,7 @@ export default function App() {
           placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
-        {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+        {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
         {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
       </>
     );
@@ -1005,7 +1014,7 @@ export default function App() {
         </div>
       </div>
 
-      {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+      {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
       {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
     </div>
   );
@@ -1850,6 +1859,9 @@ function OnlineGame({ send, data, note, onLeave }) {
     setZoom({ def, custo: custoDe(h), printed: h.printed, baked: h.baked || 0, current: null, sub: (h.baked || 0) !== 0 ? `Faixa da Múmia — volta valendo ${h.printed + h.baked}` : "na mão" });
   }
 
+  // Handler para fechar zoom
+  const handleZoomClose = () => setZoom(null);
+
   const oppAiming = rawAim && rawAim.side !== seat;
   const msg = !oppConnected ? "⚠ Adversário desconectado." : oppAiming ? "🎯 O adversário está escolhendo um alvo…" : (note || "");
 
@@ -1864,7 +1876,7 @@ function OnlineGame({ send, data, note, onLeave }) {
         placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
         applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
         zoomBoard={zoomBoard} zoomHand={zoomHand} />
-      {zoom && <ZoomModal zoom={zoom} onClose={() => setZoom(null)} />}
+      {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
       {!bannerVisto && <BannerVitoria g={g} online={true} mySeat={seat} onFechar={() => setBannerVisto(true)} />}
     </>
   );
