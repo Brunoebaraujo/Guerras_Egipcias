@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import Carta from "./Carta.jsx";
+import MainMenu from "./MainMenu.jsx";
 import {
   CARDS, PRAGAS, OUTORGAS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
   nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
@@ -454,7 +455,7 @@ export default function App() {
   const freshState = (lists = [DECK_LIST, DECK_LIST]) => freshMatch(lists);
 
   const [g, setG] = useState(() => freshState());
-  const [screen, setScreen] = useState("deck");                 // "deck" | "game" | "galeria"
+  const [screen, setScreen] = useState("menu");                 // "menu" | "deck" | "game" | "galeria" | "mpdeck" | "lobby"
   const [build, setBuild] = useState([[...DECK_LIST], [...DECK_LIST]]);
   const [chosen, setChosen] = useState([DECK_LIST, DECK_LIST]);
   // Biblioteca de decks (persistente em localStorage). Carrega uma vez na
@@ -738,6 +739,23 @@ export default function App() {
 
   const ctx = ctxOf(g);
   const wins = laneWins(g);
+
+  // ============================ TELA: MENU ==================================
+  if (screen === "menu") {
+    return (
+      <MainMenu
+        onSolo={() => {
+          // Inicia Hotseat com Exército (Side A) vs Sacrifício (Side B)
+          setChosen([PRESETS["Exército"], PRESETS["Sacrifício"]]);
+          setG(freshState([PRESETS["Exército"], PRESETS["Sacrifício"]]));
+          setScreen("game");
+        }}
+        onMultiplayer={() => setScreen("mpdeck")}
+        onDecks={() => setScreen("deck")}
+        onGallery={() => setScreen("galeria")}
+      />
+    );
+  }
 
   // ============================ TELA: LOBBY ================================
   if (screen === "lobby") {
