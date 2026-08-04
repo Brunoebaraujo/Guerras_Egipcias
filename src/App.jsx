@@ -477,7 +477,7 @@ export default function App() {
   // Quando uma praga é revelada, mostra o showcase por 4 segundos
   useEffect(() => {
     if (g.lastPlagueRevealed) {
-      setShownPlague({ key: g.lastPlagueRevealed });
+      setShownPlague({ key: g.lastPlagueRevealed.key });
       const timer = setTimeout(() => setShownPlague(null), 4000);
       return () => clearTimeout(timer);
     }

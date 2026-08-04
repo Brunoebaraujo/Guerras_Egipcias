@@ -445,7 +445,7 @@ const ACTIONS = {
       }
       const badge = resolvePraga(s, card, rng);
       consumirCarta(s, card);
-      s.lastPlagueRevealed = card.key;  // Notifica UI para mostrar showcase
+      s.lastPlagueRevealed = { key: card.key, seq: s.effectSeq };  // Notifica UI para mostrar showcase
       pushLog(s, `${def.nome} resolveu e deixou o campo.`);
       // O Sinal do Moisés é o que o olho precisa ver; o badge da própria Praga
       // só aparece quando nenhum Moisés estava em campo para registrá-la.
