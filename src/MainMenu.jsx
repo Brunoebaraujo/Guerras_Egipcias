@@ -52,8 +52,9 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
     <div style={{
       minHeight: "100dvh",
       width: "100%",
+      backgroundColor: "#000",
       backgroundImage: `url(${bg})`,
-      backgroundSize: "cover",
+      backgroundSize: "contain",
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat",
       display: "flex",
