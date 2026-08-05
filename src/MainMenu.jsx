@@ -75,7 +75,7 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
     );
   }
 
-  // Segunda tela: menu com 3 botões quadrados
+  // Segunda tela: menu com 3 botões quadrados enfileirados verticalmente
   return (
     <div style={{
       minHeight: "100dvh",
@@ -88,101 +88,149 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
       fontFamily: "ui-sans-serif, system-ui, sans-serif",
       padding: "20px",
     }}>
-      {/* Grid dos 3 botões quadrados */}
+      {/* Coluna dos 3 botões com labels */}
       <div style={{
-        display: "grid",
-        gridTemplateColumns: "1fr 1fr",
-        gridTemplateRows: "auto auto",
-        gap: 24,
-        maxWidth: 500,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 32,
+        maxWidth: 300,
         width: "100%",
-        justifyItems: "center",
       }}>
-        {/* Solo - canto superior esquerdo */}
-        <button
-          onClick={onSolo}
-          style={{
-            width: 160,
-            height: 160,
-            backgroundImage: `url(${base}btn-hotseat.webp)`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            border: "none",
-            borderRadius: 12,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            boxShadow: haloShadow,
-            position: "relative",
-            overflow: "hidden",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = haloShadowHi;
-            hoverTransform(e);
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = haloShadow;
-            unhoverTransform(e);
-          }}
-          title="Solo (Hotseat)"
-        />
+        {/* Solo (Hotseat) */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+        }}>
+          <button
+            onClick={onSolo}
+            style={{
+              width: 160,
+              height: 160,
+              backgroundImage: `url(${base}btn-hotseat.webp)`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              border: "none",
+              borderRadius: 12,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: haloShadow,
+              position: "relative",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = haloShadowHi;
+              hoverTransform(e);
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = haloShadow;
+              unhoverTransform(e);
+            }}
+            title="Solo (Hotseat)"
+          />
+          <div style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#fbbf24",
+            textAlign: "center",
+            textShadow: "0 0 8px rgba(251, 191, 36, 0.4)",
+          }}>
+            1v1 Hotseat
+          </div>
+        </div>
 
-        {/* Multiplayer - canto superior direito */}
-        <button
-          onClick={onMultiplayer}
-          style={{
-            width: 160,
-            height: 160,
-            backgroundImage: `url(${base}btn-multiplayer.webp)`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            border: "none",
-            borderRadius: 12,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            boxShadow: haloShadow,
-            position: "relative",
-            overflow: "hidden",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = haloShadowHi;
-            hoverTransform(e);
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = haloShadow;
-            unhoverTransform(e);
-          }}
-          title="Multiplayer"
-        />
+        {/* Multiplayer */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+        }}>
+          <button
+            onClick={onMultiplayer}
+            style={{
+              width: 160,
+              height: 160,
+              backgroundImage: `url(${base}btn-multiplayer.webp)`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              border: "none",
+              borderRadius: 12,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: haloShadow,
+              position: "relative",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = haloShadowHi;
+              hoverTransform(e);
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = haloShadow;
+              unhoverTransform(e);
+            }}
+            title="Multiplayer"
+          />
+          <div style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#06b6d4",
+            textAlign: "center",
+            textShadow: "0 0 8px rgba(6, 182, 212, 0.4)",
+          }}>
+            Multiplayer Online
+          </div>
+        </div>
 
-        {/* Decks - embaixo, centrado */}
-        <button
-          onClick={onDecks}
-          style={{
-            width: 160,
-            height: 160,
-            backgroundImage: `url(${base}btn-decks.webp)`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            border: "none",
-            borderRadius: 12,
-            cursor: "pointer",
-            transition: "all 0.2s ease",
-            boxShadow: haloShadow,
-            position: "relative",
-            overflow: "hidden",
-            gridColumn: "1 / -1",
-            justifySelf: "center",
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.boxShadow = haloShadowHi;
-            hoverTransform(e);
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.boxShadow = haloShadow;
-            unhoverTransform(e);
-          }}
-          title="Decks"
-        />
+        {/* Decks */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+        }}>
+          <button
+            onClick={onDecks}
+            style={{
+              width: 160,
+              height: 160,
+              backgroundImage: `url(${base}btn-decks.webp)`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              border: "none",
+              borderRadius: 12,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: haloShadow,
+              position: "relative",
+              overflow: "hidden",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = haloShadowHi;
+              hoverTransform(e);
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = haloShadow;
+              unhoverTransform(e);
+            }}
+            title="Decks"
+          />
+          <div style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#06b6d4",
+            textAlign: "center",
+            textShadow: "0 0 8px rgba(6, 182, 212, 0.4)",
+          }}>
+            Construir Decks
+          </div>
+        </div>
       </div>
     </div>
   );
