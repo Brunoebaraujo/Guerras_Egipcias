@@ -29,7 +29,7 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
     // Primeira tela: só fundo + botão "Iniciar"
     return (
       <div style={{
-        minHeight: "100dvh",
+        height: "100dvh",
         width: "100%",
         backgroundColor: "#000",
         backgroundImage: `url(${bg})`,
@@ -42,6 +42,7 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
         position: "relative",
         fontFamily: "ui-sans-serif, system-ui, sans-serif",
         paddingBottom: "120px",
+        overflow: "hidden",
       }}>
         <button
           onClick={() => setShowMenu(true)}
@@ -78,7 +79,7 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
   // Segunda tela: menu com 3 botões quadrados enfileirados verticalmente
   return (
     <div style={{
-      minHeight: "100dvh",
+      height: "100dvh",
       width: "100%",
       backgroundColor: "#000",
       display: "flex",
@@ -87,6 +88,8 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
       position: "relative",
       fontFamily: "ui-sans-serif, system-ui, sans-serif",
       padding: "20px",
+      overflow: "hidden",
+      boxSizing: "border-box",
     }}>
       {/* Coluna dos 3 botões com labels */}
       <div style={{
