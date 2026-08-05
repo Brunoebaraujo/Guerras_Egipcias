@@ -1884,7 +1884,7 @@ function GameMobile(p) {
         {online
           ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏏</button>
           : <><button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
-            <button onClick={() => setScreen("deck")} style={mBtnSm}>Decks</button></>}
+            <button onClick={() => setScreen("menu")} style={mBtnSm}>Início</button></>}
       </div>
     </div>
     </div>
