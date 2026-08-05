@@ -1827,25 +1827,25 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   }, [drawn]);
   return (
     <div ref={ref} className={drawn ? "duat-draw" : ""} style={{
-      position: "relative", flex: "1 1 0", minWidth: 0, maxWidth: 72, borderRadius: 8, background: "#1c1917",
+      position: "relative", flex: "1 1 0", minWidth: 0, maxWidth: 68, borderRadius: 6, background: "#1c1917",
       border: isSel ? `2px solid ${accent}` : "1px solid #44403c", opacity: disabled ? 0.5 : afford ? 1 : 0.55,
       overflow: "hidden",
     }}>
       <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
         style={{ display: "block", textAlign: "left", width: "100%", padding: 0, background: "none", border: "none", cursor: disabled ? "default" : "pointer" }}>
-        <div style={{ position: "relative", width: "100%", height: 40, background: "#000" }}>
+        <div style={{ position: "relative", width: "100%", height: 38, background: "#000" }}>
           {artSrc
             ? <img src={artSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: afford ? 1 : 0.7 }} />
             : <div className={ARCH_COLOR[def.arch]} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{GLYPH[def.arch]}</div>}
-          <span style={{ position: "absolute", top: 2, left: 3, fontSize: 11, fontWeight: 800, color: custo > def.custo ? "#fda4af" : "#fde68a", textShadow: "0 1px 2px #000" }}>{custo}⚡</span>
+          <span style={{ position: "absolute", top: 2, left: 2, fontSize: 9, fontWeight: 800, color: custo > def.custo ? "#fda4af" : "#fde68a", textShadow: "0 1px 2px #000" }}>{custo}⚡</span>
         </div>
-        <div style={{ padding: "3px 5px 4px" }}>
-          <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 10.5, lineHeight: 1.15, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{def.nomeCurto}</div>
-          <div style={{ fontSize: 9.5, color: "#a8a29e", marginTop: 1 }}>{faixa}</div>
+        <div style={{ padding: "2px 4px 3px" }}>
+          <div className={ARCH_COLOR[def.arch]} style={{ fontSize: 10, lineHeight: 1.1, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{def.nomeCurto}</div>
+          <div style={{ fontSize: 8.5, color: "#a8a29e", marginTop: 0.5 }}>{faixa}</div>
         </div>
       </button>
       <button onClick={(e) => { e.stopPropagation(); onZoom(h); }} title="Ampliar"
-        style={{ position: "absolute", top: 2, right: 2, fontSize: 11, color: "#e7e5e4", background: "rgba(0,0,0,.5)", borderRadius: 5, border: "none", cursor: "pointer", lineHeight: 1, padding: "2px 3px" }}>🔍</button>
+        style={{ position: "absolute", top: 1, right: 1, fontSize: 9, color: "#e7e5e4", background: "rgba(0,0,0,.5)", borderRadius: 3, border: "none", cursor: "pointer", lineHeight: 1, padding: "1px 2px" }}>🔍</button>
     </div>
   );
 }
@@ -1857,29 +1857,39 @@ function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, onResetPlan = 
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const isPrio = g.priority === side;
   const edge = side === 1 ? { borderBottom: `1px solid ${accent}44` } : { borderTop: `1px solid ${accent}44` };
+  
+  // Em mobile multiplayer adversário: info condensada (só ícone + número)
+  if (online && isOpp) {
+    return (
+      <div style={{ padding: "3px 8px", background: "#141210", ...edge }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>{SIDE_NAME[side]}</span>
+          {isPrio && <span style={{ fontSize: 9, color: "#78716c" }}>revela 1º</span>}
+          <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]} · 🂠{oppHand}</span>
+        </div>
+      </div>
+    );
+  }
+  
   return (
-    <div style={{ padding: "4px 8px", background: "#141210", ...edge }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
-        <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>{SIDE_NAME[side]}</span>
-        {isPrio && <span style={{ fontSize: 9, color: "#78716c" }}>revela 1º</span>}
-        <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]}</span>
+    <div style={{ padding: "2px 6px", background: "#141210", ...edge, display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 9 }}>
+        <span style={{ fontWeight: 700, color: accent }}>{SIDE_NAME[side]}</span>
+        {isPrio && <span style={{ color: "#78716c" }}>revela 1º</span>}
+        <span style={{ marginLeft: "auto", color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]}</span>
         {onResetPlan && (
-          <button onClick={() => onResetPlan(side)} disabled={!postos} title="Devolve à mão tudo que você posicionou nesta rodada"
+          <button onClick={() => onResetPlan(side)} disabled={!postos} title="Reiniciar rodada"
             style={{
-              fontSize: 9.5, padding: "2px 6px", borderRadius: 5, lineHeight: 1.4,
+              fontSize: 8.5, padding: "1px 4px", borderRadius: 3, lineHeight: 1.2,
               border: `1px solid ${postos ? "#a8a29e66" : "#44403c"}`,
               background: postos ? "rgba(168,162,158,.12)" : "transparent",
-              color: postos ? "#d6d3d1" : "#57534e", cursor: postos ? "pointer" : "default",
-            }}>↺ Reiniciar rodada</button>
+              color: postos ? "#d6d3d1" : "#57534e", cursor: postos ? "pointer" : "default", whiteSpace: "nowrap",
+            }}>↺</button>
         )}
       </div>
-      <div style={{ display: "flex", gap: 4, overflowX: "auto", paddingBottom: 2, alignItems: "stretch" }}>
-        {online && isOpp
-          ? <span style={{ fontSize: 11, color: "#a8a29e", padding: "6px 2px" }}>🂠 {oppHand} carta{oppHand === 1 ? "" : "s"} na mão (ocultas)</span>
-          : <>
-              {hand.length === 0 && <span style={{ fontSize: 11, color: "#57534e" }}>Mão vazia.</span>}
-              {hand.map((h) => <MHandCard key={h.hid} h={h} side={side} tone={tone} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={onZoom} />)}
-            </>}
+      <div style={{ display: "flex", gap: 3, overflowX: "auto", alignItems: "stretch" }}>
+        {hand.length === 0 && <span style={{ fontSize: 10, color: "#57534e" }}>Mão vazia.</span>}
+        {hand.map((h) => <MHandCard key={h.hid} h={h} side={side} tone={tone} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={onZoom} />)}
       </div>
     </div>
   );
@@ -1906,53 +1916,50 @@ function GameMobile(p) {
   
   return (
     <div style={{ minHeight: "100dvh", background: "#0c0a09", display: "flex", justifyContent: "center" }}>
-    <div style={{ width: "100%", maxWidth: 720, minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif", borderLeft: "1px solid #1c1917", borderRight: "1px solid #1c1917" }}>
+    <div style={{ width: "100%", maxWidth: 720, minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif", borderLeft: "1px solid #1c1917", borderRight: "1px solid #1c1917", overflow: "hidden" }}>
       <style>{DUAT_KEYFRAMES}</style>
       <style>{"body{background:#0c0a09;margin:0}"}</style>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
-        <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>𓂀 Guerras Egípcias</span>
-        <span style={{ fontSize: 11, color: "#78716c", flex: "0 0 auto" }}>R {g.round}/6</span>
-        <span style={{ marginLeft: "auto", fontSize: 13 }}>
+      {/* Cabeçalho compacto: rodada, placar, assento */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 8px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20, fontSize: 11 }}>
+        <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 13, whiteSpace: "nowrap" }}>𓂀</span>
+        <span style={{ color: "#78716c" }}>R {g.round}</span>
+        <span style={{ marginLeft: "auto" }}>
           <b style={{ color: "#fcd34d" }}>A {wins[0]}</b> <span style={{ color: "#57534e" }}>×</span> <b style={{ color: "#7dd3fc" }}>{wins[1]} B</b>
         </span>
-        {online
-          ? <span style={{ fontSize: 11, color: seat === 0 ? "#fcd34d" : "#7dd3fc", flex: "0 0 auto", fontWeight: 700 }} title="Seu lado">você: {SIDE_NAME[seat]}</span>
-          : <button onClick={() => setForceView("desktop")} style={mBtnGhost} title="Ver a interface desktop">🖥</button>}
+        {online && <span style={{ fontSize: 10, color: seat === 0 ? "#fcd34d" : "#7dd3fc", fontWeight: 700 }}>{SIDE_NAME[seat]}</span>}
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", fontSize: 12, flexWrap: "wrap" }}>
-        <span style={{ padding: "2px 8px", borderRadius: 6, background: phaseBg, color: "#e7e5e4", fontWeight: 600 }}>{phaseLabel}</span>
-        <span style={{ color: "#78716c" }}>Prioridade</span>
-        <b style={{ color: g.priority === 0 ? "#fcd34d" : "#7dd3fc" }}>{SIDE_NAME[g.priority]}</b>
-        <span style={{ marginLeft: "auto" }}><span style={{ color: "#78716c" }}>⚡ </span><b style={{ color: "#fcd34d" }}>{g.energy[0]}</b> <span style={{ color: "#57534e" }}>/</span> <b style={{ color: "#7dd3fc" }}>{g.energy[1]}</b></span>
+      {/* Info de fase e prioridade - uma única linha */}
+      <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "3px 8px", fontSize: 10, color: "#78716c" }}>
+        <span style={{ padding: "1px 6px", borderRadius: 4, background: phaseBg, color: "#e7e5e4", fontWeight: 600, fontSize: 9 }}>{phaseLabel}</span>
+        <span>Prioridade <b style={{ color: g.priority === 0 ? "#fcd34d" : "#7dd3fc" }}>{g.priority === 0 ? "A" : "B"}</b></span>
+        <span style={{ marginLeft: "auto" }}>⚡<b style={{ color: "#fcd34d" }}>{g.energy[0]}</b>/<b style={{ color: "#7dd3fc" }}>{g.energy[1]}</b></span>
       </div>
 
+      {/* Em mobile, mostrar só mensagens críticas (conexão, trevas, mira).
+          Mensagens contextuais (toque numa via, escaravelho) são removidas para ganhar espaço. */}
       {msg && <MBanner tone="rose">{msg}</MBanner>}
-      {g.trevas === g.round && <MBanner tone="indigo">⊘ Trevas — as cartas desta rodada permanecem ocultas e só revelam na próxima.</MBanner>}
-      {moving && <MBanner tone="sky">⇄ Movendo o Escaravelho — toque numa via do {SIDE_NAME[moving.side]}.</MBanner>}
+      {g.trevas === g.round && <MBanner tone="indigo">⊘ Trevas — cartas ocultas</MBanner>}
       {aim && (
         <MBanner tone="indigo">
-          <span>🎯 <b>{aim.srcNome}</b>: escolha {aim.needs === "ally" ? "um aliado" : "uma carta inimiga"} na Via {aim.lane + 1}.</span>
+          <span>🎯 <b>{aim.srcNome}</b>: escolha {aim.needs === "ally" ? "um aliado" : "um inimigo"} na Via {aim.lane + 1}.</span>
           <button onClick={skipAim} style={{ marginLeft: "auto", padding: "3px 8px", borderRadius: 6, border: "1px solid #4338ca", background: "#312e81", color: "#c7d2fe", fontSize: 11, cursor: "pointer" }}>Pular</button>
         </MBanner>
       )}
-      {sel && planning && !aim && !moving && <MBanner tone="amber">Toque numa via do {SIDE_NAME[sel.side]} para posicionar {byKey[g.hand[sel.side].find((h) => h.hid === sel.hid)?.key]?.nome || "a carta"}.</MBanner>}
 
-      {/* Multiplayer mobile: layout sempre rotacionado para o jogador
-          - Topo: Adversário (só contagem, pois as cartas são filtradas pelo servidor)
-          - Meio: Tabuleiro com perspectiva do jogador
-          - Fundo: Suas cartas (totalmente visíveis para jogar)
-          
-          Em mobile há restrição de espaço, então o adversário só mostra o count
-          e as cartas jogáveis ficam sempre acessíveis na parte inferior. */}
+      {/* Multiplayer mobile: maximizar espaço do tabuleiro e cartas
+          - Topo: Adversário (info compacta com ícone + número)
+          - Meio: Tabuleiro (ocupa máximo de altura)
+          - Fundo: Suas cartas (totalmente visíveis para jogar) */}
       {online ? (
         <>
           <MHandRow side={oppSide} tone={oppSide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
             onResetPlan={null}
             online={online} isOpp={true} oppHand={oppHand} />
 
-          <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
+          {/* Tabuleiro: flex máximo para ganhar espaço */}
+          <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 4px", minHeight: 0 }}>
             <BoardArt config={BOARD_MOBILE} {...laneProps} viewSeat={seat} />
           </div>
 
@@ -1977,19 +1984,17 @@ function GameMobile(p) {
         </>
       )}
 
-      <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
+      <div style={{ display: "flex", gap: 4, padding: "4px 6px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         {planning && (online
-          ? <button onClick={startReveal} disabled={myReady} style={{ ...mBtnBig, background: myReady ? "#292524" : "#059669", color: myReady ? "#a8a29e" : "#0c0a09" }}>{myReady ? "Aguardando adversário…" : "Pronto ✓"}</button>
-          : <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09" }}>Revelar</button>)}
-        {g.phase === "revealing" && !online && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4" }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
-        {g.phase === "revealing" && online && <span style={{ ...mBtnBig, background: "#1e1b4b", color: "#c7d2fe", textAlign: "center" }}>Revelando…</span>}
-        {/* Nos dois modos a rodada emenda sozinha — no local por temporizador,
-            no online pelo servidor, logo depois do último passo da revelação. */}
+          ? <button onClick={startReveal} disabled={myReady} style={{ ...mBtnBig, background: myReady ? "#292524" : "#059669", color: myReady ? "#a8a29e" : "#0c0a09", fontSize: 11 }}>{myReady ? "Aguardando…" : "Pronto ✓"}</button>
+          : <button onClick={startReveal} style={{ ...mBtnBig, background: "#059669", color: "#0c0a09", fontSize: 11 }}>Revelar</button>)}
+        {g.phase === "revealing" && !online && <button onClick={() => setFast((f) => !f)} style={{ ...mBtnBig, background: fast ? "#0ea5e9" : "#292524", color: fast ? "#0c0a09" : "#e7e5e4", fontSize: 11 }}>{fast ? "⏩ rápido" : "⏩ acelerar"}</button>}
+        {g.phase === "revealing" && online && <span style={{ ...mBtnBig, background: "#1e1b4b", color: "#c7d2fe", textAlign: "center", fontSize: 11 }}>Revelando…</span>}
         {g.phase === "revealed" && !g.finished && (
-          <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #78716c" }}>
-            {g.round >= 6 ? "Encerrando a partida…" : "Rodada resolvida — seguindo…"}
+          <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #78716c", fontSize: 10 }}>
+            {g.round >= 6 ? "Encerrando…" : "Seguindo…"}
           </span>)}
-        {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{resultLabel(g)}</span>}
+        {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309", fontSize: 10 }}>{resultLabel(g)}</span>}
         {online
           ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏲</button>
           : <><button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>

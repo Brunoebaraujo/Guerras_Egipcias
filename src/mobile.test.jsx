@@ -31,11 +31,11 @@ function freshMobileProps() {
 describe("GameMobile smoke", () => {
   it("renderiza a tela mobile de planejamento sem estourar", () => {
     const html = renderToString(<GameMobile {...freshMobileProps()} />);
-    expect(html).toContain("Guerras Egípcias");
     expect(html).toContain("Planejar");
     expect(html).toContain("Revelar");
-    expect(html).toContain("Lado A (ouro)");
-    expect(html).toContain("Lado B (lápis)");
+    expect(html).toContain("Lado A");
+    expect(html).toContain("Lado B");
+    expect(html).toContain("Prioridade");  // sempre renderizado
   });
   it("renderiza com uma carta posicionada e revelada (fase revelado)", () => {
     const p = freshMobileProps();
@@ -44,7 +44,7 @@ describe("GameMobile smoke", () => {
     p.g.phase = "revealed"; p.planning = false; p.ctx = ctxOf(p.g); p.wins = laneWins(p.g);
     const html = renderToString(<GameMobile {...p} />);
     // A rodada emenda sozinha: nesta fase há um aviso, não um botão.
-    expect(html).toContain("Rodada resolvida");
+    expect(html).toContain("Seguindo");
     expect(html).not.toContain("Próxima rodada");
   });
 });
@@ -59,9 +59,8 @@ describe("DeckMobile smoke", () => {
   };
   it("renderiza a grade de montagem de deck sem estourar", () => {
     const html = renderToString(<DeckMobile {...baseProps} />);
-    expect(html).toContain("Guerras Egípcias");
     expect(html).toContain("Embaralhar e iniciar");
-    expect(html).toContain("Lado A (ouro)");
+    expect(html).toContain("Lado A");
     // ao menos uma carta da coleção na grade
     expect(html).toContain(CARDS[0].nome);
   });
@@ -111,14 +110,13 @@ describe("OnlineGame smoke", () => {
   }
   it("renderiza a mesa online (assento 0) sem estourar e mostra Pronto + mão oculta", () => {
     const html = renderToString(<OnlineGame send={noop} data={serverData(0)} note="" onLeave={noop} />);
-    expect(html).toContain("Guerras Egípcias");
     expect(html).toContain("Pronto");                      // botão de prontidão (não "Revelar")
-    expect(html).toContain("na mão (ocultas)");            // contagem da mão do adversário
-    expect(html).toContain("você:");                       // indicador de assento
+    expect(html).toContain("🂠");                          // ícone de cartas ocultas do adversário
+    expect(html).toContain("Lado A");                      // indicador de assento
   });
   it("renderiza para o assento 1 também", () => {
     const html = renderToString(<OnlineGame send={noop} data={serverData(1)} note="" onLeave={noop} />);
-    expect(html).toContain("Guerras Égípcias".replace("É", "E")); // "Guerras Egípcias"
-    expect(html).toContain("na mão (ocultas)");
+    expect(html).toContain("Pronto");
+    expect(html).toContain("🂠");                          // contagem compacta do adversário
   });
 });
