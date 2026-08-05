@@ -82,13 +82,15 @@ describe("Dilúvio de Hápi — a quem alcança", () => {
     expect(mortas(s)).toEqual([]);
   });
 
-  it("fichas de custo 1 afundam; as de custo 0, não", () => {
+  it("fichas de custo 1 afundam; gafanhotos (custo 3) e cabras (custo 0), não", () => {
     const dil = mk("diluvio");
-    const gafanhoto = mk("token-gafanhoto");    // custo 1
+    const escaravelho = mk("escaravelho");      // custo 1
+    const gafanhoto = mk("token-gafanhoto");    // custo 3
     const cabra = mk("token-cabra");            // custo 0
-    const s = mkState([dil, gafanhoto, cabra]);
+    const s = mkState([dil, escaravelho, gafanhoto, cabra]);
     resolveAfogamento(s, dil);
-    expect(gafanhoto.dying).toBeTruthy();
+    expect(escaravelho.dying).toBeTruthy();
+    expect(gafanhoto.dying).toBeFalsy();
     expect(cabra.dying).toBeFalsy();
   });
 });

@@ -155,12 +155,13 @@ describe("Gafanhoto é ficha de verdade", () => {
     }
   });
 
-  it("custo 1: a Sekhmet alcança as fichas e poupa a carta-mãe (custo 3)", () => {
+  it("gafanhotos agora têm custo 3, imunes a Sekhmet de custo 1–2", () => {
     const enxame = mk("enxame", { owner: 1 });
     const s = { ...mkState([enxame]), destroyedPower: [0, 0], round: 1 };
     resolveEnxame(s, enxame);
-    resolveSekhmet(s, mk("sekhmet", { owner: 0, lane: 2 }), 1);
-    expect(s.board.filter((c) => c.key === "token-gafanhoto" && !c.dying)).toHaveLength(0);
+    resolveSekhmet(s, mk("sekhmet", { owner: 0, lane: 2 }), 2);
+    // Gafanhotos (custo 3) e Enxame (custo 3) sobrevivem a Sekhmet de custo 2
+    expect(s.board.filter((c) => c.key === "token-gafanhoto" && !c.dying)).toHaveLength(2);
     expect(enxame.dying).toBeFalsy();
   });
 });
