@@ -87,30 +87,87 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
         <div style={{ display: "flex", gap: 18, flexWrap: "wrap", justifyContent: "center", width: "100%" }}>
           <button
             onClick={onSolo}
-            style={{ ...btnBase, background: "linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)", color: "#1f1f1f", boxShadow: soloShadow, flex: "1 1 200px", maxWidth: 260 }}
+            style={{
+              ...btnBase,
+              backgroundImage: `url(${base}btn-hotseat.webp)`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              color: "#fbbf24",
+              boxShadow: soloShadow,
+              flex: "1 1 200px",
+              maxWidth: 260,
+              position: "relative",
+              overflow: "hidden",
+              textShadow: "0 0 8px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6)",
+              fontWeight: 800,
+            }}
             onMouseEnter={(e) => hover(e, soloShadowHi)}
             onMouseLeave={(e) => unhover(e, soloShadow)}
           >
-            ⚔️ Solo (Hotseat)
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.35)",
+              pointerEvents: "none",
+            }} />
+            <span style={{ position: "relative", zIndex: 2 }}>⚔️ Solo (Hotseat)</span>
           </button>
           <button
             onClick={onMultiplayer}
-            style={{ ...btnBase, background: "linear-gradient(135deg, #7c3aed 0%, #6d28d9 100%)", color: "#e0e7ff", boxShadow: mpShadow, flex: "1 1 200px", maxWidth: 260 }}
+            style={{
+              ...btnBase,
+              backgroundImage: `url(${base}btn-multiplayer.webp)`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              color: "#06b6d4",
+              boxShadow: mpShadow,
+              flex: "1 1 200px",
+              maxWidth: 260,
+              position: "relative",
+              overflow: "hidden",
+              textShadow: "0 0 8px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6)",
+              fontWeight: 800,
+            }}
             onMouseEnter={(e) => hover(e, mpShadowHi)}
             onMouseLeave={(e) => unhover(e, mpShadow)}
           >
-            🌐 Multiplayer
+            <div style={{
+              position: "absolute",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.35)",
+              pointerEvents: "none",
+            }} />
+            <span style={{ position: "relative", zIndex: 2 }}>🌐 Multiplayer</span>
           </button>
         </div>
 
         {/* Linha 2: Decks centralizado */}
         <button
           onClick={onDecks}
-          style={{ ...btnBase, background: "linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)", color: "#164e63", boxShadow: deckShadow, width: "100%", maxWidth: 260 }}
+          style={{
+            ...btnBase,
+            backgroundImage: `url(${base}btn-decks.webp)`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+            color: "#06b6d4",
+            boxShadow: deckShadow,
+            width: "100%",
+            maxWidth: 260,
+            position: "relative",
+            overflow: "hidden",
+            textShadow: "0 0 8px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6)",
+            fontWeight: 800,
+          }}
           onMouseEnter={(e) => hover(e, deckShadowHi)}
           onMouseLeave={(e) => unhover(e, deckShadow)}
         >
-          🎴 Decks
+          <div style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0, 0, 0, 0.35)",
+            pointerEvents: "none",
+          }} />
+          <span style={{ position: "relative", zIndex: 2 }}>🎴 Decks</span>
         </button>
       </div>
     </div>
