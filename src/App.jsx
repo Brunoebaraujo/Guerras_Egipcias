@@ -1150,6 +1150,71 @@ function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveTo, appl
   );
 }
 
+/* Tabuleiro com rotação para multiplayer: ajusta as zones baseado na perspectiva do jogador */
+function TabuleiroMultiplayer({ g, ctx, aim, moving, sel, planning, placeCard, moveTo, applyAim, isAimable, startMove, isMovable, pickUp, zoomBoard, viewSeat = 0 }) {
+  const base = import.meta.env.BASE_URL;
+  const ref = useRef(null);
+  const [bw, setBw] = useState(900);
+  useEffect(() => {
+    const el = ref.current; if (!el) return;
+    const ro = new ResizeObserver((e) => setBw(e[0].contentRect.width));
+    ro.observe(el); return () => ro.disconnect();
+  }, []);
+  const px = (pct) => (bw * pct) / 100;
+
+  /* Em multiplayer, rotaciona as zones quando viewSeat=1:
+     - viewSeat=0 (Lado A): layout normal
+     - viewSeat=1 (Lado B): Lado B embaixo, Lado A em cima (inverte) */
+  const getSideForZone = (originalSide) => viewSeat === 1 ? 1 - originalSide : originalSide;
+
+  const zoneStyle = (lane, side) => {
+    const displaySide = getSideForZone(side);
+    const z = BOARD.zone;
+    const v = displaySide === 0 ? z.top : z.bot;
+    return { position: "absolute", left: `${BOARD.laneCx[lane] - z.w / 2}%`, top: `${v.y}%`, width: `${z.w}%`, height: `${v.h}%` };
+  };
+
+  return (
+    <div ref={ref} className="relative select-none" style={{
+      width: "100%", height: "100%",
+      backgroundImage: `url(${base}tabuleiro.webp)`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
+      borderRadius: 12, boxShadow: "0 0 0 1px #44403c, 0 8px 30px rgba(0,0,0,.5)",
+    }}>
+      {[0, 1, 2].map((lane) => {
+        const sA = laneScore(ctx, lane, 0), sB = laneScore(ctx, lane, 1);
+        const winner = sA > sB ? 0 : sB > sA ? 1 : -1;
+        const maat = laneHasMaat(g.board, lane);
+        return (
+          <React.Fragment key={lane}>
+            {[0, 1].map((side) => (
+              <LaneZone key={side} side={side} lane={lane} g={g} ctx={ctx} bw={bw} px={px}
+                style={zoneStyle(lane, side)} aim={aim} moving={moving}
+                canDrop={planning && sel && sel.side === side && !moving}
+                onDrop={() => placeCard(side, lane)} onMoveHere={() => moveTo(side, lane)}
+                onTarget={(c) => aim && isAimable(c) && applyAim(c)}
+                onStartMove={startMove} isMovable={isMovable}
+                onRemove={planning ? pickUp : null} aimable={isAimable} onZoom={zoomBoard}
+                tone={side === 0 ? "amber" : "sky"} />
+            ))}
+            {/* Discos de placar — sem rotação, mantêm as posições fixas */}
+            <ScoreDisc cx={BOARD.laneCx[lane]} cy={BOARD.circle.topCy} d={BOARD.circle.d} px={px} v={sA} tone="amber" lead={winner === 0} />
+            <ScoreDisc cx={BOARD.laneCx[lane]} cy={BOARD.circle.botCy} d={BOARD.circle.d} px={px} v={sB} tone="sky" lead={winner === 1} />
+            <div style={{ position: "absolute", left: `${BOARD.laneCx[lane]}%`, top: "50.5%", transform: "translate(-50%,-50%)", zIndex: 4, pointerEvents: "none", textAlign: "center" }}>
+              <div style={{
+                background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.35)", borderRadius: 999,
+                padding: `${px(0.25)}px ${px(0.9)}px`, color: "#f7e9c0", fontFamily: "Georgia, serif",
+                fontSize: Math.max(10, px(1.05)), letterSpacing: 1, whiteSpace: "nowrap",
+              }}>
+                VIA {lane + 1}{maat ? " · ⚖" : winner >= 0 ? ` · ♛ ${winner === 0 ? "A" : "B"}` : ""}
+              </div>
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
 function ScoreDisc({ cx, cy, d, px, v, tone, lead }) {
   const ring = tone === "amber" ? "rgba(251,191,36,.95)" : "rgba(56,189,248,.95)";
   return (
@@ -1962,6 +2027,7 @@ function OnlineGame({ send, data, note, onLeave }) {
   const planning = g.phase === "plan" && !g.finished;
   const rawAim = g.awaitingAim;
   const myAim = rawAim && rawAim.side === seat ? rawAim : null; // só resolvo a MINHA mira
+  const aim = myAim; // alias para compatibilidade com rendering desktop
   const ctx = ctxOf(g);
   const wins = laneWins(g);
 
@@ -2019,20 +2085,125 @@ function OnlineGame({ send, data, note, onLeave }) {
   const oppAiming = rawAim && rawAim.side !== seat;
   const msg = !oppConnected ? "⚠ Adversário desconectado." : oppAiming ? "🎯 O adversário está escolhendo um alvo…" : (note || "");
 
+  // Detectar se deve usar desktop ou mobile
+  const vw = typeof window !== "undefined" ? window.innerWidth : 640; // SSR: assume mobile por padrão
+  const isMobile = vw < 820;
+
+  if (isMobile) {
+    return (
+      <>
+        <GameMobile
+          online seat={seat} myReady={myReady} oppReady={oppReady} oppHand={g.oppHand || 0} oppConnected={oppConnected}
+          g={g} ctx={ctx} wins={wins} planning={planning}
+          sel={sel} setSel={setSel} aim={myAim} moving={moving} msg={msg} fast={false}
+          startReveal={startReveal} setFast={() => {}} reset={onLeave}
+          setScreen={onLeave} setForceView={() => {}}
+          placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
+          applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
+          zoomBoard={zoomBoard} zoomHand={zoomHand} />
+        {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
+        {!bannerVisto && <BannerVitoria g={g} online={true} mySeat={seat} onFechar={() => setBannerVisto(true)} />}
+      </>
+    );
+  }
+
+  // Desktop multiplayer: layout de 3 colunas como single player
+  // Rotaciona as mãos: jogador sempre embaixo, adversário em cima
+  const mySide = seat;
+  const oppSide = 1 - seat;
+  const topSide = oppSide;    // adversário no topo
+  const bottomSide = mySide;  // jogador na base
+
   return (
-    <>
-      <GameMobile
-        online seat={seat} myReady={myReady} oppReady={oppReady} oppHand={g.oppHand || 0} oppConnected={oppConnected}
-        g={g} ctx={ctx} wins={wins} planning={planning}
-        sel={sel} setSel={setSel} aim={myAim} moving={moving} msg={msg} fast={false}
-        startReveal={startReveal} setFast={() => {}} reset={onLeave}
-        setScreen={onLeave} setForceView={() => {}}
-        placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
-        applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
-        zoomBoard={zoomBoard} zoomHand={zoomHand} />
+    <div className="w-full bg-stone-900 text-stone-100 font-sans" style={{ height: "100dvh", overflow: "hidden" }}>
+      <div className="flex gap-3 p-3 sm:p-4" style={{ height: "100dvh", boxSizing: "border-box" }}>
+
+        {/* ============ COLUNA ESQUERDA: painel de controle ============ */}
+        <aside className="flex flex-col gap-3" style={{ width: 380, flex: "0 0 380px", height: "100%", minHeight: 0 }}>
+          <div className="rounded-lg border border-stone-700 p-3" style={{ backgroundColor: "#1c1a17", flex: "0 0 auto" }}>
+            <div className="mb-2">
+              <h1 className="text-xl font-bold tracking-widest text-amber-200">
+                𓂀 Guerras Egípcias <span className="text-stone-500 text-sm font-normal tracking-normal">· multiplayer</span>
+              </h1>
+              <p className="text-xs text-stone-400 mt-0.5">Você é {SIDE_NAME[seat]} · adversário: {!oppConnected ? "desconectado ⚠" : "conectado ✓"}</p>
+            </div>
+
+            <div className="flex items-center gap-2 mb-2 text-sm flex-wrap">
+              <span className={`px-2 py-1 rounded font-semibold ${planning ? "bg-stone-800 text-stone-200" : g.phase === "revealing" ? "bg-indigo-900 text-indigo-100" : "bg-emerald-900 text-emerald-100"}`}>
+                {planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado"}
+              </span>
+              <span className="text-stone-400">Prioridade:</span>
+              <span className={`font-bold ${g.priority === 0 ? "text-amber-300" : "text-sky-300"}`}>{SIDE_NAME[g.priority]}</span>
+            </div>
+            {g.trevas === g.round && (
+              <div className="mb-2 px-2 py-1 rounded bg-indigo-950 border border-indigo-700 text-indigo-200 text-xs">
+                ⊘ Trevas — cartas ocultas
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 mb-2 flex-wrap">
+              <Chip label="Rodada" value={`${g.round}/6`} />
+              <Chip label="Energia A" value={g.energy[0]} tone="amber" />
+              <Chip label="Energia B" value={g.energy[1]} tone="sky" />
+            </div>
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {planning && <button onClick={startReveal} disabled={myReady} className={`px-3 py-2 rounded-md text-stone-900 font-semibold text-sm ${myReady ? "bg-stone-700 text-stone-400" : "bg-emerald-600 hover:bg-emerald-500"}`}>{myReady ? "Aguardando…" : "Pronto ✓"}</button>}
+              {g.phase === "revealing" && <span className="px-3 py-2 rounded-md bg-indigo-950 text-indigo-100 font-semibold text-sm">Revelando…</span>}
+              {g.phase === "revealed" && !g.finished && <span className="px-3 py-2 rounded-md bg-stone-800 text-amber-200 font-semibold text-sm">{g.round >= 6 ? "Encerrando…" : "Seguindo…"}</span>}
+              <button onClick={onLeave} className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Sair</button>
+            </div>
+
+            <div className="flex items-center gap-2 mt-2 text-sm">
+              <span className="text-stone-400">Vias:</span>
+              <span className="text-amber-300 font-bold">A {wins[0]}</span>
+              <span className="text-stone-600">×</span>
+              <span className="text-sky-300 font-bold">{wins[1]} B</span>
+              {g.finished && <span className="px-2 py-0.5 rounded bg-stone-800 border border-amber-600 text-amber-200 font-semibold text-xs">{resultLabel(g)}</span>}
+            </div>
+
+            {moving && <div className="mt-2 px-2 py-1.5 rounded bg-sky-950 border border-sky-700 text-sky-100 text-xs">⇄ Movendo — clique numa via do {SIDE_NAME[moving.side]}.</div>}
+            {aim && (
+              <div className="mt-2 px-2 py-1.5 rounded bg-indigo-950 border border-indigo-700 text-indigo-100 text-xs flex items-center gap-2">
+                <span>🎯 <b>{aim.srcNome}</b>: escolha {aim.needs === "ally" ? "um aliado" : "um inimigo"} na Via {aim.lane + 1}.</span>
+                <button onClick={skipAim} className="ml-auto px-2 py-0.5 rounded bg-stone-700 hover:bg-stone-600 text-xs whitespace-nowrap">Pular</button>
+              </div>
+            )}
+            {msg && <div className="mt-2 px-2 py-1.5 rounded bg-rose-950 border border-rose-800 text-rose-200 text-xs">{msg}</div>}
+          </div>
+        </aside>
+
+        {/* ============ COLUNA DO MEIO: mãos rotacionadas ============
+            Multiplayer: adversário em cima (topSide), jogador em baixo (bottomSide)
+            Em single player seria lado 0 em cima, lado 1 em baixo. */}
+        <div className="flex flex-col gap-2" style={{ width: 232, flex: "0 0 232px", height: "100%", minHeight: 0 }}>
+          <div className="flex flex-col" style={{ flex: "1 1 50%", minHeight: 0 }}>
+            {/* Adversário (topo) — mão filtrada pelo servidor (vazia) */}
+            <Hand side={topSide} tone={topSide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={true} onZoom={zoomHand} />
+          </div>
+          <div className="flex flex-col" style={{ flex: "1 1 50%", minHeight: 0 }}>
+            {/* Jogador (base) — suas cartas, só você pode jogar */}
+            <Hand side={bottomSide} tone={bottomSide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
+          </div>
+        </div>
+
+        {/* ============ COLUNA DIREITA: tabuleiro ============ */}
+        <main className="flex" style={{ flex: "1 1 auto", height: "100%", minHeight: 0, minWidth: 0, alignItems: "center", justifyContent: "center" }}>
+          <div className="rounded-xl" style={{ width: "100%", height: "100%", minHeight: 0, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
+            <div style={{ height: "100%", aspectRatio: BOARD.ratio, maxWidth: "100%" }}>
+              {/* Tabuleiro com rotação: jogador sempre vê suas vias embaixo */}
+              <TabuleiroMultiplayer g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
+                placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
+                startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard}
+                viewSeat={seat} />
+            </div>
+          </div>
+        </main>
+      </div>
+
       {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
       {!bannerVisto && <BannerVitoria g={g} online={true} mySeat={seat} onFechar={() => setBannerVisto(true)} />}
-    </>
+    </div>
   );
 }
 
