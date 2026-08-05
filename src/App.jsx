@@ -1162,15 +1162,14 @@ function TabuleiroMultiplayer({ g, ctx, aim, moving, sel, planning, placeCard, m
   }, []);
   const px = (pct) => (bw * pct) / 100;
 
-  /* Em multiplayer, rotaciona as zones quando viewSeat=1:
-     - viewSeat=0 (Lado A): layout normal (Lado 0 embaixo, Lado 1 em cima)
-     - viewSeat=1 (Lado B): Lado 1 embaixo, Lado 0 em cima (inverte a ordem dos lados nas zonas) */
-  const getSideForZone = (originalSide) => viewSeat === 1 ? originalSide : 1 - originalSide;
+  /* Em multiplayer, rotaciona as zones:
+     - Se side === viewSeat (é você): coloca EMBAIXO (z.bot)
+     - Se side !== viewSeat (é adversário): coloca EM CIMA (z.top)
+     Isso garante que você sempre vê sua área embaixo, independente de qual lado você é. */
 
   const zoneStyle = (lane, side) => {
-    const displaySide = getSideForZone(side);
     const z = BOARD.zone;
-    const v = displaySide === 0 ? z.top : z.bot;
+    const v = side === viewSeat ? z.bot : z.top;
     return { position: "absolute", left: `${BOARD.laneCx[lane] - z.w / 2}%`, top: `${v.y}%`, width: `${z.w}%`, height: `${v.h}%` };
   };
 
