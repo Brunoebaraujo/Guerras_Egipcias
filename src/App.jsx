@@ -1163,9 +1163,9 @@ function TabuleiroMultiplayer({ g, ctx, aim, moving, sel, planning, placeCard, m
   const px = (pct) => (bw * pct) / 100;
 
   /* Em multiplayer, rotaciona as zones quando viewSeat=1:
-     - viewSeat=0 (Lado A): layout normal
-     - viewSeat=1 (Lado B): Lado B embaixo, Lado A em cima (inverte) */
-  const getSideForZone = (originalSide) => viewSeat === 1 ? 1 - originalSide : originalSide;
+     - viewSeat=0 (Lado A): layout normal (Lado 0 embaixo, Lado 1 em cima)
+     - viewSeat=1 (Lado B): Lado 1 embaixo, Lado 0 em cima (inverte a ordem dos lados nas zonas) */
+  const getSideForZone = (originalSide) => viewSeat === 1 ? originalSide : 1 - originalSide;
 
   const zoneStyle = (lane, side) => {
     const displaySide = getSideForZone(side);
