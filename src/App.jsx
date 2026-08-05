@@ -1195,9 +1195,19 @@ function TabuleiroMultiplayer({ g, ctx, aim, moving, sel, planning, placeCard, m
                 onRemove={planning ? pickUp : null} aimable={isAimable} onZoom={zoomBoard}
                 tone={side === 0 ? "amber" : "sky"} />
             ))}
-            {/* Discos de placar — sem rotação, mantêm as posições fixas */}
-            <ScoreDisc cx={BOARD.laneCx[lane]} cy={BOARD.circle.topCy} d={BOARD.circle.d} px={px} v={sA} tone="amber" lead={winner === 0} />
-            <ScoreDisc cx={BOARD.laneCx[lane]} cy={BOARD.circle.botCy} d={BOARD.circle.d} px={px} v={sB} tone="sky" lead={winner === 1} />
+            {/* Discos de placar — rotacionam com a perspectiva quando viewSeat=1 */}
+            {(() => {
+              const topCy = BOARD.circle.topCy;
+              const botCy = BOARD.circle.botCy;
+              // Quando viewSeat=1, inverte: Lado 0 embaixo (botCy), Lado 1 em cima (topCy)
+              const cyForSide = (side) => viewSeat === 1 ? (side === 0 ? botCy : topCy) : (side === 0 ? topCy : botCy);
+              return (
+                <>
+                  <ScoreDisc cx={BOARD.laneCx[lane]} cy={cyForSide(0)} d={BOARD.circle.d} px={px} v={sA} tone="amber" lead={winner === 0} />
+                  <ScoreDisc cx={BOARD.laneCx[lane]} cy={cyForSide(1)} d={BOARD.circle.d} px={px} v={sB} tone="sky" lead={winner === 1} />
+                </>
+              );
+            })()}
             <div style={{ position: "absolute", left: `${BOARD.laneCx[lane]}%`, top: "50.5%", transform: "translate(-50%,-50%)", zIndex: 4, pointerEvents: "none", textAlign: "center" }}>
               <div style={{
                 background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.35)", borderRadius: 999,
