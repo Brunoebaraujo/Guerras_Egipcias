@@ -1606,12 +1606,24 @@ const BOARD_MOBILE = {
   scoreY: { 1: 42.505, 0: 56.959 },                   // % Y dos discos de placar (B em cima, A embaixo)
 };
 
-function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
+/* Transforma as coordenadas do tabuleiro quando viewSeat=1:
+   inverte a ordem dos lados para que o jogador sempre veja suas vias embaixo. */
+function flipBoardConfig(config, viewSeat) {
+  if (viewSeat !== 1) return config;
+  return {
+    ...config,
+    rowY: { 0: config.rowY[1], 1: config.rowY[0] },
+    scoreY: { 0: config.scoreY[1], 1: config.scoreY[0] },
+  };
+}
+
+function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard, viewSeat = 0 }) {
+  const displayConfig = flipBoardConfig(config, viewSeat);
   const base = import.meta.env.BASE_URL;
-  const cardHpct = config.cardW * config.ar * (7 / 5); // altura do slot em % (mantém 5:7)
+  const cardHpct = displayConfig.cardW * displayConfig.ar * (7 / 5); // altura do slot em % (mantém 5:7)
   return (
     <div style={{ position: "relative", display: "inline-block", maxWidth: "100%", maxHeight: "100%", lineHeight: 0 }}>
-      <img src={`${base}${config.art}`} alt="" style={{ display: "block", maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", borderRadius: 10 }} />
+      <img src={`${base}${displayConfig.art}`} alt="" style={{ display: "block", maxWidth: "100%", maxHeight: "100%", width: "auto", height: "auto", borderRadius: 10 }} />
       <div style={{ position: "absolute", inset: 0 }}>
         {[0, 1, 2].map((lane) =>
           [0, 1].map((side) => {
@@ -1621,9 +1633,9 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
             const active = canDrop || canMoveHere;
             const ring = side === 0 ? "rgba(251,191,36,.9)" : "rgba(56,189,248,.9)";
             const zoneClick = canMoveHere ? () => moveTo(side, lane) : canDrop ? () => placeCard(side, lane) : undefined;
-            const rows = config.rowY[side];
-            const boxLeft = config.laneX[lane] - (config.colDX + config.cardW / 2);
-            const boxW = config.colDX * 2 + config.cardW;
+            const rows = displayConfig.rowY[side];
+            const boxLeft = displayConfig.laneX[lane] - (displayConfig.colDX + displayConfig.cardW / 2);
+            const boxW = displayConfig.colDX * 2 + displayConfig.cardW;
             const boxTop = Math.min(rows[0], rows[1]) - cardHpct / 2;
             const boxH = Math.abs(rows[1] - rows[0]) + cardHpct;
             return (
@@ -1639,14 +1651,14 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                 {[0, 1, 2, 3].map((slot) => {
                   const c = cards[slot];
                   const col = slot % 2, row = slot < 2 ? 0 : 1;
-                  const x = config.laneX[lane] + (col === 0 ? -config.colDX : config.colDX);
+                  const x = displayConfig.laneX[lane] + (col === 0 ? -displayConfig.colDX : displayConfig.colDX);
                   const y = rows[row];
                   /* Slot vazio: a moldura de pedra está PINTADA na arte do tabuleiro,
                      então não dá para apagá-la por CSS — dá para abafá-la. Sem isto,
                      o olho é puxado para onde não há informação nenhuma. */
                   if (!c) return (
                     <div key={`v${slot}`} style={{
-                      position: "absolute", left: `${x}%`, top: `${y}%`, width: `${config.cardW}%`,
+                      position: "absolute", left: `${x}%`, top: `${y}%`, width: `${displayConfig.cardW}%`,
                       aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 2,
                       borderRadius: 5, background: "rgba(6,9,13,.5)", pointerEvents: "none",
                     }} />
@@ -1665,7 +1677,7 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                   else onClick = (e) => { e.stopPropagation(); zoomBoard(c); };
                   const onRemove = pickUp && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
                   return (
-                    <div key={c.uid} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${config.cardW}%`, aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 4 }}>
+                    <div key={c.uid} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${displayConfig.cardW}%`, aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 4 }}>
                       <MiniCard c={c} ctx={ctx} bw={MOBILE_BW} canTarget={canTarget} movable={movable} isMoving={isMoving}
                         reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging}
                         onClick={onClick} onRemove={onRemove} />
@@ -1683,7 +1695,7 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                        Era o número menor da tela. Agora é o maior, e a liderança se lê
                        pelo halo, não por uma diferença sutil de matiz. */
                     <div style={{
-                      position: "absolute", left: `${config.laneX[lane]}%`, top: `${config.scoreY[side]}%`, transform: "translate(-50%,-50%)",
+                      position: "absolute", left: `${displayConfig.laneX[lane]}%`, top: `${displayConfig.scoreY[side]}%`, transform: "translate(-50%,-50%)",
                       zIndex: 5, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center",
                       width: "clamp(28px, 5.6vw, 44px)", aspectRatio: "1", borderRadius: "50%",
                       boxShadow: lead ? `0 0 0 2px ${col}, 0 0 10px 2px ${col}88` : "none",
@@ -1821,6 +1833,13 @@ function GameMobile(p) {
   const phaseLabel = planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado";
   const phaseBg = planning ? "#1c1917" : g.phase === "revealing" ? "#1e1b4b" : "#064e3b";
   const laneProps = { g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp: planning ? pickUp : null, zoomBoard };
+  
+  // Em multiplayer, rotaciona a vista: o jogador SEMPRE vê suas vias embaixo
+  // seat=0 (A): lado 0 embaixo (normal)
+  // seat=1 (B): lado 1 embaixo (rotacionado)
+  const mySide = seat;
+  const oppSide = 1 - seat;
+  
   return (
     <div style={{ minHeight: "100dvh", background: "#0c0a09", display: "flex", justifyContent: "center" }}>
     <div style={{ width: "100%", maxWidth: 720, minHeight: "100dvh", display: "flex", flexDirection: "column", background: "#0c0a09", color: "#e7e5e4", fontFamily: "ui-sans-serif, system-ui, sans-serif", borderLeft: "1px solid #1c1917", borderRight: "1px solid #1c1917" }}>
@@ -1856,17 +1875,43 @@ function GameMobile(p) {
       )}
       {sel && planning && !aim && !moving && <MBanner tone="amber">Toque numa via do {SIDE_NAME[sel.side]} para posicionar {byKey[g.hand[sel.side].find((h) => h.hid === sel.hid)?.key]?.nome || "a carta"}.</MBanner>}
 
-      <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
-        onResetPlan={planning && (!online || seat === 1) ? resetPlan : null}
-        online={online} isOpp={online && seat !== 1} oppHand={oppHand} />
+      {/* Multiplayer mobile: layout sempre rotacionado para o jogador
+          - Topo: Adversário (só contagem, pois as cartas são filtradas pelo servidor)
+          - Meio: Tabuleiro com perspectiva do jogador
+          - Fundo: Suas cartas (totalmente visíveis para jogar)
+          
+          Em mobile há restrição de espaço, então o adversário só mostra o count
+          e as cartas jogáveis ficam sempre acessíveis na parte inferior. */}
+      {online ? (
+        <>
+          <MHandRow side={oppSide} tone={oppSide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
+            onResetPlan={null}
+            online={online} isOpp={true} oppHand={oppHand} />
 
-      <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
-        <BoardArt config={BOARD_MOBILE} {...laneProps} />
-      </div>
+          <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
+            <BoardArt config={BOARD_MOBILE} {...laneProps} viewSeat={seat} />
+          </div>
 
-      <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
-        onResetPlan={planning && (!online || seat === 0) ? resetPlan : null}
-        online={online} isOpp={online && seat !== 0} oppHand={oppHand} />
+          <MHandRow side={mySide} tone={mySide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
+            onResetPlan={planning ? resetPlan : null}
+            online={online} isOpp={false} oppHand={oppHand} />
+        </>
+      ) : (
+        /* Single player: layout original */
+        <>
+          <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
+            onResetPlan={planning ? resetPlan : null}
+            online={online} isOpp={false} oppHand={oppHand} />
+
+          <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
+            <BoardArt config={BOARD_MOBILE} {...laneProps} />
+          </div>
+
+          <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
+            onResetPlan={planning ? resetPlan : null}
+            online={online} isOpp={false} oppHand={oppHand} />
+        </>
+      )}
 
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         {planning && (online
@@ -1882,7 +1927,7 @@ function GameMobile(p) {
           </span>)}
         {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309" }}>{resultLabel(g)}</span>}
         {online
-          ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏏</button>
+          ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏲</button>
           : <><button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
             <button onClick={() => setScreen("menu")} style={mBtnSm}>Início</button></>}
       </div>
