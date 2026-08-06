@@ -39,7 +39,7 @@ import {
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
   resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveAssassino, resolveSeqerMau, resolveSemerj,
-  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveSekhmet, resolveKhnum,
+  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveRandomBuffAlly, resolveSekhmet, resolveKhnum,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
@@ -223,6 +223,10 @@ function resolverEntrada(s, card, def, rng) {
   if (def.animalNaVia) { s.effect = resolveCabraDoNilo(s, card, def); return; }
   if (def.bonusPorAnimal) { s.effect = resolveApis(s, card, def); return; }
   if (def.moverAnimal) { s.effect = resolveMacaco(s, card, rng, def); return; }
+  if (def.randomBuffAlly) {
+    s.effect = resolveRandomBuffAlly(s, card, def.randomBuffAlly, rng, def);
+    return;
+  }
   if (def.needs) {
     const tg = validTargets(card, def.needs, s.board);
     if (tg.length === 0) {

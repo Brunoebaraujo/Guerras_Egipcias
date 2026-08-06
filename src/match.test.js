@@ -126,34 +126,31 @@ describe("revelação", () => {
     expect(g.phase).toBe("revealed");
   });
 
-  it("carta de mira PAUSA o fluxo em awaitingAim; 'aim' aplica o buff", () => {
+  it("Hathor buffeia aleatoriamente um aliado na via", () => {
     const aliado = onBoard("servo", { lane: 0, owner: 0, revealed: true });
     const hathor = onBoard("hathor", { lane: 0, owner: 0, revealed: false });
     let g = mkMatch({ board: [aliado, hathor] });
     g = applyAction(g, { t: "startReveal" }).state;
     const rev = autoReveal(g, { rng: seeded(3) });
-    expect(rev.awaiting).toBe(true);
+    expect(rev.awaiting).toBe(false);  // sem mira pendente
     g = rev.state;
-    expect(g.awaitingAim).toMatchObject({ needs: "ally", srcKey: "hathor" });
-    expect(isAimable(g, g.board.find((c) => c.uid === aliado.uid))).toBe(true);
-    // 'step' é recusado enquanto há mira pendente
-    expect(applyAction(g, { t: "step" }).error).toMatch(/mira/i);
-    // aplica o alvo
-    g = applyAction(g, { t: "aim", targetUid: aliado.uid }).state;
     expect(g.awaitingAim).toBeNull();
     const alvo = g.board.find((c) => c.uid === aliado.uid);
-    expect(power(alvo, ctxOf(g))).toBe(byKey.servo.poder + byKey.hathor.buffTarget);
+    expect(power(alvo, ctxOf(g))).toBe(byKey.servo.poder + byKey.hathor.randomBuffAlly);
   });
 
-  it("skipAim abre mão do alvo sem aplicar buff", () => {
-    const aliado = onBoard("servo", { revealed: true });
-    const hathor = onBoard("hathor", { revealed: false });
-    let g = mkMatch({ board: [aliado, hathor] });
+  it("Hathor sem aliados na via não aplica buff", () => {
+    const hathor = onBoard("hathor", { lane: 0, owner: 0, revealed: false });
+    let g = mkMatch({ board: [hathor] });
     g = applyAction(g, { t: "startReveal" }).state;
-    g = autoReveal(g, { rng: seeded(5) }).state;
-    g = applyAction(g, { t: "skipAim" }).state;
+    const rev = autoReveal(g, { rng: seeded(5) });
+    expect(rev.awaiting).toBe(false);
+    g = rev.state;
     expect(g.awaitingAim).toBeNull();
-    expect(power(g.board.find((c) => c.uid === aliado.uid), ctxOf(g))).toBe(byKey.servo.poder);
+    // Hathor não tem aliados, então o efeito é bloqueado (sem alvo)
+    // Isso se reflete no log
+    const logs = g.log.filter((l) => l.includes("Hathor"));
+    expect(logs.some((l) => l.includes("sem alvo") || l.includes("efeito perdido"))).toBe(true);
   });
 });
 

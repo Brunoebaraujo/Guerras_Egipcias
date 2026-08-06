@@ -34,9 +34,9 @@ export const CARDS = [
     lore: "O colosso de Ramsés ainda jaz em Mênfis, dez metros de calcário. Estátuas assim tinham culto próprio — o povo lhes rezava como intermediárias do rei." },
   // Efeito
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 3, arch: "buff",
-    trigger: "entrar", needs: "ally", buffTarget: 3, arte: "hathor", arteFoco: "center 0%",
+    trigger: "entrar", randomBuffAlly: 3, arte: "hathor", arteFoco: "center 0%",
     lore: "Senhora do amor, da música e da alegria, Hathor tocava os corações e os fazia transbordar de coragem. Onde ela pousava a mão, o guerreiro esquecia o medo e lutava com o vigor de quem se sabe amado.",
-    texto: "Ao Entrar: +3 de Poder a um aliado nesta via." },
+    texto: "Ao Entrar: +3 de Poder a um aliado aleatório nesta via." },
   { key: "heka", nome: "Heka", tipo: "Divindade", custo: 2, poder: 1, arch: "buff",
     trigger: "entrar", buffNext: 3, arte: "heka",
     lore: "Heka é a magia que precede a criação — a força que anima o gesto dos deuses. Antes que qualquer poder se manifeste, Heka já o preparou.",
@@ -1336,6 +1336,19 @@ export function resolveArmadura(s, arm) {
   aplicarBencao(s, target, val, "Armadura de Ptah");
   pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
+}
+
+// Hathor: buffar aleatoriamente um aliado na via
+export function resolveRandomBuffAlly(s, card, val, rng = Math.random, def = byKey[card.key]) {
+  const allies = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && emJogo(c));
+  if (allies.length === 0) {
+    pushLog(s, `${def.nome}: sem aliado na via — efeito perdido.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  const target = allies[Math.floor(rng() * allies.length)];
+  aplicarBencao(s, target, val, def.nome);
+  pushLog(s, `${def.nome} concedeu +${val} para ${byKey[target.key].nome}.`);
+  return { uid: target.uid, text: `☀ +${val}`, kind: "buff", seq: s.effectSeq };
 }
 
 // `escopo` decide de quem são as vítimas: "todos" (padrão — é o Assassino Medjay,

@@ -373,16 +373,12 @@ describe("o eco se comporta como um Ao Entrar comum", () => {
     expect(trilha(s)).toContain("Ao Entrar bloqueado");
   });
 
-  it("ecoar a Hathor abre a mira NA VIA DO KA, com o valor dela", () => {
+  it("ecoar a Hathor buffeia aleatoriamente o aliado NA VIA DO KA", () => {
     const r = revelar([["lanceiro", 1], ["hathor", 0], ["ka-errante", 1]]);
-    expect(r.awaiting).toBe(true);
-    const a = r.state.awaitingAim;
-    expect(a.srcKey).toBe("hathor");
-    expect(a.uid).toBe(ka(r.state).uid);
-    expect(a.lane).toBe(1);                     // via do Ka, não a da Hathor
-    const alvo = r.state.board.find((c) => c.key === "lanceiro");
-    const s = applyAction(r.state, { t: "aim", targetUid: alvo.uid }).state;
-    expect(pw(s, s.board.find((c) => c.uid === alvo.uid))).toBe(4 + 3);
+    expect(r.awaiting).toBe(false);           // Hathor resolve sem mira
+    const lanceiro = r.state.board.find((c) => c.key === "lanceiro");
+    // Hathor ecoada pelo Ka seleciona aleatoriamente — neste caso, só há lanceiro
+    expect(pw(r.state, lanceiro)).toBe(4 + 3);  // 4 (base) + 3 (Hathor)
   });
 
   it("o eco alimenta a Renenutet como qualquer bênção permanente", () => {
