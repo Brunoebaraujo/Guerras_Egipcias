@@ -52,3 +52,4 @@ Site: **https://brunoebaraujo.github.io/Guerras_Egipcias/**
 
 ## Stack
 Vite + React + Tailwind CSS. Sem backend — estado local (hotseat).
+
