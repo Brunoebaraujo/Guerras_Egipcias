@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write   # necessário para publicar a dist na branch gh-pages
+  pages: write      # necessário para deploy no GitHub Pages
+  id-token: write   # necessário para autenticação OIDC
 
 concurrency:
   group: pages-deploy
@@ -32,11 +34,13 @@ jobs:
       - name: Build de produção
         run: npm run build
 
-      - name: Publicar dist/ na branch gh-pages
-        uses: peaceiris/actions-gh-pages@v4
+      - name: Upload de artefatos para Pages
+        uses: actions/upload-pages-artifact@v3
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./dist
+          path: ./dist
+
+      - name: Deploy para GitHub Pages
+        uses: actions/deploy-pages@v4
 
       # O servidor multiplayer (Render) importa src/match.js e src/engine.js, então
       # precisa acompanhar cada mudança na coleção de cartas. O auto-deploy do Render
