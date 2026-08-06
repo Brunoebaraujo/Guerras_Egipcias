@@ -845,16 +845,22 @@ export function espalharBencao(s, fonte, rng = Math.random, wave = 0) {
   let valor = 1;
   
   if (def.spreadPerLane) {
-    // Renenutet: sorteia 1 carta por via, +2 cada
+    // Renenutet: sorteia 1 OUTRA carta por via, +2 cada. Se sozinha, abençoa a si mesma.
     alvos = [];
     valor = 2;
     for (let lane = 0; lane < 3; lane++) {
-      const cartas = s.board.filter(
+      const outras = s.board.filter(
         (c) => c.owner === fonte.owner && c.lane === lane && c.uid !== fonte.uid && c.revealed && !c.dying
       );
-      if (cartas.length > 0) {
-        const alvo = cartas[Math.floor(rng() * cartas.length)];
+      if (outras.length > 0) {
+        // Há outra carta na via
+        const alvo = outras[Math.floor(rng() * outras.length)];
         alvos.push(alvo);
+      } else {
+        // Sozinha na via: abençoa a si mesma (se estiver revelada)
+        if (fonte.revealed && !fonte.dying && fonte.lane === lane) {
+          alvos.push(fonte);
+        }
       }
     }
   } else {

@@ -382,18 +382,19 @@ describe("o eco se comporta como um Ao Entrar comum", () => {
   });
 
   it("o eco alimenta a Renenutet como qualquer bênção permanente", () => {
-    /* A Armadura entra sozinha na Via 1 e não se funde — fica em campo, e é ela
-       o eco. O Ka, na Via 2, ecoa a fusão: funde-se na Renenutet (única aliada
+    /* A Armadura entra sozinha na Via 0 e não se funde — fica em campo, e é ela
+       o eco. O Ka, na Via 1, ecoa a fusão: funde-se na Renenutet (única aliada
        da via dele) e lhe entrega os 3 de Poder DELE. Bênção permanente é bênção
-       permanente venha de onde vier, então a Renenutet dispara e espalha +1. */
+       permanente venha de onde vier, então a Renenutet dispara e espalha +2 por via.
+       Na via 1, só tem Renenutet (Ka é Fenômeno): ela abençoa a si mesma. */
     const { state: s } = revelar([
       ["servo", 2], ["renenutet", 1], ["armadura", 0], ["ka-errante", 1],
     ]);
     expect(trilha(s)).toContain("ecoa o Ao Entrar de Armadura de Ptah");
     const ren = acha(s, "renenutet");
     expect(ren.mods.some((m) => m.src === "Armadura de Ptah" && m.val === 3)).toBe(true);
-    expect(pw(s, ren)).toBe(3 + 3);
-    expect(pw(s, acha(s, "servo"))).toBe(1 + 2);      // respingo da Renenutet (+2 por via)
+    expect(pw(s, ren)).toBe(3 + 3 + 2);  // 3 base + 3 (Armadura) + 2 (si mesma na via 1)
+    expect(pw(s, acha(s, "servo"))).toBe(1 + 2);      // via 2: recebe +2 de Renenutet
     expect(ka(s)).toBeUndefined();                     // consumido pela fusão
   });
 
