@@ -209,6 +209,16 @@ export const CARDS = [
     trigger: "entrar", bonusPorAnimal: 1,
     texto: "Ao Entrar: +1 de Poder para cada outro Animal revelado em jogo, dos dois lados.",
     lore: "Um só touro por vez era Ápis, escolhido por marcas no pelo: vivia em Mênfis servido como rei e, ao morrer, era mumificado e descia ao Serapeu num sarcófago de granito de setenta toneladas. Enquanto ele vivia, todo o resto do gado do Egito era apenas gado." },
+  // Escriba — prioridade de compra
+  { key: "escriba", nome: "Escriba", tipo: "Humano", custo: 1, poder: 2, arch: "buff",
+    trigger: "entrar", buffNextDraw: 3, nomeCurto: "Escriba", arte: "escriba",
+    lore: "Os escribas do Egito eram guardiões do saber: sua caneta tocava papiro, e o futuro ficava escrito. Antes que um acontecimento chegasse, já havia palavras preparadas para recebê-lo.",
+    texto: "Ao Entrar: sua próxima carta comprada do deck entra com +3 de Poder permanente." },
+  // Conselheiro Real — fortalece a mão
+  { key: "conselheiro", nome: "Conselheiro Real", tipo: "Humano", custo: 2, poder: 3, arch: "buff",
+    trigger: "entrar", buffRandomHandCard: 3, nomeCurto: "Conselheiro", arte: "conselheiro",
+    lore: "O conselheiro sussurrava ao ouvido do faraó, e suas palavras mudavam o rumo das batalhas. Quando escolhia, sua mão apontava para o guerreiro que se tornaria lenda.",
+    texto: "Ao Entrar: uma carta aleatória sua na mão ganha +3 de Poder permanente." },
   // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
   { key: "moises", nome: "Moisés, Portador das Pragas", tipo: "Divindade", custo: 1, poder: 0, arch: "crescimento",
     set: "pragas", abertura: true, outorga: "pragas",
@@ -342,6 +352,8 @@ const NOME_CURTO = {
   // Criaturas e demais
   escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
   selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",
+  // Humanos
+  escriba: "Escriba", conselheiro: "Conselheiro",
   // Animais
   cao: "Cão", "cabra-nilo": "Cabra", ganso: "Ganso", gato: "Gato",
   macaco: "Macaco", hiena: "Hiena", garca: "Garça", rebanho: "Rebanho",
@@ -1439,6 +1451,36 @@ export function resolveHeka(s, heka, def = byKey[heka.key]) {
   s.pendingBuff[heka.owner] = val;
   pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta revelada (vale entre rodadas).`);
   return { uid: heka.uid, text: `☀ +${val}→`, kind: "buff", seq: s.effectSeq };
+}
+
+// ---------------------- Escriba: buffa próxima compra ----------------------
+// O Escriba reserva um buff para a PRÓXIMA carta que for comprada (sacada do deck).
+// Diferente da Heka (que buffa a próxima carta REVELADA), o buff do Escriba é
+// aplicado quando a carta entra na mão, em drawOne().
+export function resolveEscriba(s, card, def = byKey[card.key]) {
+  const val = def.buffNextDraw;
+  if (!s.drawBuffReserve) s.drawBuffReserve = [0, 0];
+  s.drawBuffReserve[card.owner] = val;
+  pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta comprada do deck.`);
+  return { uid: card.uid, text: `☀ +${val}→`, kind: "buff", seq: s.effectSeq };
+}
+
+// ------------------- Conselheiro: buffa carta aleatória na mão -------------------
+// O Conselheiro escolhe uma carta aleatória na mão do dono e aplica +3 em baked.
+// Se não houver cartas na mão, o efeito é nulo.
+export function resolveConselheiro(s, card, rng = Math.random, def = byKey[card.key]) {
+  const mao = s.hand[card.owner];
+  if (!mao || mao.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta na mão — efeito nulo.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  
+  const alvo = mao[Math.floor(rng() * mao.length)];
+  const val = def.buffRandomHandCard;
+  alvo.baked = (alvo.baked || 0) + val;
+  const nomeAlvo = byKey[alvo.key].nomeCurto || byKey[alvo.key].nome;
+  pushLog(s, `${def.nome}: ${nomeAlvo} na mão recebeu +${val} de Poder permanente.`);
+  return { uid: card.uid, text: `☀ +${val} → ${nomeAlvo}`, kind: "buff", seq: s.effectSeq };
 }
 
 // ----------------------- Assassinos: marcar veneno ----------------------

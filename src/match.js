@@ -38,7 +38,7 @@ import {
   byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, MAO_MAX, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
-  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveAssassino, resolveSeqerMau, resolveSemerj,
+  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveEscriba, resolveConselheiro, resolveAssassino, resolveSeqerMau, resolveSemerj,
   resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveRandomBuffAlly, resolveSekhmet, resolveKhnum,
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
@@ -104,7 +104,13 @@ function drawOne(s, side) {
   if (s.hand[side].length >= MAO_MAX) return null;
   const key = s.deck[side].shift();
   const hid = nextUid();
-  s.hand[side].push({ hid, key, printed: byKey[key].poder, baked: 0 });
+  const card = { hid, key, printed: byKey[key].poder, baked: 0 };
+  // Aplica buff reservado pelo Escriba (próxima carta comprada)
+  if (s.drawBuffReserve?.[side]) {
+    card.baked = (card.baked || 0) + s.drawBuffReserve[side];
+    s.drawBuffReserve[side] = 0;
+  }
+  s.hand[side].push(card);
   s.seen[side] += 1;
   return hid;
 }
@@ -150,7 +156,7 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
   const linha = `Rodada 1 — mão de abertura ${openingDeal}, compra a ${openingDeal + 1}ª. Prioridade: ${SIDE_NAME[pr]} (sorteio).`;
   const s = {
     round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
-    pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], blessings: [],
+    pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], drawBuffReserve: [0, 0], blessings: [],
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
@@ -208,6 +214,8 @@ function resolverEntrada(s, card, def, rng) {
     return;
   }
   if (def.buffNext) { s.effect = resolveHeka(s, card, def); return; }
+  if (def.buffNextDraw) { s.effect = resolveEscriba(s, card, def); return; }
+  if (def.buffRandomHandCard) { s.effect = resolveConselheiro(s, card, rng, def); return; }
   if (def.key === "sobek") { s.effect = resolveSobek(s, card); return; }
   if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true, def); return; }
   if (def.afogaCusto) { s.effect = resolveAfogamento(s, card, def); return; }
