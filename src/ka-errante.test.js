@@ -393,7 +393,7 @@ describe("o eco se comporta como um Ao Entrar comum", () => {
     const ren = acha(s, "renenutet");
     expect(ren.mods.some((m) => m.src === "Armadura de Ptah" && m.val === 3)).toBe(true);
     expect(pw(s, ren)).toBe(3 + 3);
-    expect(pw(s, acha(s, "servo"))).toBe(1 + 1);      // respingo da Renenutet
+    expect(pw(s, acha(s, "servo"))).toBe(1 + 2);      // respingo da Renenutet (+2 por via)
     expect(ka(s)).toBeUndefined();                     // consumido pela fusão
   });
 

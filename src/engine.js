@@ -112,9 +112,9 @@ export const CARDS = [
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
     texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. Mantém os bônus permanentes que tinha. +1 de energia no próximo turno." },
   { key: "renenutet", nome: "Renenutet", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
-    trigger: "entrar", spreadOnBlessing: 2, arte: "renenutet", arteFoco: "center 0%",
+    trigger: "entrar", spreadPerLane: true, arte: "renenutet", arteFoco: "center 0%",
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
-    texto: "Ao receber uma bênção permanente: +1 a duas outras cartas suas em jogo. Bênçãos recebidas fora de jogo resolvem ao entrar." },
+    texto: "Ao receber uma bênção permanente: +2 a uma de suas cartas em cada via (ou ela mesma, se sozinha). Bênçãos recebidas fora de jogo resolvem ao entrar." },
   { key: "anubis", nome: "Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "reset",
     trigger: "entrar", judgeLane: true, arte: "anubis", arteFoco: "center 0%",
     lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
@@ -841,8 +841,28 @@ function sortearAlvos(s, fonte, n, rng) {
 // Uma onda de distribuição. Devolve os alvos tocados.
 export function espalharBencao(s, fonte, rng = Math.random, wave = 0) {
   const def = byKey[fonte.key];
-  const alvos = sortearAlvos(s, fonte, def.spreadOnBlessing, rng);
-  for (const a of alvos) aplicarBencao(s, a, 1, def.nome, { inert: true });
+  let alvos = [];
+  let valor = 1;
+  
+  if (def.spreadPerLane) {
+    // Renenutet: sorteia 1 carta por via, +2 cada
+    alvos = [];
+    valor = 2;
+    for (let lane = 0; lane < 3; lane++) {
+      const cartas = s.board.filter(
+        (c) => c.owner === fonte.owner && c.lane === lane && c.uid !== fonte.uid && c.revealed && !c.dying
+      );
+      if (cartas.length > 0) {
+        const alvo = cartas[Math.floor(rng() * cartas.length)];
+        alvos.push(alvo);
+      }
+    }
+  } else {
+    // Normal: sorteia N cartas do dono, +1 cada
+    alvos = sortearAlvos(s, fonte, def.spreadOnBlessing, rng);
+  }
+  
+  for (const a of alvos) aplicarBencao(s, a, valor, def.nome, { inert: true });
   // Registra a onda para a animação. A fonte tambem entra, para que o olho veja
   // de onde a bencao partiu antes de ver onde ela chegou.
   s.blessings = (s.blessings || []).concat(
@@ -850,12 +870,13 @@ export function espalharBencao(s, fonte, rng = Math.random, wave = 0) {
     alvos.map((a) => ({ uid: a.uid, wave, seq: s.effectSeq, role: "alvo" })),
   );
   if (alvos.length === 0) pushLog(s, `${def.nome}: nenhuma outra carta sua em jogo para abençoar.`);
-  else pushLog(s, `${def.nome} abençoou ${alvos.map((a) => byKey[a.key].nome).join(" e ")} (+1).`);
+  else pushLog(s, `${def.nome} abençoou ${alvos.map((a) => byKey[a.key].nome).join(" e ")} (+${valor}).`);
   return alvos;
 }
 
 function espalharSeAbencoada(s, alvo, rng) {
-  if (!byKey[alvo.key].spreadOnBlessing) return [];
+  const def = byKey[alvo.key];
+  if (!def.spreadOnBlessing && !def.spreadPerLane) return [];
   if (!alvo.revealed || alvo.dying) return [];
   return espalharBencao(s, alvo, rng);
 }

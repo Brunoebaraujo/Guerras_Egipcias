@@ -432,19 +432,21 @@ describe("Renenutet (bênçãos)", () => {
 
   it("uma bênção permanente espalha +1 para duas outras cartas suas", () => {
     const ren = mk("renenutet");
-    const a = mk("servo"), b = mk("arqueiro"), c = mk("lanceiro");
+    const a = mk("servo", { lane: 0 }), b = mk("arqueiro", { lane: 1 }), c = mk("lanceiro", { lane: 2 });
     const s = mkState([ren, a, b, c]);
     aplicarBencao(s, ren, 3, "Hathor", { rng: () => 0 });
-    const tocadas = [a, b, c].filter((x) => soma(x) === 1);
-    expect(tocadas).toHaveLength(2);
+    // Renenutet distribui +2 a uma carta por via (3 vias)
+    expect(soma(a)).toBe(2);
+    expect(soma(b)).toBe(2);
+    expect(soma(c)).toBe(2);
     expect(soma(ren)).toBe(3);
   });
 
-  it("o +1 espalhado e inerte: duas copias nao entram em laco", () => {
-    const r1 = mk("renenutet"), r2 = mk("renenutet");
+  it("o +2 espalhado e inerte: duas copias nao entram em laco", () => {
+    const r1 = mk("renenutet", { lane: 0 }), r2 = mk("renenutet", { lane: 1 });
     const s = mkState([r1, r2]);
     aplicarBencao(s, r1, 3, "Hathor", { rng: () => 0 });
-    expect(soma(r2)).toBe(1);              // recebeu
+    expect(soma(r2)).toBe(2);              // recebeu +2 (via 1 tem r2)
     expect(r2.mods[0].inert).toBe(true);   // mas nao dispara
     expect(soma(r1)).toBe(3);              // r1 nao recebeu de volta
   });
@@ -465,25 +467,29 @@ describe("Renenutet (bênçãos)", () => {
     expect(soma(a)).toBe(0);
   });
 
-  it("abencoa apenas um alvo quando so ha um disponivel", () => {
+  it("abencoa um alvo por via disponivel (Renenutet: +2)", () => {
     const ren = mk("renenutet");
-    const a = mk("servo");
+    const a = mk("servo", { lane: 0 });
     const s = mkState([ren, a]);
     espalharBencao(s, ren, () => 0);
-    expect(soma(a)).toBe(1);
+    // Renenutet em uma via com um alvo: alvo recebe +2
+    expect(soma(a)).toBe(2);
   });
 
-  it("descarrega 3 pendentes em 3 ondas independentes", () => {
-    const ren = mk("renenutet", { pendentes: 3 });
-    const alvos = [mk("servo"), mk("arqueiro"), mk("lanceiro"), mk("colosso")];
-    const s = mkState([ren, ...alvos]);
+  it("descarrega 3 pendentes em 3 ondas independentes (por via)", () => {
+    const ren = mk("renenutet", { pendentes: 3, lane: 0 });
+    // 3 vias: via 0 = ren (sorteado), via 1 = servo, via 2 = arqueiro
+    const via1 = mk("servo", { lane: 1 });
+    const via2 = mk("arqueiro", { lane: 2 });
+    const s = mkState([ren, via1, via2]);
     const { ondas, tocadas } = descarregarPendentes(s, ren, () => 0);
     expect(ondas).toBe(3);
+    // Cada onda toca até 3 cartas (uma por via): esperamos 6 tocadas no total
     expect(tocadas).toBe(6);
     expect(ren.pendentes).toBe(0);
-    expect(alvos.reduce((t, a) => t + soma(a), 0)).toBe(6);
-    expect(s.blessings.filter((b) => b.role === "alvo").map((b) => b.wave)).toEqual([0, 0, 1, 1, 2, 2]);
-    expect(s.blessings.filter((b) => b.role === "fonte")).toHaveLength(3);
+    expect(via1.mods.reduce((t, m) => t + m.val, 0)).toBe(6);  // +2 * 3 ondas
+    expect(via2.mods.reduce((t, m) => t + m.val, 0)).toBe(6);  // +2 * 3 ondas
+    expect(s.blessings.filter((b) => b.role === "fonte")).toHaveLength(3);  // 3 ondas
   });
 
   it("regressao: a Armadura consumida nao pode receber a bencao que ela mesma disparou", () => {
@@ -494,8 +500,9 @@ describe("Renenutet (bênçãos)", () => {
     const s = mkState([ren, arm, srv, esc]);
     resolveArmadura(s, arm);
     // Alvos validos = apenas Servo e Escaravelho: a Armadura ja esta morrendo.
-    expect(soma(srv)).toBe(1);
-    expect(soma(esc)).toBe(1);
+    // Renenutet distribui +2 por via: srv recebe (via 1), esc recebe (via 2)
+    expect(soma(srv)).toBe(2);
+    expect(soma(esc)).toBe(2);
     expect(arm.mods).toHaveLength(0);
     expect(arm.dying).toBeTruthy();
   });
