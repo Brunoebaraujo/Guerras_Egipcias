@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Carta from "../../Carta.jsx";
 import { ARCH_COLOR, GLYPH } from "../../engine.js";
+import { calcularJanela, fatiar, mesmaJanela } from "./janela.js";
 
 const ARCH_NOME = {
   base: "Base", buff: "Bênção", debuff: "Maldição", sacrificio: "Sacrifício", reset: "Equilíbrio",
@@ -44,9 +45,31 @@ export const FILTROS_VAZIOS = Object.fromEntries(DIMENSOES_FILTRO.map((d) => [d.
 
    O corpo do texto escala pelo COMPRIMENTO da frase, para "Lado A venceu" e
    "Vitória" ocuparem bem o mesmo painel sem uma estourar e a outra sumir. */
+/* VIRTUALIZAÇÃO. A grade renderizava a coleção inteira de uma vez: 66 cartas
+   × ~30 nós de DOM cada já são ~2 mil nós, e a conta é linear na coleção — aos
+   300 cartas seriam 9 mil, aos 1000 seriam 30 mil, e a Galeria passa a travar
+   ao abrir, antes mesmo de qualquer imagem baixar.
+
+   Só as linhas visíveis (mais uma tela de folga acima e abaixo) viram DOM; o
+   espaço das demais é reservado por dois espaçadores, para a barra de rolagem
+   continuar do tamanho certo e a posição não pular ao rolar.
+
+   A medida sai de `getBoundingClientRect`, que é relativa à VIEWPORT — assim
+   funciona igual se quem rola for a página, um painel interno ou um modal, sem
+   a grade precisar descobrir qual é o ancestral rolável. O ouvinte de scroll
+   vai no `window` em fase de CAPTURA, que é o que faz o evento de um contêiner
+   aninhado chegar aqui (scroll não borbulha).
+
+   Sem ResizeObserver (jsdom) o caminho degrada para renderizar tudo, que é o
+   comportamento anterior — os testes não precisam saber que isto existe. */
+const RAZAO_CARTA = 1536 / 1024;   // a mesma proporção declarada em Carta.jsx
+const FOLGA_TELAS = 1;             // telas extras renderizadas acima e abaixo
+
 export function GradeGaleria({ cartas, onAmpliar }) {
   const ref = useRef(null);
   const [grade, setGrade] = useState(null);
+  const [janela, setJanela] = useState(null);   // null = renderiza tudo
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -68,12 +91,49 @@ export function GradeGaleria({ cartas, onAmpliar }) {
   }, []);
 
   const g = grade || { cols: 3, gap: 8, cardW: 88 };   // primeiro quadro: nunca maior que a coluna
+  const alturaLinha = g.cardW * RAZAO_CARTA + g.gap;
+  const totalLinhas = Math.ceil(cartas.length / g.cols);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !grade || typeof IntersectionObserver === "undefined") return;
+    let pendente = false;
+    const recalcular = () => {
+      pendente = false;
+      const proxima = calcularJanela({
+        topo: el.getBoundingClientRect().top,
+        alturaViewport: window.innerHeight || 800,
+        alturaLinha, totalLinhas, folgaTelas: FOLGA_TELAS,
+      });
+      setJanela((atual) => (mesmaJanela(atual, proxima) ? atual : proxima));
+    };
+    const agendar = () => {
+      if (pendente) return;
+      pendente = true;
+      requestAnimationFrame(recalcular);
+    };
+    recalcular();
+    window.addEventListener("scroll", agendar, { capture: true, passive: true });
+    window.addEventListener("resize", agendar, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", agendar, { capture: true });
+      window.removeEventListener("resize", agendar);
+    };
+  }, [grade, alturaLinha, totalLinhas]);
+
+  /* Sem janela (primeira pintura, SSR, ou ambiente sem IntersectionObserver) a
+     grade monta tudo — o comportamento anterior, que continua correto. */
+  const { visiveis, acima, abaixo } = janela
+    ? fatiar(cartas, janela, g.cols, alturaLinha)
+    : { visiveis: cartas, acima: 0, abaixo: 0 };
+
   return (
     <div ref={ref} style={{
       display: "grid", gridTemplateColumns: `repeat(${g.cols}, minmax(0, 1fr))`,
       gap: g.gap, justifyItems: "center",
     }}>
-      {cartas.map((def) => (
+      {acima > 0 && <div aria-hidden="true" style={{ gridColumn: "1 / -1", height: acima }} />}
+      {visiveis.map((def) => (
         <button key={def.key} onClick={() => onAmpliar(def)} title={`${def.nome} — toque para ampliar`}
           style={{ background: "none", border: "none", padding: 0, cursor: "zoom-in", lineHeight: 0 }}>
           <Carta nome={def.nome} custo={def.custo} poder={def.poder} tipo={def.tipo}
@@ -81,6 +141,7 @@ export function GradeGaleria({ cartas, onAmpliar }) {
             arteFoco={def.arteFoco} ordem={def.ordem} width={g.cardW} />
         </button>
       ))}
+      {abaixo > 0 && <div aria-hidden="true" style={{ gridColumn: "1 / -1", height: abaixo }} />}
     </div>
   );
 }
