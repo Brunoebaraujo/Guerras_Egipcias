@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { byKey, resetUid, nextUid, power, ctxOf } from "./engine.js";
+import { byKey, resetUid, nextUid, power, ctxOf, efeitoDe } from "./engine.js";
 import { freshMatch, applyAction, autoReveal, isAimable, START_HAND } from "./match.js";
 
 beforeEach(resetUid);
@@ -136,7 +136,7 @@ describe("revelação", () => {
     g = rev.state;
     expect(g.awaitingAim).toBeNull();
     const alvo = g.board.find((c) => c.uid === aliado.uid);
-    expect(power(alvo, ctxOf(g))).toBe(byKey.servo.poder + byKey.hathor.randomBuffAlly);
+    expect(power(alvo, ctxOf(g))).toBe(byKey.servo.poder + efeitoDe(byKey.hathor, "buffRandomAlly").value);
   });
 
   it("Hathor sem aliados na via não aplica buff", () => {

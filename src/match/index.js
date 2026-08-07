@@ -522,7 +522,7 @@ const ACTIONS = {
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`);
         return ok(s);
       }
-      if (def.ecoUltimo) { resolverEco(s, card, rng); return ok(s); }
+      if (cartaTemEfeito(card, "echoLastEntry")) { resolverEco(s, card, rng); return ok(s); }
       resolverEntrada(s, card, def, rng);
       return ok(s);
     }

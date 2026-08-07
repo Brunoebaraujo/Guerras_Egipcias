@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   CARDS, PRAGAS, PRAGA_KEYS, TOKENS, OUTORGAS, byKey,
-  power, ctxOf, registrarPraga, aplicarBencao, destroyList, MAO_MAX, resetUid, nextUid,
+  power, ctxOf, efeitoDe, registrarPraga, aplicarBencao, destroyList, MAO_MAX, resetUid, nextUid,
 } from "./engine.js";
 import { freshMatch, applyAction, expandirDeck, autoReveal } from "./match.js";
 
@@ -56,7 +56,7 @@ describe("Pragas fora da coleção escolhível", () => {
 
   it("Moisés é Divindade — o Assassino Medjay o alcança junto com a via", () => {
     expect(byKey.moises.tipo).toBe("Divindade");
-    expect(byKey["assassino-medjay"].destroyAllOfTypeInLane).toBe("Divindade");
+    expect(efeitoDe(byKey["assassino-medjay"], "destroyLaneType").type).toBe("Divindade");
   });
 
   it("a soma dos custos das Pragas (26) excede a energia da partida (21)", () => {

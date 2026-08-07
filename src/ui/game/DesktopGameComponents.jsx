@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import Carta from "../../Carta.jsx";
+import { ESPACO_ARTE, arteProps } from "../arte.js";
 import {
   ARCH_COLOR, GLYPH, SIDE_NAME, byKey, custoDe, laneHasMaat, laneProtegida, laneScore, power,
+  cartaTemEfeito,
 } from "../../engine.js";
 
 /* Geometria do tabuleiro (tabuleiro.webp, 1535×1024) — tudo em % da imagem.
@@ -217,7 +219,6 @@ function EffectBadge({ badge, size }) {
 
 /* Carta em miniatura sobre o tabuleiro: arte de fundo quando existir. */
 export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, blessings = [], dying, charging, onClick, onRemove }) {
-  const base = import.meta.env.BASE_URL;
   const def = byKey[c.key];
   const f = (n) => Math.max(8, (bw * n) / 100);       // fontes proporcionais ao tabuleiro
   /* ESPAÇAMENTO ≠ FONTE. `f` tem piso de 8px porque fonte menor que isso não se
@@ -225,7 +226,7 @@ export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, bad
      carta de ~45px de largura, f(0.25) virava 8px de respiro por lado — 35% da
      carta gasta em margem, espremendo a arte. `u` escala de verdade. */
   const u = (n) => Math.max(1, (bw * n) / 100);
-  const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
+  const art = arteProps(def.arte, { sizes: ESPACO_ARTE.tabuleiro });
   // Lado dono: ouro para A, lápis para B. Leitura de posse sem depender da posição.
   const ladoCor = c.owner === 0 ? "rgba(251,191,36,.62)" : "rgba(125,211,252,.62)";
 
@@ -288,11 +289,11 @@ export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, bad
         );
       })}
       <EffectBadge badge={badge} size={f(1.05)} />
-      <div style={{ ...frame, border, background: artSrc ? "#000" : "rgba(28,24,17,.9)", boxShadow: canTarget ? "0 0 10px rgba(129,140,248,.8)" : "0 2px 6px rgba(0,0,0,.55)" }}>
-        {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.92 }} />}
+      <div style={{ ...frame, border, background: art ? "#000" : "rgba(28,24,17,.9)", boxShadow: canTarget ? "0 0 10px rgba(129,140,248,.8)" : "0 2px 6px rgba(0,0,0,.55)" }}>
+        {art && <img {...art} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", opacity: 0.92 }} />}
         {/* Véu: escuro no topo (para os glifos) e na base (para a faixa do nome).
             O miolo fica limpo — é o assunto da ilustração. */}
-        {artSrc && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 54%, rgba(0,0,0,.5) 76%, rgba(0,0,0,.86) 100%)" }} />}
+        {art && <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.5) 0%, rgba(0,0,0,0) 24%, rgba(0,0,0,0) 54%, rgba(0,0,0,.5) 76%, rgba(0,0,0,.86) 100%)" }} />}
 
         {/* Topo: arquétipo e sinais de estado. O CUSTO saiu daqui de propósito —
             depois de revelada a carta, custo não é mais informação acionável;
@@ -354,7 +355,7 @@ export function ZoomModal({ zoom, onClose, onToggleActivate }) {
   const { def, printed, baked, current, sub, partes, onReturn, cardUid, cardOwner, aguardandoProxima, jaBufou } = zoom;   // zoom.custo = custo efetivo
   const shown = current != null ? current : printed + (baked || 0);
   const w = Math.min(320, typeof window !== "undefined" ? window.innerWidth * 0.78 : 320);
-  const isHu = def.ativavelPorJogador;
+  const isHu = cartaTemEfeito(def, "activateTransferPower");
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, cursor: "zoom-out" }}>
       <div className="duat-zoom" onClick={(e) => e.stopPropagation()} style={{ cursor: "default" }}>
@@ -418,7 +419,6 @@ export function Chip({ label, value, tone = "stone" }) {
    mão com Faixa ganham uma borda âmbar e mostram a faixa acumulada, para o
    jogador saber que aquela carta mudou — sem precisar de uma seção separada. */
 function HandThumb({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
-  const base = import.meta.env.BASE_URL;
   const def = byKey[h.key];
   const isSel = !!sel && sel.side === side && sel.hid === h.hid;
   const custo = custoDe(h);
@@ -428,14 +428,14 @@ function HandThumb({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const poderExib = h.printed + (h.baked || 0);
   const envenenada = h.venenos && h.venenos.length > 0;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
-  const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
+  const art = arteProps(def.arte, { sizes: ESPACO_ARTE.mao });
   const accent = tone === "amber" ? "#fbbf24" : "#7dd3fc";
   const ring = isSel ? `2px solid ${accent}` : faixa ? "1.5px solid #f59e0b" : envenenada ? "1.5px solid #a3e635" : "1px solid #44403c";
 
   return (
     <div className={`relative ${drawn ? "duat-draw" : ""}`} style={{
       width: "100%", aspectRatio: "92 / 128", borderRadius: 8, overflow: "hidden",
-      border: ring, background: artSrc ? "#000" : "#1c1917",
+      border: ring, background: art ? "#000" : "#1c1917",
       opacity: disabled ? 0.5 : afford ? 1 : 0.55,
       cursor: disabled ? "default" : "pointer",
       boxShadow: isSel ? `0 0 10px ${accent}` : "0 2px 6px rgba(0,0,0,.5)",
@@ -443,7 +443,7 @@ function HandThumb({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
       <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
         title={def.texto || "Carta base (sem efeito)"}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", padding: 0, border: "none", background: "transparent", cursor: "inherit" }}>
-        {artSrc && <img src={artSrc} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: 0.92 }} />}
+        {art && <img {...art} alt="" style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: 0.92 }} />}
         {/* Véu escuro no topo e na base para os números e o nome lerem */}
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,.7) 0%, rgba(0,0,0,0) 26%, rgba(0,0,0,0) 58%, rgba(0,0,0,.55) 78%, rgba(0,0,0,.88) 100%)" }} />
 

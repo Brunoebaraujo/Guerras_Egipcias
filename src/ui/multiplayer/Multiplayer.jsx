@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CARD_KEYS, CONTENT_SIG, SIDE_NAME, byKey, ctxOf, custoDe, decomporPartes, laneWins, power } from "../../engine.js";
+import { CARD_KEYS, CONTENT_SIG, SIDE_NAME, byKey, cartaTemEfeito, ctxOf, custoDe, decomporPartes, laneWins, power } from "../../engine.js";
 import { isAimable as podeMirar } from "../../match.js";
 import { normalizeWs } from "../../net/wsUrl.js";
 import { PROTOCOL_VERSION, createSequenceGuard, isCompatibleProtocol } from "../../net/protocol.js";
@@ -48,7 +48,7 @@ function OnlineGame({ send, data, note, onLeave }) {
   };
   const isMovable = (c) =>
     planning && !myAim && !c.dying && c.revealed && c.owner === seat &&
-    byKey[c.key] && byKey[c.key].move && !c.moved && c.enteredRound < g.round;
+    byKey[c.key] && cartaTemEfeito(c, "moveOnceNextRound") && !c.moved && c.enteredRound < g.round;
   const startMove = (c) => {
     if (!isMovable(c)) return;
     setSel(null);

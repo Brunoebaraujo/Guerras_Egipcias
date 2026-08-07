@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, ctxOf, resolveAfogamento, resolveSekhmet, resolveDestroyAllOfTypeInLane,
-  resetUid, nextUid, CARDS, validTargets,
+  resetUid, nextUid, CARDS, validTargets, efeitoDe,
 } from "./engine.js";
 
 const mk = (key, { owner = 0, lane = 0, revealed = true, mods = [], ...rest } = {}) => ({
@@ -26,7 +26,7 @@ describe("Dilúvio de Hápi — estatística", () => {
   });
 
   it("declara a faixa de custo que afoga", () => {
-    expect(byKey["diluvio"].afogaCusto).toEqual([1, 2]);
+    expect(efeitoDe(byKey["diluvio"], "destroyLaneCosts").costs).toEqual([1, 2]);
     expect(byKey["diluvio"].sacrificeAll).toBeUndefined();   // não é mais sacrifício da própria via
   });
 });

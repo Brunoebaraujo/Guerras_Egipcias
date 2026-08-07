@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { freshMatch, applyAction } from "./match.js";
-import { byKey, buildRevealQueue } from "./engine.js";
+import { byKey, buildRevealQueue, efeitoDe } from "./engine.js";
 
 describe("Escriba — próxima carta comprada recebe +3", () => {
   it("Escriba buffa a próxima carta comprada do deck", () => {
@@ -27,7 +27,7 @@ describe("Escriba — próxima carta comprada recebe +3", () => {
     // Simula a entrada do Escriba (chama o efeito)
     s.effectSeq += 1;
     const def = byKey.escriba;
-    if (def.buffNextDraw) {
+    if (efeitoDe(def, "buffNextDraw")) {
       if (!s.drawBuffReserve) s.drawBuffReserve = [0, 0];
       s.drawBuffReserve[0] = 3;
     }
@@ -62,7 +62,7 @@ describe("Escriba — próxima carta comprada recebe +3", () => {
     // Simula entrada do Escriba (lado 0)
     s.drawBuffReserve = [0, 0];
     const def = byKey.escriba;
-    if (def.buffNextDraw) {
+    if (efeitoDe(def, "buffNextDraw")) {
       s.drawBuffReserve[0] = 3;
     }
 
@@ -126,7 +126,7 @@ describe("Escriba — próxima carta comprada recebe +3", () => {
     expect(def.poder).toBe(2);
     expect(def.tipo).toBe("Humano");
     expect(def.arch).toBe("buff");
-    expect(def.buffNextDraw).toBe(3);
+    expect(efeitoDe(def, "buffNextDraw").value).toBe(3);
     expect(def.trigger).toBe("entrar");
     expect(def.texto).toContain("+3");
   });

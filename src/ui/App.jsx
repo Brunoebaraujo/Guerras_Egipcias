@@ -6,6 +6,7 @@ import {
   resetUid, shuffled, ctxOf,
   power, laneWins,
   montarLogPartida, decomporPartes,
+  cartaTemEfeito,
 } from "../engine.js";
 import { freshMatch, applyAction, isAimable as podeMirar } from "../match.js";
 import {
@@ -164,7 +165,7 @@ export default function App() {
 
   const planning = g.phase === "plan" && !g.finished;
   const isMovable = (c) =>
-    planning && !aim && !c.dying && c.revealed && byKey[c.key].move && !c.moved && c.enteredRound < g.round;
+    planning && !aim && !c.dying && c.revealed && cartaTemEfeito(c, "moveOnceNextRound") && !c.moved && c.enteredRound < g.round;
 
   // ------------------------------- ZOOM -------------------------------------
   function zoomBoard(c) {

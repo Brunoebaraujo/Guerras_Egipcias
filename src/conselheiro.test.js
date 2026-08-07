@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { byKey } from "./engine.js";
+import { byKey, efeitoDe } from "./engine.js";
 
 describe("Conselheiro Real — buffa carta aleatória da mão com +3", () => {
   it("Conselheiro buffa uma carta na mão", () => {
@@ -137,7 +137,7 @@ describe("Conselheiro Real — buffa carta aleatória da mão com +3", () => {
     expect(def.poder).toBe(3);
     expect(def.tipo).toBe("Humano");
     expect(def.arch).toBe("buff");
-    expect(def.buffRandomHandCard).toBe(3);
+    expect(efeitoDe(def, "buffRandomHandCard").value).toBe(3);
     expect(def.trigger).toBe("entrar");
     // nomeCurto é usado no log como fallback se não estiver definido
     expect(def.nomeCurto || def.nome).toBeTruthy();

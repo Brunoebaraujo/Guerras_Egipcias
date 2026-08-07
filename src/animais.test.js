@@ -3,8 +3,7 @@ import {
   byKey, power, ctxOf, destroyList, consumirCarta, resolvePraga, resolveSekhmet, resolveSet,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, invocarFicha,
   viaCheia, contarViasCheias, ocupacaoDaVia, viasComEspaco, animaisEmJogo, podeSerAlvo, laneProtegida,
-  resolveDestroyAllOfTypeInLane, validTargets, resetUid, nextUid, CARDS, TOKENS,
-} from "./engine.js";
+  resolveDestroyAllOfTypeInLane, validTargets, resetUid, nextUid, CARDS, TOKENS, efeitoDe } from "./engine.js";
 import { freshMatch, applyAction, autoReveal, isAimable } from "./match.js";
 
 /* Mesmas fábricas do engine.test.js: estado mínimo, montado à mão, sem passar
@@ -55,8 +54,8 @@ describe("identidade do arquétipo", () => {
   });
 
   it("a ficha de Ganso NÃO invoca outro Ganso (sem geração infinita)", () => {
-    expect(byKey["ganso"].invocar).toBeDefined();
-    expect(byKey["token-ganso"].invocar).toBeUndefined();
+    expect(efeitoDe(byKey["ganso"], "summon")).toBeDefined();
+    expect(efeitoDe(byKey["token-ganso"], "summon")).toBeNull();
     expect(byKey["token-ganso"].trigger).toBeUndefined();
   });
 

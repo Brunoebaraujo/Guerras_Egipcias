@@ -38,11 +38,11 @@ export const CARDS = [
     lore: "O colosso de Ramsés ainda jaz em Mênfis, dez metros de calcário. Estátuas assim tinham culto próprio — o povo lhes rezava como intermediárias do rei." },
   // Efeito
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 3, arch: "buff",
-    trigger: "entrar", randomBuffAlly: 3, efeitos: [{ id: "buffRandomAlly", value: 3 }], arte: "hathor", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "buffRandomAlly", value: 3 }], arte: "hathor", arteFoco: "center 0%",
     lore: "Senhora do amor, da música e da alegria, Hathor tocava os corações e os fazia transbordar de coragem. Onde ela pousava a mão, o guerreiro esquecia o medo e lutava com o vigor de quem se sabe amado.",
     texto: "Ao Entrar: +3 de Poder a um aliado aleatório nesta via." },
   { key: "heka", nome: "Heka", tipo: "Divindade", custo: 2, poder: 1, arch: "buff",
-    trigger: "entrar", buffNext: 3, efeitos: [{ id: "reserveNextReveal", value: 3 }], arte: "heka",
+    trigger: "entrar", efeitos: [{ id: "reserveNextReveal", value: 3 }], arte: "heka",
     lore: "Heka é a magia que precede a criação — a força que anima o gesto dos deuses. Antes que qualquer poder se manifeste, Heka já o preparou.",
     texto: "Ao Entrar: sua próxima carta revelada nesta rodada entra com +3 de Poder permanente." },
   { key: "amon", nome: "Amon", tipo: "Divindade", custo: 5, poder: 5, arch: "buff",
@@ -50,7 +50,7 @@ export const CARDS = [
     lore: "Rei dos deuses e senhor dos ventos, Amon ergue os exércitos do Egito sob a luz eterna do Sol.",
     texto: "Contínuo: +1 a todas as suas outras cartas em jogo (todas as vias)." },
   { key: "set", nome: "Set", tipo: "Divindade", custo: 5, poder: 5, arch: "debuff",
-    trigger: "entrar", scatterEnemies: 2, efeitos: [{ id: "scatterEnemies", quantity: 2 }], arte: "set",
+    trigger: "entrar", efeitos: [{ id: "scatterEnemies", quantity: 2 }], arte: "set",
     lore: "Set matou Osíris e disputou o trono com Hórus por oitenta anos. Deus do deserto e da tempestade, era a força que desarruma o que Maat arruma.",
     texto: "Ao Entrar: duas cartas inimigas desta via são lançadas para vias aleatórias. Sem espaço, permanecem." },
   { key: "maat", nome: "Maat", tipo: "Divindade", custo: 4, poder: 3, arch: "reset",
@@ -58,7 +58,7 @@ export const CARDS = [
     lore: "Maat é a filha de Rá e Hathor. Ela é irmã do faraó mítico, assegura o equilíbrio cósmico e é graças a ela que o mundo funciona perfeitamente.",
     texto: "Contínuo: nesta via, toda carta (dos dois lados) volta ao Poder impresso." },
   { key: "sobek", nome: "Sobek", tipo: "Criatura", custo: 2, poder: 2, arch: "sacrificio",
-    trigger: "entrar", efeitos: [{ id: "sacrificeLane", absorb: false, valuePerCard: 1 }], arte: "sobek", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "sacrificeLane", valuePerCard: 1 }], arte: "sobek", arteFoco: "center 0%",
     lore: "Senhor das águas do Nilo, Sobek era temido e cortejado: a mesma fome que devorava também fertilizava a terra. Os egípcios criavam crocodilos sagrados em lagos de templo, pois compreendiam que a força do deus se alimentava do que consumia.",
     texto: "Ao Entrar: destrua suas outras cartas nesta via; +1 por carta destruída." },
   { key: "osiris", nome: "Osíris", tipo: "Divindade", custo: 4, poder: 4, arch: "sacrificio",
@@ -71,44 +71,43 @@ export const CARDS = [
     texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
   { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro · Animal", tipos: ["Guerreiro", "Animal"],
     custo: 3, poder: 2, arch: "crescimento",
-    trigger: "entrar", absorb: "swarm", efeitos: [{ id: "summonSwarm" }], arte: "enxame",
+    trigger: "entrar", efeitos: [{ id: "summonSwarm" }], arte: "enxame",
     lore: "Quando a oitava praga desceu sobre o Egito, o céu escureceu de asas e a terra foi devorada num só dia. Onde pousa um gafanhoto, logo há mil — a fome se multiplica mais depressa do que se pode contá-la.",
     texto: "Ao Entrar: invoque 2 Gafanhotos nesta via, com o Poder atual desta carta. Guerreiro e Animal ao mesmo tempo: recebe Montu e o Domador." },
   { key: "assassino-medjay", nome: "Assassino Medjay", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff", arte: "assassino-medjay",
-    trigger: "entrar",
-    destroyAllOfTypeInLane: "Divindade", efeitos: [{ id: "destroyLaneType", type: "Divindade" }],
+    trigger: "entrar", efeitos: [{ id: "destroyLaneType", type: "Divindade" }],
     texto: "Ao Entrar: destrói todas as Divindades nesta via.",
     lore: "Os Medjay protegiam as fronteiras do Egito, mas alguns eram treinados para missões mais sombrias: silenciar falsos milagres, profanar altares inimigos e lembrar até aos deuses que o faraó também tinha lâminas." },
   { key: "selo", nome: "Selo do Silêncio", tipo: "Magia", custo: 3, poder: 3, arch: "silencio",
-    trigger: "continuo", block: true, efeitos: [{ id: "blockEnemyEntryInLane" }], arte: "selo",
+    trigger: "continuo", efeitos: [{ id: "blockEnemyEntryInLane" }], arte: "selo",
     lore: "Gravado por sacerdotes que temiam as palavras de poder, o selo impõe um silêncio absoluto: onde é aposto, nenhum encantamento desperta e nenhum nome divino ecoa. Os feitiços inimigos morrem na garganta, calados antes de nascer.",
     texto: "Contínuo: cartas inimigas que revelarem nesta via não disparam Ao Entrar." },
   { key: "montu", nome: "Montu", tipo: "Divindade", custo: 3, poder: 1, arch: "buff",
-    trigger: "continuo", anthemType: "Guerreiro", anthemVal: 2, efeitos: [{ id: "anthemType", type: "Guerreiro", value: 2 }], arte: "montu", arteFoco: "center 0%",
+    trigger: "continuo", efeitos: [{ id: "anthemType", type: "Guerreiro", value: 2 }], arte: "montu", arteFoco: "center 0%",
     lore: "Deus-falcão da guerra de Tebas, Montu ardia no coração dos exércitos. Do faraó que se lançava valente à batalha, os egípcios diziam: combate como um Montu. Onde sua fúria pousava, guerreiros comuns lutavam como leões.",
     texto: "Contínuo: seus Guerreiros ganham +2 de Poder." },
   { key: "armadura", nome: "Armadura de Ptah", tipo: "Relíquia", custo: 2, poder: 3, arch: "fusao", arte: "armadura", arteFoco: "center 0%",
-    trigger: "entrar", fuse: true, efeitos: [{ id: "fuseWithAlly" }],
+    trigger: "entrar", efeitos: [{ id: "fuseWithAlly" }],
     lore: "Ptah moldou o mundo com as próprias mãos, e em cada obra deixou parte de si. Sua armadura não protege um corpo: funde-se a ele, cedendo a têmpera divina do artífice a quem a vestir.",
     texto: "Ao Entrar: funde-se com um aliado aleatório nesta via, conferindo seu Poder a ele." },
   { key: "escaravelho", nome: "Escaravelho Alado", tipo: "Criatura", custo: 1, poder: 3, arch: "movimento",
-    move: true, efeitos: [{ id: "moveOnceNextRound" }], arte: "escaravelho", arteFoco: "center 0%",
+    efeitos: [{ id: "moveOnceNextRound" }], arte: "escaravelho", arteFoco: "center 0%",
     lore: "Khepri empurra o sol pelo céu a cada amanhecer, e assim o mundo se refaz. O escaravelho não pertence a lugar nenhum: alça voo, muda de rumo e recomeça onde for preciso — o Egito o gravava em amuletos justamente por essa promessa de eterno movimento.",
     texto: "Pode mover-se para outra via uma vez, a partir da rodada seguinte à sua entrada." },
   { key: "ammit", nome: "Ammit, a Devoradora", tipo: "Criatura", custo: 3, poder: 1, arch: "crescimento",
-    trigger: "continuo", growPerPlay: true, efeitos: [{ id: "growPerLaterPlay", value: 1 }], arte: "ammit",
+    trigger: "continuo", efeitos: [{ id: "growPerLaterPlay", value: 1 }], arte: "ammit",
     lore: "À sombra da balança, Ammit aguardava o veredito: todo coração mais pesado que a pena de Maat era seu. Crocodilo, leão e hipopótamo num só corpo, sua fome jamais se saciava — quanto mais devorava, mais faminta e vasta se tornava.",
     texto: "Contínuo: +1 de Poder para cada carta que você colocar em jogo depois dela." },
   { key: "sekhmet", nome: "Sekhmet", tipo: "Divindade", custo: 3, poder: 4, arch: "debuff",
-    trigger: "entrar", wipeCost: 1, efeitos: [{ id: "destroyGlobalCost", cost: 1 }], arte: "sekhmet", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "destroyGlobalCost", cost: 1 }], arte: "sekhmet", arteFoco: "center 0%",
     lore: "Enviada por Rá para punir a humanidade, a leoa não conheceu saciedade: bebeu sangue até quase varrer os homens da terra. Só cessou quando os deuses inundaram os campos de cerveja tingida de vermelho, que ela confundiu com sangue e sorveu até dormir. Onde ela passa, os fracos viram cinza.",
     texto: "Ao Entrar: destrói todas as cartas de custo 1 em jogo (dos dois lados)." },
   { key: "apofis", nome: "Apófis", tipo: "Criatura", custo: 4, poder: 3, arch: "sacrificio", arte: "apofis",
-    trigger: "entrar", absorb: true, efeitos: [{ id: "sacrificeLane", absorb: true }],
+    trigger: "entrar", efeitos: [{ id: "sacrificeLane", absorb: true }],
     lore: "Serpente do caos primordial, Apófis se enrosca nas trevas para engolir o sol a cada noite. Devora tudo o que encontra — até os seus — e de cada presa retira a força para o próximo bote.",
     texto: "Ao Entrar: destrói suas outras cartas nesta via e ganha o Poder total delas." },
   { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 5, arch: "sacrificio",
-    trigger: "entrar", afogaCusto: [1, 2], efeitos: [{ id: "destroyLaneCosts", costs: [1, 2] }], arte: "diluvio", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "destroyLaneCosts", costs: [1, 2] }], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
     texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas. Não alcança quem estiver sob um Gato Egípcio." },
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
@@ -116,15 +115,15 @@ export const CARDS = [
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
     texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. Mantém os bônus permanentes que tinha. +1 de energia no próximo turno." },
   { key: "renenutet", nome: "Renenutet", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
-    trigger: "entrar", spreadPerLane: true, efeitos: [{ id: "flushPendingBlessings" }], arte: "renenutet", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "flushPendingBlessings" }, { id: "spreadBlessingPerLane", value: 2 }], arte: "renenutet", arteFoco: "center 0%",
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
     texto: "Ao receber uma bênção permanente: +2 a uma de suas cartas em cada via (ou ela mesma, se sozinha). Bênçãos recebidas fora de jogo resolvem ao entrar." },
   { key: "anubis", nome: "Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "reset",
-    trigger: "entrar", judgeLane: true, efeitos: [{ id: "judgeLane" }], arte: "anubis", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "judgeLane" }], arte: "anubis", arteFoco: "center 0%",
     lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
     texto: "Ao Entrar: todas as outras cartas desta via têm o Poder base nivelado ao menor entre elas. Buffs permanentes somem; auras permanecem. O julgamento persiste." },
   { key: "khnum", nome: "Khnum, o Oleiro Divino", tipo: "Divindade", custo: 6, poder: 5, arch: "buff",
-    trigger: "entrar", buffsPerBlessing: 1, efeitos: [{ id: "growPerBlessedAlly", value: 1 }], arte: "khnum", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "growPerBlessedAlly", value: 1 }], arte: "khnum", arteFoco: "center 0%",
     lore: "Khnum, o deus oleiro que molda as almas dos deuses, reforja a si mesmo conforme trabalha em harmonia com seus pares abençoados. Sua forma se torna mais robusta, seu poder mais refinado — cada bênção que flui ao seu redor alimenta sua transformação divina.",
     texto: "Ao Entrar: ganha +1 de Poder para cada carta aliada com bênção revelada em jogo." },
   /* ASSASSINOS — Arquétipo de Veneno
@@ -133,27 +132,27 @@ export const CARDS = [
      Semerj replica os venenos da via para outras vias; Seqer-Mau (finisher) repete
      imediatamente o dano de todas as cartas envenenadas do campo. */
   { key: "sicario", nome: "Sicário", tipo: "Guerreiro", custo: 1, poder: 1, arch: "debuff",
-    trigger: "entrar", veneno: 1, efeitos: [{ id: "poisonRandomEnemies", value: 1, quantity: 1 }], arte: "sicario",
+    trigger: "entrar", efeitos: [{ id: "poisonRandomEnemies", value: 1, quantity: 1 }], arte: "sicario",
     lore: "Criminoso de rua que trabalha por migalhas. Sua faca é curta, seu veneno é letal.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno I (-1/rodada)." },
   { key: "senti", nome: "Senti, o Finalizador", tipo: "Guerreiro", custo: 2, poder: 2, arch: "debuff",
-    trigger: "entrar", veneno: 1, venenoAlvos: 2, efeitos: [{ id: "poisonRandomEnemies", value: 1, quantity: 2 }], arte: "senti", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "poisonRandomEnemies", value: 1, quantity: 2 }], arte: "senti", arteFoco: "center 0%",
     lore: "Executor cuja função é semear a morte em dobro. Onde passa, dois caem em vez de um.",
     texto: "Ao Entrar: marca até 2 cartas inimigas aleatórias nesta via com Veneno I (-1/rodada cada)." },
   { key: "hemsu", nome: "Hemsu, o Golpeador", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff",
-    trigger: "entrar", veneno: 2, efeitos: [{ id: "poisonRandomEnemies", value: 2, quantity: 1 }], arte: "hemsu",
+    trigger: "entrar", efeitos: [{ id: "poisonRandomEnemies", value: 2, quantity: 1 }], arte: "hemsu",
     lore: "Assassino treinado que acerta sempre na fraqueza. Seu veneno corrói corpo e espírito.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno II (-2/rodada)." },
   { key: "semerj", nome: "Semerj, o Executor", tipo: "Guerreiro", custo: 4, poder: 4, arch: "debuff",
-    trigger: "entrar", replicaVeneno: true, efeitos: [{ id: "replicatePoison" }], arte: "semerj", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "replicatePoison" }], arte: "semerj", arteFoco: "center 0%",
     lore: "Executor que propaga a peste. O veneno de uma via, ele espalha por todo o campo de batalha.",
     texto: "Ao Entrar: replica os venenos das cartas inimigas desta via para cartas inimigas de outras vias (1 por carta). Nulo se não houver venenos aqui ou cartas em outras vias." },
   { key: "akhu", nome: "Akhu, o Espírito", tipo: "Criatura", custo: 5, poder: 5, arch: "debuff",
-    trigger: "entrar", veneno: 3, efeitos: [{ id: "poisonRandomEnemies", value: 3, quantity: 1 }], arte: "akhu", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "poisonRandomEnemies", value: 3, quantity: 1 }], arte: "akhu", arteFoco: "center 0%",
     lore: "Espírito vingativo dos mortos, sem repouso. Seu veneno é a própria raiva dos séculos.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno III (-3/rodada)." },
   { key: "seqer-mau", nome: "Seqer-Mau, o Destruidor", tipo: "Criatura", custo: 6, poder: 6, arch: "debuff",
-    trigger: "entrar", finalizador: true, efeitos: [{ id: "triggerPoisonDamage" }], arte: "seqer-mau", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "triggerPoisonDamage" }], arte: "seqer-mau", arteFoco: "center 0%",
     lore: "O grande assassino das eras. Quando surge, todo o veneno do campo ferve de uma só vez.",
     texto: "Ao Entrar: repete imediatamente o dano de veneno de todas as cartas inimigas envenenadas do campo (todas as vias)." },
   { key: "amheh", nome: "Am-heh, o Devorador de Milhões", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio",
@@ -166,7 +165,7 @@ export const CARDS = [
      por isso que a carta ganha valor com prioridade contrária: quem revela
      depois escolhe entre os efeitos que acabou de ver. */
   { key: "ka-errante", nome: "Ka Errante", tipo: "Criatura", custo: 3, poder: 3, arch: "renascimento",
-    trigger: "entrar", ecoUltimo: true, efeitos: [{ id: "echoLastEntry" }], arte: "ka-errante",
+    trigger: "entrar", efeitos: [{ id: "echoLastEntry" }], arte: "ka-errante",
     lore: "O ka nascia junto com a pessoa, duplo exato dela, e continuava a ter fome depois da morte: por isso as tumbas recebiam pão e cerveja todos os dias, e uma estátua guardada no serdab servia de corpo reserva caso o primeiro apodrecesse. Quando as oferendas cessavam, o ka não morria — saía a vagar, repetindo os gestos de quem já não estava ali.",
     texto: "Copia o último efeito ao entrar em jogo." },
   /* ------------------------------ ANIMAIS ---------------------------------
@@ -178,54 +177,54 @@ export const CARDS = [
   { key: "cao", nome: "Cão do Deserto", tipo: "Animal", custo: 0, poder: 1, arch: "animal", arte: "cao",
     lore: "O tesem, de orelhas eretas e cauda enrolada, corre nas paredes dos túmulos desde antes das pirâmides. Não era símbolo de coisa alguma: era o bicho que ia à frente do caçador — e a quem se dava nome próprio. Abutiu, o cão de um faraó, tem o nome mais antigo de cão que se conhece." },
   { key: "cabra-nilo", nome: "Cabra do Nilo", tipo: "Animal", custo: 1, poder: 1, arch: "animal", arte: "cabra-nilo",
-    trigger: "entrar", animalNaVia: 1, efeitos: [{ id: "growPerLaneAnimal", value: 1 }],
+    trigger: "entrar", efeitos: [{ id: "growPerLaneAnimal", value: 1 }],
     texto: "Ao Entrar: +1 de Poder para cada outro Animal seu nesta via.",
     lore: "A cabra dava leite onde a terra não sustentava vaca, e por isso era o gado de quem não tinha gado. Os escribas contavam bois cabeça por cabeça; cabra ninguém contava uma a uma — contava-se o rebanho." },
   { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 1, arch: "animal", arte: "ganso",
-    trigger: "entrar", invocar: { key: "token-ganso", onde: "propria" }, efeitos: [{ id: "summon" }],
+    trigger: "entrar", efeitos: [{ id: "summon", token: "token-ganso", placement: "propria" }],
     texto: "Ao Entrar: invoque um Ganso (0/1) nesta via.",
     lore: "Do ganso Gengen Wer, o Grande Grasnador, teria saído o ovo que continha o sol. Em terra, porém, o ganso do Nilo era o mais banal dos bens: engordado à força, salgado em jarras e oferecido aos milhares nos altares." },
   { key: "gato", nome: "Gato Egípcio", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "gato", arteFoco: "center 0%",
-    trigger: "continuo", protegeVia: true, efeitos: [{ id: "protectLaneFromTargets" }],
+    trigger: "continuo", efeitos: [{ id: "protectLaneFromTargets" }],
     texto: "Contínuo: suas cartas nesta via não podem ser alvo escolhido por efeitos inimigos. Não impede efeitos globais nem de via inteira.",
     lore: "Matar um gato, ainda que sem querer, era crime capital: Diodoro conta que uma multidão linchou um romano por isso, em plena missão diplomática. O animal que guardava o celeiro dos ratos acabou guardado pela cidade inteira." },
   { key: "macaco", nome: "Macaco Sagrado", tipo: "Animal", custo: 2, poder: 4, arch: "animal", arte: "macaco",
-    trigger: "entrar", moverAnimal: true, efeitos: [{ id: "moveAnimal" }],
+    trigger: "entrar", efeitos: [{ id: "moveAnimal" }],
     texto: "Ao Entrar: move outro Animal seu para outra via com espaço.",
     lore: "Babuínos vinham de Punt e viviam nos templos de Tot, com nome, ração e sepultura própria. Nas pinturas aparecem trepando em figueiras a mando dos donos: o Egito descobriu cedo que o macaco alcança o que o homem não alcança." },
   { key: "hiena", nome: "Hiena do Deserto", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "hiena",
-    trigger: "continuo", ganhoPorAnimalMorto: 2, efeitos: [{ id: "growWhenOwnAnimalDies", value: 2 }],
+    trigger: "continuo", efeitos: [{ id: "growWhenOwnAnimalDies", value: 2 }],
     texto: "Contínuo: +2 de Poder permanente sempre que um Animal seu for destruído em campo.",
     lore: "Nos relevos do Império Antigo há hienas amarradas e alimentadas à força, como se engordam gansos: o Egito tentou criar a carniceira em cativeiro. Não deu certo — o bicho que prospera do que morre não se deixa domesticar." },
   { key: "garca", nome: "Garça do Nilo", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "garca",
-    trigger: "continuo", bonusPorViaCheia: 3, efeitos: [{ id: "growPerFullLane", value: 3 }],
+    trigger: "continuo", efeitos: [{ id: "growPerFullLane", value: 3 }],
     texto: "Contínuo: +3 de Poder para cada via sua com os quatro espaços ocupados.",
     lore: "A garça pousa no primeiro monte de terra que emerge da cheia, e foi dessa imagem que os egípcios fizeram o relato da criação. Ela só desce quando já não sobra água: chega por último, e chega ao cheio." },
   { key: "rebanho", nome: "Rebanho de Cabras", tipo: "Animal", custo: 3, poder: 2, arch: "animal", arte: "rebanho",
-    trigger: "entrar", invocar: { key: "token-cabra", onde: "outras" }, efeitos: [{ id: "summon" }],
+    trigger: "entrar", efeitos: [{ id: "summon", token: "token-cabra", placement: "outras" }],
     texto: "Ao Entrar: invoque uma Cabra (0/1) em cada uma das outras duas vias.",
     lore: "O Censo do Gado marcava os anos do reinado: contava-se o rebanho do Egito inteiro e o número virava data. Rebanho não andava em fila — espalhava-se por onde houvesse mato, e era assim que se media a riqueza de um homem." },
   { key: "domador", nome: "Domador de Animais", tipo: "Humano", custo: 3, poder: 2, arch: "animal", arte: "domador", arteFoco: "center 25%",
-    trigger: "continuo", anthemType: "Animal", anthemVal: 2, efeitos: [{ id: "anthemType", type: "Animal", value: 2 }],
+    trigger: "continuo", efeitos: [{ id: "anthemType", type: "Animal", value: 2 }],
     texto: "Contínuo: seus Animais ganham +2 de Poder.",
     lore: "Havia o pastor, o guardador de gansos, o tratador de babuínos — cada bicho com seu homem, e cada homem com o título gravado na parede do túmulo. No Egito, animal nenhum ficava selvagem por muito tempo: encontrava dono, nome e ração." },
   { key: "apis", nome: "Touro Ápis", tipo: "Animal", custo: 6, poder: 7, arch: "animal", arte: "apis",
-    trigger: "entrar", bonusPorAnimal: 1, efeitos: [{ id: "growPerBoardAnimal", value: 1 }],
+    trigger: "entrar", efeitos: [{ id: "growPerBoardAnimal", value: 1 }],
     texto: "Ao Entrar: +1 de Poder para cada outro Animal revelado em jogo, dos dois lados.",
     lore: "Um só touro por vez era Ápis, escolhido por marcas no pelo: vivia em Mênfis servido como rei e, ao morrer, era mumificado e descia ao Serapeu num sarcófago de granito de setenta toneladas. Enquanto ele vivia, todo o resto do gado do Egito era apenas gado." },
   // Escriba — prioridade de compra
   { key: "escriba", nome: "Escriba", tipo: "Humano", custo: 1, poder: 2, arch: "buff",
-    trigger: "entrar", buffNextDraw: 3, efeitos: [{ id: "buffNextDraw" }], nomeCurto: "Escriba", arte: "escriba",
+    trigger: "entrar", efeitos: [{ id: "buffNextDraw", value: 3 }], nomeCurto: "Escriba", arte: "escriba",
     lore: "Os escribas do Egito eram guardiões do saber: sua caneta tocava papiro, e o futuro ficava escrito. Antes que um acontecimento chegasse, já havia palavras preparadas para recebê-lo.",
     texto: "Ao Entrar: sua próxima carta comprada do deck entra com +3 de Poder permanente." },
   // Conselheiro Real — fortalece a mão
   { key: "conselheiro", nome: "Conselheiro Real", tipo: "Humano", custo: 2, poder: 3, arch: "buff",
-    trigger: "entrar", buffRandomHandCard: 3, efeitos: [{ id: "buffRandomHandCard" }], nomeCurto: "Conselheiro", arte: "conselheiro",
+    trigger: "entrar", efeitos: [{ id: "buffRandomHandCard", value: 3 }], nomeCurto: "Conselheiro", arte: "conselheiro",
     lore: "O conselheiro sussurrava ao ouvido do faraó, e suas palavras mudavam o rumo das batalhas. Quando escolhia, sua mão apontava para o guerreiro que se tornaria lenda.",
     texto: "Ao Entrar: uma carta aleatória sua na mão ganha +3 de Poder permanente." },
   // Hu — Mecânica Ativar: acumula buffs e os transfere para a próxima carta
   { key: "hu", nome: "Hu", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
-    ativavelPorJogador: true, efeitos: [{ id: "activateTransferPower" }], arte: "hu",
+    efeitos: [{ id: "activateTransferPower" }], arte: "hu",
     lore: "Hu é o poder da criação, a força que dá forma às palavras do deus. Aquele que o possui controla o momento exato em que sua autoridade divina se manifesta, transferindo seu poder para o próximo guerreiro.",
     texto: "Ao ser jogado, fica inativo. No zoom, clique Ativar para que a próxima carta jogada receba um buff de +[seu poder atual, incluindo auras] em Poder. Pode ser ativado apenas uma vez." },
   // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
@@ -821,7 +820,7 @@ export function espalharBencao(s, fonte, rng = defaultRng, wave = 0) {
   let alvos = [];
   let valor = 1;
   
-  if (def.spreadPerLane) {
+  if (cartaTemEfeito(fonte, "spreadBlessingPerLane")) {
     // Renenutet: sorteia 1 OUTRA carta por via, +2 cada. Se sozinha, abençoa a si mesma.
     alvos = [];
     valor = 2;
@@ -842,7 +841,7 @@ export function espalharBencao(s, fonte, rng = defaultRng, wave = 0) {
     }
   } else {
     // Normal: sorteia N cartas do dono, +1 cada
-    alvos = sortearAlvos(s, fonte, def.spreadOnBlessing, rng);
+    alvos = sortearAlvos(s, fonte, efeitoDe(def, "spreadBlessingOnReceive")?.quantity, rng);
   }
   
   for (const a of alvos) aplicarBencao(s, a, valor, def.nome, { inert: true });
@@ -858,8 +857,7 @@ export function espalharBencao(s, fonte, rng = defaultRng, wave = 0) {
 }
 
 function espalharSeAbencoada(s, alvo, rng) {
-  const def = byKey[alvo.key];
-  if (!def.spreadOnBlessing && !def.spreadPerLane) return [];
+  if (!cartaTemEfeito(alvo, "spreadBlessingOnReceive") && !cartaTemEfeito(alvo, "spreadBlessingPerLane")) return [];
   if (!alvo.revealed || alvo.dying) return [];
   return espalharBencao(s, alvo, rng);
 }
@@ -1195,7 +1193,8 @@ export function resolveSet(s, set, rng = defaultRng, def = byKey[set.key]) {
       && podeSerAlvo(s.board, c, set)
   );
   const vitimas = [];
-  while (vitimas.length < def.scatterEnemies && pool.length > 0) {
+  const alcance = efeitoDe(def, "scatterEnemies")?.quantity ?? 0;
+  while (vitimas.length < alcance && pool.length > 0) {
     vitimas.push(pool.splice(Math.floor(rng() * pool.length), 1)[0]);
   }
   if (vitimas.length === 0) {
@@ -1302,7 +1301,7 @@ export function resolveEnxame(s, card, def = byKey[card.key]) {
       ele é uma carta de custo 2 na via como qualquer outra — a água não sabe
       quem a invocou. */
 export function resolveAfogamento(s, card, def = byKey[card.key]) {
-  const [min, max] = def.afogaCusto;
+  const [min, max] = efeitoDe(def, "destroyLaneCosts").costs;
   const victims = s.board.filter((c) => {
     if (c.lane !== card.lane || !emJogo(c)) return false;
     const cst = custoDe(c);
@@ -1452,7 +1451,7 @@ export function applyPendingBuff(s, card, rng = defaultRng) {
 // rodadas futuras). Sempre reserva — quem consome é applyPendingBuff, quando a
 // próxima carta sua revelar.
 export function resolveHeka(s, heka, def = byKey[heka.key]) {
-  const val = def.buffNext;
+  const val = efeitoDe(def, "reserveNextReveal")?.value;
   if (!s.pendingBuff) s.pendingBuff = [null, null];
   s.pendingBuff[heka.owner] = val;
   pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta revelada (vale entre rodadas).`);
@@ -1464,7 +1463,7 @@ export function resolveHeka(s, heka, def = byKey[heka.key]) {
 // Diferente da Heka (que buffa a próxima carta REVELADA), o buff do Escriba é
 // aplicado quando a carta entra na mão, em drawOne().
 export function resolveEscriba(s, card, def = byKey[card.key]) {
-  const val = def.buffNextDraw;
+  const val = efeitoDe(def, "buffNextDraw")?.value;
   if (!s.drawBuffReserve) s.drawBuffReserve = [0, 0];
   s.drawBuffReserve[card.owner] = val;
   pushLog(s, `${def.nome}: +${val} reservado para sua próxima carta comprada do deck.`);
@@ -1482,7 +1481,7 @@ export function resolveConselheiro(s, card, rng = defaultRng, def = byKey[card.k
   }
   
   const alvo = mao[Math.floor(rng() * mao.length)];
-  const val = def.buffRandomHandCard;
+  const val = efeitoDe(def, "buffRandomHandCard")?.value;
   alvo.baked = (alvo.baked || 0) + val;
   const nomeAlvo = byKey[alvo.key].nomeCurto || byKey[alvo.key].nome;
   pushLog(s, `${def.nome}: ${nomeAlvo} na mão recebeu +${val} de Poder permanente.`);
@@ -1500,12 +1499,14 @@ export function resolveAssassino(s, card, def = byKey[card.key], rng = defaultRn
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
   }
 
-  const qtd = def.venenoAlvos || 1;
+  const efeito = efeitoDe(def, "poisonRandomEnemies") || {};
+  const nivel = efeito.value;
+  const qtd = efeito.quantity || 1;
   const alvos = shuffleWithRng(pool, rng).slice(0, qtd);
-  for (const alvo of alvos) marcarVeneno(s, alvo, def.veneno, def.nome);
+  for (const alvo of alvos) marcarVeneno(s, alvo, nivel, def.nome);
 
   const suf = alvos.length > 1 ? `×${alvos.length}` : "";
-  return { uid: card.uid, text: `☠ V${def.veneno}${suf}`, kind: "debuff", seq: s.effectSeq };
+  return { uid: card.uid, text: `☠ V${nivel}${suf}`, kind: "debuff", seq: s.effectSeq };
 }
 
 // ----------------------- Semerj: replicar venenos da via -----------------------
@@ -1600,7 +1601,7 @@ export function invocarFicha(s, { key, owner, lane }) {
 // Ganso (uma ficha na própria via) e Rebanho de Cabras (uma em cada OUTRA via).
 // Cada via é resolvida em separado: uma cheia não cancela a outra.
 export function resolveInvocar(s, card, def = byKey[card.key]) {
-  const { key, onde } = def.invocar;
+  const { token: key, placement: onde } = efeitoDe(def, "summon");
   const nome = byKey[key].nome;
   const destinos = onde === "outras" ? [0, 1, 2].filter((l) => l !== card.lane) : [card.lane];
   const criadas = [], semEspaco = [];
@@ -1628,7 +1629,7 @@ export function resolveCabraDoNilo(s, cabra, def = byKey[cabra.key]) {
     pushLog(s, `${def.nome}: sozinha na Via ${cabra.lane + 1} — sem bônus.`);
     return { uid: cabra.uid, text: "sozinha", kind: "block", seq: s.effectSeq };
   }
-  const ganho = companhia.length * def.animalNaVia;
+  const ganho = companhia.length * efeitoDe(def, "growPerLaneAnimal").value;
   aplicarBencao(s, cabra, ganho, `${def.nome} — ${companhia.length} Animal(is) na via`);
   pushLog(s, `${def.nome}: ${companhia.length} Animal(is) seu(s) na Via ${cabra.lane + 1} → +${ganho}.`);
   return { uid: cabra.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
@@ -1643,7 +1644,7 @@ export function resolveApis(s, apis, def = byKey[apis.key]) {
     pushLog(s, `${def.nome}: nenhum outro Animal em jogo — entra com o Poder impresso.`);
     return { uid: apis.uid, text: "só ele", kind: "block", seq: s.effectSeq };
   }
-  const ganho = outros.length * def.bonusPorAnimal;
+  const ganho = outros.length * efeitoDe(def, "growPerBoardAnimal").value;
   aplicarBencao(s, apis, ganho, `${def.nome} — ${outros.length} Animal(is) em jogo`);
   pushLog(s, `${def.nome}: ${outros.length} outro(s) Animal(is) em jogo → +${ganho}.`);
   return { uid: apis.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };

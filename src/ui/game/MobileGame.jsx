@@ -3,6 +3,7 @@ import { ARCH_COLOR, GLYPH, SIDE_NAME, byKey, custoDe, laneScore } from "../../e
 import { MiniCard, mBtnBig, mBtnSm } from "./DesktopGameComponents.jsx";
 import { DUAT_KEYFRAMES, MOBILE_BW } from "./animations.js";
 import { resultLabel } from "../matchPresentation.js";
+import { ESPACO_ARTE, arteProps } from "../arte.js";
 
 const BOARD_MOBILE = {
   art: "tabuleiro-mobile.webp",
@@ -130,7 +131,6 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
 }
 
 function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
-  const base = import.meta.env.BASE_URL;
   const def = byKey[h.key];
   const isSel = sel && sel.side === side && sel.hid === h.hid;
   const custo = custoDe(h);
@@ -138,7 +138,7 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const faixa = (h.baked || 0) !== 0 ? `Faixa ${h.printed + h.baked}` : `P${h.printed}`;
   const drawn = g.justDrew?.[side]?.includes(h.hid);
-  const artSrc = def.arte ? `${base}cartas/${def.arte}.webp` : null;
+  const art = arteProps(def.arte, { sizes: ESPACO_ARTE.tabuleiroMobile });
   const ref = useRef(null);
   // Rola a carta recém-comprada para dentro da vista, para o halo dourado ser visto.
   useEffect(() => {
@@ -155,8 +155,8 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
       <button disabled={disabled} onClick={() => setSel(isSel ? null : { side, hid: h.hid })}
         style={{ display: "block", textAlign: "left", width: "100%", padding: 0, background: "none", border: "none", cursor: disabled ? "default" : "pointer" }}>
         <div style={{ position: "relative", width: "100%", height: 38, background: "#000" }}>
-          {artSrc
-            ? <img src={artSrc} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: afford ? 1 : 0.7 }} />
+          {art
+            ? <img {...art} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: def.arteFoco || "center", opacity: afford ? 1 : 0.7 }} />
             : <div className={ARCH_COLOR[def.arch]} style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22 }}>{GLYPH[def.arch]}</div>}
           <span style={{ position: "absolute", top: 2, left: 2, fontSize: 9, fontWeight: 800, color: custo > def.custo ? "#fda4af" : "#fde68a", textShadow: "0 1px 2px #000" }}>{custo}⚡</span>
         </div>

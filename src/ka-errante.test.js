@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import {
   byKey, power, ctxOf, resetUid, nextUid, CARDS,
-  acharEcoAlvo, temEntradaCopiavel, custoDe, temTipo,
+  acharEcoAlvo, temEntradaCopiavel, custoDe, temTipo, cartaTemEfeito,
 } from "./engine.js";
 import { freshMatch, applyAction, autoReveal } from "./match.js";
 
@@ -100,7 +100,7 @@ describe("Ka Errante — identidade", () => {
 
   it("declara o gatilho de entrada e a marca do eco", () => {
     expect(byKey["ka-errante"].trigger).toBe("entrar");
-    expect(byKey["ka-errante"].ecoUltimo).toBe(true);
+    expect(cartaTemEfeito(byKey["ka-errante"], "echoLastEntry")).toBe(true);
   });
 
   it("cabe na miniatura", () => {

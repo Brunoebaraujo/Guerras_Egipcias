@@ -155,6 +155,8 @@ for (const [id, phase] of [
   ["protectLaneFromTargets", "continuous"],
   ["growWhenOwnAnimalDies", "death-reaction"],
   ["growPerFullLane", "continuous"],
+  ["spreadBlessingPerLane", "reaction"],
+  ["spreadBlessingOnReceive", "reaction"],
   ["activateTransferPower", "activated"],
   ["resolvePlague", "enter"],
 ]) {
