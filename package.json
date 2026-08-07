@@ -12,7 +12,9 @@
     "test:e2e": "playwright test",
     "smoke:deploy": "node scripts/smoke-deploy.mjs",
     "lint": "eslint .",
-    "typecheck": "tsc -p jsconfig.json"
+    "typecheck": "tsc -p jsconfig.json",
+    "assets:resolucoes": "node scripts/gerar-resolucoes.mjs",
+    "assets:conferir": "node scripts/gerar-resolucoes.mjs --conferir"
   },
   "dependencies": {
     "react": "^18.3.1",

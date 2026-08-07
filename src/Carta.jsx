@@ -1,3 +1,4 @@
+import { arteProps } from "./ui/arte.js";
 
 /* Carta emoldurada: arte (atrás da janela transparente) + moldura por cima +
    campos vivos posicionados sobre as zonas da moldura.
@@ -47,11 +48,10 @@ const POS = {
    Toda a geometria é derivada de `width`, para a carta escalar em qualquer
    tamanho sem quebrar. u(n) = n × largura.
    -------------------------------------------------------------------------- */function CartaPraga({ nome, custo, ordem, tipo, efeito, lore, arch = "base", arte, arteFoco, width }) {
-  const base = import.meta.env.BASE_URL;
   const u = (n) => n * width;
   const glyph = GLYPH[arch] || "𓂀";
   const tint = TINT[arch] || "#5c4a2a";
-  const artSrc = arte ? base + "cartas/" + arte + ".webp" : null;
+  const art = arteProps(arte, { sizes: `${Math.round(width * 0.7)}px`, eager: width >= 360 });
 
   const OURO = "#c8a24a", OURO_CLARO = "#f0dca4", LAPIS = "#1d2a55";
   const TINTA = "#eadfc4", TINTA_FRACA = "#b9a87f";
@@ -103,8 +103,8 @@ const POS = {
         <div style={{ width: "100%", height: "100%", borderRadius: "50%", padding: anelLapis, background: LAPIS }}>
           <div style={{ width: "100%", height: "100%", borderRadius: "50%", overflow: "hidden", background: tint,
                         boxShadow: `inset 0 0 ${u(0.02)}px rgba(0,0,0,.75)` }}>
-            {artSrc ? (
-              <img src={artSrc} alt={nome} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: arteFoco || "center" }} />
+            {art ? (
+              <img {...art} alt={nome} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: arteFoco || "center" }} />
             ) : (
               <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center",
                             color: "rgba(255,255,255,.42)", fontSize: u(0.22) }}>{glyph}</div>
@@ -171,7 +171,7 @@ export default function Carta({
   const base = import.meta.env.BASE_URL;
   const glyph = GLYPH[arch] || "𓂀";
   const tint = TINT[arch] || "#5c4a2a";
-  const artSrc = arte ? base + "cartas/" + arte + ".webp" : null;
+  const art = arteProps(arte, { sizes: `${Math.round(width * 0.7)}px`, eager: width >= 360 });
 
   // Fonte do nome encolhe conforme o comprimento (nomes de 2 linhas cabem na placa)
   // A fonte grande (0.046) so e segura em nome de 1 linha: duas linhas a esse
@@ -190,8 +190,8 @@ export default function Carta({
     <div style={{ position: "relative", width, aspectRatio: "1024 / 1536", userSelect: "none" }}>
       {/* Camada de arte (atrás da janela transparente da moldura) */}
       <div style={{ position: "absolute", ...POS.window, overflow: "hidden", zIndex: 0, background: tint }}>
-        {artSrc ? (
-          <img src={artSrc} alt={nome} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: arteFoco || "center" }} />
+        {art ? (
+          <img {...art} alt={nome} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: arteFoco || "center" }} />
         ) : (
           <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", color: "rgba(255,255,255,.5)", fontSize: width * 0.26 }}>
             {glyph}

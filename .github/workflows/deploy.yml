@@ -28,6 +28,8 @@ jobs:
         run: npm run lint
       - name: Tipos
         run: npm run typecheck
+      - name: Resoluções de arte presentes
+        run: npm run assets:conferir
       - name: Testes do cliente
         run: npm test
       - name: Testes do servidor
