@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CLIENT_MESSAGE_TYPES, PLANNING_ACTION_TYPES, SERVER_MESSAGE_TYPES, isPlanningActionType } from "./protocol.js";
+import {
+  CLIENT_MESSAGE_TYPES, PLANNING_ACTION_TYPES, PROTOCOL_VERSION, SERVER_MESSAGE_TYPES,
+  createSequenceGuard, isCompatibleProtocol, isPlanningActionType, rememberMessageId,
+} from "./protocol.js";
 
 describe("contrato de rede", () => {
   it("não possui tipos duplicados", () => {
@@ -12,5 +15,24 @@ describe("contrato de rede", () => {
     expect(isPlanningActionType("place")).toBe(true);
     expect(isPlanningActionType("toggleActivate")).toBe(true);
     expect(isPlanningActionType("finish")).toBe(false);
+  });
+
+  it("recusa versões incompatíveis e mensagens fora de ordem", () => {
+    expect(isCompatibleProtocol(PROTOCOL_VERSION)).toBe(true);
+    expect(isCompatibleProtocol(PROTOCOL_VERSION - 1)).toBe(false);
+    const accept = createSequenceGuard();
+    expect(accept(1)).toBe(true);
+    expect(accept(1)).toBe(false);
+    expect(accept(3)).toBe(true);
+    expect(accept(2)).toBe(false);
+  });
+
+  it("deduplica ids com cache limitado", () => {
+    const cache = new Set();
+    expect(rememberMessageId(cache, "a", 2)).toBe(true);
+    expect(rememberMessageId(cache, "a", 2)).toBe(false);
+    expect(rememberMessageId(cache, "b", 2)).toBe(true);
+    expect(rememberMessageId(cache, "c", 2)).toBe(true);
+    expect(cache.has("a")).toBe(false);
   });
 });

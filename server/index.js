@@ -37,7 +37,7 @@ import { freshMatch, applyAction } from "../src/match.js";
 import { CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
 import { deckValido } from "../src/deckLibrary.js";
 import { filterStateForSeat } from "../src/net/filterState.js";
-import { isPlanningActionType } from "../src/net/protocol.js";
+import { PROTOCOL_VERSION, isCompatibleProtocol, isPlanningActionType, rememberMessageId } from "../src/net/protocol.js";
 
 const PORT = process.env.PORT || 8080;
 const STEP_MS = Number(process.env.STEP_MS) || 850;
@@ -51,6 +51,8 @@ const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 100;
 const ROOM_TTL_MS = Number(process.env.ROOM_TTL_MS) || 2 * 60 * 60 * 1000;
 const RATE_WINDOW_MS = 10_000;
 const RATE_MAX_MESSAGES = 60;
+const RECONNECT_GRACE_MS = Number(process.env.RECONNECT_GRACE_MS) || 30_000;
+const SERVICE_VERSION = process.env.RENDER_GIT_COMMIT?.slice(0, 12) || process.env.SERVICE_VERSION || "dev";
 const DEFAULT_ORIGINS = ["https://brunoebaraujo.github.io", "http://localhost:5173", "http://127.0.0.1:5173"];
 const ALLOWED_ORIGINS = new Set((process.env.ALLOWED_ORIGINS || DEFAULT_ORIGINS.join(",")).split(",").map((x) => x.trim()).filter(Boolean));
 
@@ -73,7 +75,7 @@ function guard(what, fn, onFail) {
 }
 
 // ---- estado em memoria --------------------------------------------------
-const clients = new Map(); // id -> { ws, name, roomId, seat }
+const clients = new Map(); // id -> { ws, name, roomId, seat, resumeToken, disconnectTimer }
 const rooms = new Map();   // roomId -> { id, host, guest, createdAt, match }
 
 const openRooms = () =>
@@ -81,7 +83,13 @@ const openRooms = () =>
     .filter((r) => r.guest === null)
     .map((r) => ({ id: r.id, host: clients.get(r.host)?.name || "?", createdAt: r.createdAt }));
 
-const send = (ws, obj) => { if (ws && ws.readyState === ws.OPEN) ws.send(JSON.stringify(obj)); };
+const send = (ws, obj) => {
+  if (!ws || ws.readyState !== ws.OPEN) return;
+  ws.serverSeq = (ws.serverSeq || 0) + 1;
+  ws.send(JSON.stringify({ ...obj, seq: ws.serverSeq, protocolVersion: PROTOCOL_VERSION }));
+};
+const isConnected = (client) => !!client?.ws && client.ws.readyState === client.ws.OPEN;
+const logEvent = (event, data = {}) => console.log(JSON.stringify({ ts: new Date().toISOString(), event, ...data }));
 const broadcastRooms = () => {
   const payload = { t: "rooms", rooms: openRooms() };
   for (const c of clients.values()) if (!c.roomId) send(c.ws, payload);
@@ -95,7 +103,7 @@ function broadcastState(room) {
   for (const seat of [0, 1]) {
     const c = seatClient(room, seat);
     if (!c) continue;
-    const oppConnected = !!seatClient(room, 1 - seat);
+    const oppConnected = isConnected(seatClient(room, 1 - seat));
     send(c.ws, { t: "gameState", seat, state: filterStateForSeat(M.state, seat), ready: M.ready.slice(), oppConnected });
   }
 }
@@ -117,7 +125,8 @@ function tryStartMatch(room) {
   if (!M.decks[0] || !M.decks[1]) return;
   guard("tryStartMatch", () => {
     M.state = freshMatch([M.decks[0], M.decks[1]]);
-    console.log(JSON.stringify({ event: "match_started", roomId: room.id, seed: M.state.random?.seed }));
+    M.matchId = M.matchId || randomUUID();
+    logEvent("match_started", { roomId: room.id, matchId: M.matchId, seed: M.state.random?.seed });
     M.ready = [false, false];
     broadcastState(room);
   }, () => { M.state = null; abortMatch(room, "Não consegui iniciar a partida (erro no servidor). Saia da sala e tente de novo."); });
@@ -190,8 +199,10 @@ function leaveRoom(id) {
   const c = clients.get(id);
   if (!c || !c.roomId) return;
   const room = rooms.get(c.roomId);
+  const previousSeat = c.seat;
   c.roomId = null; c.seat = undefined;
   if (!room) return;
+  logEvent("room_left", { roomId: room.id, playerId: id, seat: previousSeat });
   if (room.match) clearTimeout(room.match.revealTimer);
   if (room.host === id) {
     if (room.guest) {
@@ -211,14 +222,16 @@ const roomOf = (c) => (c && c.roomId ? rooms.get(c.roomId) : null);
 
 // ---- HTTP (health check) ------------------------------------------------
 const server = http.createServer((req, res) => {
-  if (req.url === "/health" || req.url === "/") {
+  if (req.url === "/health" || req.url === "/ready" || req.url === "/version" || req.url === "/") {
     res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
     res.end(JSON.stringify({
       ok: true, service: "Guerras Egipcias — servidor multiplayer (Fase 2)",
       // sig/cards: abra esta URL no navegador e compare com o que o app mostra
       // no lobby. Se diferirem, o servidor está rodando um commit mais velho.
-      sig: CONTENT_SIG, cards: CARD_KEYS.length,
+      sig: CONTENT_SIG, cards: CARD_KEYS.length, version: SERVICE_VERSION,
+      protocolVersion: PROTOCOL_VERSION,
       rooms: rooms.size, players: clients.size, uptime: Math.round(process.uptime()),
+      now: new Date().toISOString(),
     }));
     return;
   }
@@ -237,26 +250,62 @@ const wss = new WebSocketServer({
 
 wss.on("connection", (ws) => {
   if (clients.size >= MAX_CLIENTS) { ws.close(1013, "Servidor lotado"); return; }
-  const id = randomUUID();
-  clients.set(id, { ws, name: "Jogador", roomId: null, seat: undefined, rate: { since: Date.now(), count: 0 } });
+  let id = randomUUID();
+  clients.set(id, {
+    ws, name: "Jogador", roomId: null, seat: undefined, resumeToken: randomUUID(),
+    disconnectTimer: null, seenMessages: new Set(), rate: { since: Date.now(), count: 0 },
+  });
   ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
-  send(ws, { t: "welcome", id, sig: CONTENT_SIG, cards: CARD_KEYS.length });
+  send(ws, { t: "welcome", id, sig: CONTENT_SIG, cards: CARD_KEYS.length, version: SERVICE_VERSION });
   send(ws, { t: "rooms", rooms: openRooms() });
 
   ws.on("message", (raw) => guard("message", () => {
     let m; try { m = JSON.parse(raw.toString()); } catch { return; }
-    const c = clients.get(id);
+    let c = clients.get(id);
     if (!c) return;
+
+    if (m.t === "hello") {
+      if (!isCompatibleProtocol(m.protocolVersion)) {
+        send(ws, { t: "error", code: "PROTOCOL_MISMATCH", msg: `Protocolo incompatível. Cliente ${m.protocolVersion || "?"}, servidor ${PROTOCOL_VERSION}.` });
+        ws.close(1002, "Protocolo incompatível");
+        return;
+      }
+      if (typeof m.resumeToken === "string" && m.resumeToken !== c.resumeToken) {
+        const resumed = [...clients.entries()].find(([, candidate]) => candidate.resumeToken === m.resumeToken);
+        if (resumed) {
+          const [previousId, previous] = resumed;
+          clearTimeout(previous.disconnectTimer);
+          clients.delete(id);
+          previous.ws = ws;
+          previous.disconnectTimer = null;
+          previous.rate = { since: Date.now(), count: 0 };
+          id = previousId;
+          c = previous;
+          logEvent("session_resumed", { playerId: id, roomId: c.roomId });
+        }
+      }
+    }
+
     const now = Date.now();
     if (now - c.rate.since >= RATE_WINDOW_MS) c.rate = { since: now, count: 0 };
     c.rate.count += 1;
     if (c.rate.count > RATE_MAX_MESSAGES) { ws.close(1008, "Muitas mensagens"); return; }
+    if (m.mid && !rememberMessageId(c.seenMessages, m.mid)) return;
 
     switch (m.t) {
       case "hello":
         if (typeof m.name === "string" && m.name.trim()) c.name = m.name.trim().slice(0, 24);
+        send(ws, { t: "session", resumeToken: c.resumeToken, resumed: !!c.roomId });
         send(ws, { t: "rooms", rooms: openRooms() });
+        if (c.roomId) {
+          const room = roomOf(c);
+          if (room?.match?.state) broadcastState(room);
+          else if (room?.guest) {
+            const opponent = seatClient(room, 1 - c.seat);
+            send(ws, { t: "matchReady", roomId: room.id, seat: c.seat, opponent: opponent?.name || "?", resumed: true });
+          } else send(ws, { t: "roomCreated", roomId: room.id, resumed: true });
+        }
         break;
 
       case "listRooms":
@@ -269,6 +318,7 @@ wss.on("connection", (ws) => {
         const roomId = randomUUID().slice(0, 6);
         rooms.set(roomId, { id: roomId, host: id, guest: null, createdAt: Date.now(), match: null });
         c.roomId = roomId; c.seat = 0;
+        logEvent("room_created", { roomId, playerId: id });
         send(ws, { t: "roomCreated", roomId });
         broadcastRooms();
         break;
@@ -282,6 +332,7 @@ wss.on("connection", (ws) => {
         if (room.host === id) { send(ws, { t: "error", msg: "Voce e o anfitriao desta sala." }); break; }
         room.guest = id; c.roomId = room.id; c.seat = 1;
         room.match = { decks: [null, null], state: null, ready: [false, false], revealTimer: null };
+        logEvent("room_joined", { roomId: room.id, playerId: id, hostId: room.host });
         const host = clients.get(room.host);
         if (host) send(host.ws, { t: "matchReady", roomId: room.id, seat: 0, opponent: c.name });
         send(ws, { t: "matchReady", roomId: room.id, seat: 1, opponent: host ? host.name : "?" });
@@ -317,6 +368,7 @@ wss.on("connection", (ws) => {
         if (r.error) { send(ws, { t: "error", msg: r.error }); break; }
         M.state = r.state;
         M.ready[c.seat] = false;
+        logEvent("action_applied", { roomId: room.id, matchId: M.matchId, playerId: id, seat: c.seat, action: a.t, round: M.state.round });
         broadcastState(room);
         break;
       }
@@ -357,8 +409,22 @@ wss.on("connection", (ws) => {
   }, () => send(ws, { t: "error", msg: "Erro interno do servidor ao processar sua jogada." })));
 
   ws.on("close", () => guard("close", () => {
-    leaveRoom(id);
-    clients.delete(id);
+    const c = clients.get(id);
+    if (!c || c.ws !== ws) return;
+    c.ws = null;
+    logEvent("session_disconnected", { playerId: id, roomId: c.roomId, graceMs: RECONNECT_GRACE_MS });
+    const room = roomOf(c);
+    if (room?.match) broadcastState(room);
+    clearTimeout(c.disconnectTimer);
+    c.disconnectTimer = setTimeout(() => {
+      guard("reconnect timeout", () => {
+        const current = clients.get(id);
+        if (!current || isConnected(current)) return;
+        logEvent("session_expired", { playerId: id, roomId: current.roomId });
+        leaveRoom(id);
+        clients.delete(id);
+      });
+    }, RECONNECT_GRACE_MS);
   }));
 });
 

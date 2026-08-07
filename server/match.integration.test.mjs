@@ -7,6 +7,7 @@ import { WebSocket } from "ws";
 import { fileURLToPath } from "url";
 import path from "path";
 import { CONTENT_SIG, CARD_KEYS } from "../src/engine.js";
+import { PROTOCOL_VERSION } from "../src/net/protocol.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8199;
@@ -71,7 +72,7 @@ async function main() {
   await Promise.all([A.waitOpen(), B.waitOpen()]);
 
   // lobby: A cria, B entra
-  A.send({ t: "hello", name: "Alice" }); B.send({ t: "hello", name: "Bob" });
+  A.send({ t: "hello", name: "Alice", protocolVersion: PROTOCOL_VERSION }); B.send({ t: "hello", name: "Bob", protocolVersion: PROTOCOL_VERSION });
   A.send({ t: "createRoom" });
   await A.waitFor((m) => m.t === "roomCreated");
   const roomId = A.msgs.find((m) => m.t === "roomCreated").roomId;
@@ -161,9 +162,20 @@ async function main() {
   // outro jogador preso em "Preparando a partida…".
   A.ws.close(); B.ws.close();
   await sleep(120);
+  const healthResponse = await fetch(`http://127.0.0.1:${PORT}/health`);
+  const health = await healthResponse.json();
+  check(healthResponse.ok && health.ok, "health check responde pronto");
+  check(health.protocolVersion === PROTOCOL_VERSION, "health informa a versão do protocolo");
+  check(typeof health.version === "string" && health.version.length > 0, "health identifica a versão implantada");
+  const legacy = mkClient("Legacy");
+  await legacy.waitOpen();
+  legacy.send({ t: "hello", name: "Legacy", protocolVersion: PROTOCOL_VERSION - 1 });
+  const incompatible = await legacy.waitFor((m) => m.t === "error" && m.code === "PROTOCOL_MISMATCH");
+  check(!!incompatible, "servidor bloqueia protocolo incompatível com código explícito");
+  legacy.ws.close();
   const C = mkClient("Carol"), D = mkClient("Dan");
   await Promise.all([C.waitOpen(), D.waitOpen()]);
-  C.send({ t: "hello", name: "Carol" }); D.send({ t: "hello", name: "Dan" });
+  C.send({ t: "hello", name: "Carol", protocolVersion: PROTOCOL_VERSION }); D.send({ t: "hello", name: "Dan", protocolVersion: PROTOCOL_VERSION });
   C.send({ t: "createRoom" });
   const rc = await C.waitFor((m) => m.t === "roomCreated");
   D.send({ t: "joinRoom", roomId: rc.roomId });
@@ -204,7 +216,22 @@ async function main() {
   await sleep(150);
   check(!D.msgs.some((m) => m.t === "error" && /Ação inválida/.test(m.msg || "")), "toggleActivate chega ao motor online");
 
-  C.ws.close(); D.ws.close();
+  // ---- RECONEXÃO: sessão e partida sobrevivem a uma queda curta ----------
+  const sessionC = C.msgs.find((m) => m.t === "session")?.resumeToken;
+  const roundBeforeReconnect = C.last.state.round;
+  check(!!sessionC, "servidor entrega token opaco de retomada");
+  C.ws.close();
+  await D.waitState((m) => m.oppConnected === false);
+  const C2 = mkClient("Carol-reconectada");
+  await C2.waitOpen();
+  C2.send({ t: "hello", name: "Carol", protocolVersion: PROTOCOL_VERSION, resumeToken: sessionC });
+  const resumed = await C2.waitFor((m) => m.t === "session" && m.resumed === true);
+  await C2.waitState((m) => m.state.round === roundBeforeReconnect);
+  check(!!resumed, "sessão é retomada dentro da janela de tolerância");
+  check(C2.last.seat === 0, "jogador reconectado preserva o assento");
+  check(C2.last.state.round === roundBeforeReconnect, "jogador reconectado recupera o estado da partida");
+
+  C2.ws.close(); D.ws.close();
   srv.kill();
   await sleep(100);
 

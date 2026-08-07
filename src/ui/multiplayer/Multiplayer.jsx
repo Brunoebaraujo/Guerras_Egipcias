@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { CARD_KEYS, CONTENT_SIG, SIDE_NAME, byKey, ctxOf, custoDe, decomporPartes, laneWins, power } from "../../engine.js";
 import { isAimable as podeMirar } from "../../match.js";
 import { normalizeWs } from "../../net/wsUrl.js";
+import { PROTOCOL_VERSION, createSequenceGuard, isCompatibleProtocol } from "../../net/protocol.js";
 import { GameMobile } from "../game/MobileGame.jsx";
 import { BannerVitoria } from "../game/BannerVitoria.jsx";
 import { BOARD, TabuleiroMultiplayer, ZoomModal } from "../game/DesktopGameComponents.jsx";
@@ -226,8 +227,13 @@ function Lobby({ onBack, deck }) {
   const wsRef = useRef(null);
   const deckRef = useRef(deck);
   const timerRef = useRef(null);
+  const reconnectRef = useRef(null);
+  const reconnectAttemptRef = useRef(0);
+  const manualCloseRef = useRef(false);
+  const sequenceGuardRef = useRef(createSequenceGuard());
+  const resumeTokenRef = useRef(readLS("ge_resume_token", ""));
   useEffect(() => { deckRef.current = deck; }, [deck]);
-  useEffect(() => () => clearTimeout(timerRef.current), []);
+  useEffect(() => () => { clearTimeout(timerRef.current); clearTimeout(reconnectRef.current); }, []);
   const connected = status === "conectado";
   /* Servidor e site rodam o mesmo engine.js, mas têm deploys separados: o site
      é o GitHub Pages, o servidor é o Render. Se um ficar para trás, a partida
@@ -236,20 +242,48 @@ function Lobby({ onBack, deck }) {
   const desatualizado = servidor && servidor.sig !== CONTENT_SIG;
   const semAssinatura = !!servidor && !servidor.sig;
 
-  function connect() {
+  function connect({ reconnecting = false } = {}) {
     const nm = name.trim() || "Jogador";
     try { localStorage.setItem("ge_server", serverUrl); localStorage.setItem("ge_name", nm); } catch {}
-    setNote(""); setStatus("conectando"); setRooms([]); setMyRoom(null); setMatch(null); setGame(null);
-    setServidor(null); setTravou(false); clearTimeout(timerRef.current);
+    manualCloseRef.current = false;
+    if (!reconnecting) {
+      setNote(""); setRooms([]); setMyRoom(null); setMatch(null); setGame(null);
+      setServidor(null); setTravou(false); clearTimeout(timerRef.current);
+      reconnectAttemptRef.current = 0;
+    }
+    setStatus(reconnecting ? "reconectando" : "conectando");
     let ws;
     try { ws = new WebSocket(normalizeWs(serverUrl)); } catch { setStatus("erro"); setNote("URL inválida."); return; }
     wsRef.current = ws;
-    ws.onopen = () => { setStatus("conectado"); ws.send(JSON.stringify({ t: "hello", name: nm })); };
-    ws.onclose = () => { setStatus((s) => (s === "erro" ? s : "desconectado")); setRooms([]); setMyRoom(null); setMatch(null); setGame(null); };
-    ws.onerror = () => { setStatus("erro"); setNote("Não consegui conectar. Confira a URL — e lembre que o servidor Free do Render pode levar ~1 min pra acordar; tente de novo."); };
+    sequenceGuardRef.current = createSequenceGuard();
+    ws.onopen = () => {
+      reconnectAttemptRef.current = 0;
+      setStatus("conectado"); setNote("");
+      ws.send(JSON.stringify({ t: "hello", name: nm, protocolVersion: PROTOCOL_VERSION, resumeToken: resumeTokenRef.current || undefined }));
+    };
+    ws.onclose = () => {
+      if (manualCloseRef.current) { setStatus("desconectado"); return; }
+      const attempt = ++reconnectAttemptRef.current;
+      const delay = Math.min(10_000, 750 * (2 ** Math.min(attempt - 1, 4)));
+      setStatus("reconectando"); setNote(`Conexão interrompida. Reconectando em ${Math.ceil(delay / 1000)}s…`);
+      clearTimeout(reconnectRef.current);
+      reconnectRef.current = setTimeout(() => connect({ reconnecting: true }), delay);
+    };
+    ws.onerror = () => { setNote("Conexão indisponível; a recuperação automática continuará tentando."); };
     ws.onmessage = (ev) => {
       let m; try { m = JSON.parse(ev.data); } catch { return; }
-      if (m.t === "welcome") setServidor({ sig: m.sig || null, cards: m.cards || 0 });
+      if (!isCompatibleProtocol(m.protocolVersion)) {
+        manualCloseRef.current = true; setStatus("erro");
+        setNote(`Versão de protocolo incompatível (cliente ${PROTOCOL_VERSION}, servidor ${m.protocolVersion || "?"}).`);
+        ws.close(); return;
+      }
+      if (!sequenceGuardRef.current(m.seq)) return;
+      if (m.t === "welcome") setServidor({ sig: m.sig || null, cards: m.cards || 0, version: m.version || "?", protocolVersion: m.protocolVersion });
+      else if (m.t === "session") {
+        resumeTokenRef.current = m.resumeToken || "";
+        try { localStorage.setItem("ge_resume_token", resumeTokenRef.current); } catch {}
+        if (m.resumed) setNote("Sessão recuperada.");
+      }
       else if (m.t === "rooms") setRooms(m.rooms || []);
       else if (m.t === "roomCreated") { setMyRoom(m.roomId); setNote(""); }
       else if (m.t === "matchReady") {
@@ -270,9 +304,16 @@ function Lobby({ onBack, deck }) {
       else if (m.t === "error") { clearTimeout(timerRef.current); setTravou(false); setNote(m.msg || "Erro."); }
     };
   }
-  const send = (obj) => { try { wsRef.current?.send(JSON.stringify(obj)); } catch {} };
-  const disconnect = () => { try { wsRef.current?.close(); } catch {} };
-  useEffect(() => () => { try { wsRef.current?.close(); } catch {} }, []);
+  const send = (obj) => {
+    const mid = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`;
+    try { wsRef.current?.send(JSON.stringify({ ...obj, mid, protocolVersion: PROTOCOL_VERSION })); } catch {}
+  };
+  const disconnect = () => {
+    manualCloseRef.current = true; clearTimeout(reconnectRef.current);
+    try { wsRef.current?.close(); } catch {}
+    setRooms([]); setMyRoom(null); setMatch(null); setGame(null); setStatus("desconectado");
+  };
+  useEffect(() => () => { manualCloseRef.current = true; clearTimeout(reconnectRef.current); try { wsRef.current?.close(); } catch {} }, []);
 
   // Partida ao vivo: substitui todo o lobby pela mesa online.
   if (game) {
@@ -284,7 +325,7 @@ function Lobby({ onBack, deck }) {
   const box = { width: "100%", maxWidth: 460, margin: "0 auto" };
   const field = { width: "100%", padding: "10px 12px", borderRadius: 9, background: "#1c1917", border: "1px solid #44403c", color: "#e7e5e4", fontSize: 14, boxSizing: "border-box" };
   const btn = (bg, fg) => ({ padding: "11px 14px", borderRadius: 9, border: "none", background: bg, color: fg, fontWeight: 700, fontSize: 14, cursor: "pointer" });
-  const statusColor = { desconectado: "#78716c", conectando: "#fbbf24", conectado: "#34d399", erro: "#fb7185" }[status];
+  const statusColor = { desconectado: "#78716c", conectando: "#fbbf24", reconectando: "#fbbf24", conectado: "#34d399", erro: "#fb7185" }[status];
 
   return (
     /* O index.html usa viewport-fit=cover, então no iPhone a página começa
