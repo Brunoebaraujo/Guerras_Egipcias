@@ -1,5 +1,8 @@
 // @ts-check
 import { CARDS, PRAGAS, TOKENS, GLYPH } from "../engine.js";
+/* O registry precisa estar POVOADO quando a validação roda: importar
+   `effects/index.js` (e não só `registry.js`) é o que garante isso. */
+import { getEffect } from "../effects/index.js";
 
 const REQUIRED_FIELDS = ["key", "nome", "tipo", "custo", "poder", "arch"];
 const META_FIELDS = new Set([
@@ -7,18 +10,13 @@ const META_FIELDS = new Set([
   "tipos", "abertura", "ordem", "efeitos",
 ]);
 
-/* Campos legados ainda lidos dentro de resolvers durante a migração dos
-   parâmetros. O despacho e a descoberta de capacidades já usam `efeitos[]`. */
+/* Campos ESTRUTURAIS que não são efeitos: classificam a carta ou o modo de
+   entrega, e por isso continuam na definição. Todo PARÂMETRO de efeito vive em
+   `efeitos[]` — não há mais flag paralela. Um campo fora desta lista e fora de
+   META_FIELDS é erro de validação, o que impede que uma flag legada volte a
+   nascer sem que ninguém a leia. */
 const EFFECT_FIELDS = new Set([
-  "trigger", "token", "veneno", "absorb", "anthemType", "anthemVal", "invocar",
-  "randomBuffAlly", "buffNext", "scatterEnemies", "destroyAllOfTypeInLane", "block",
-  "fuse", "move", "growPerPlay", "wipeCost", "afogaCusto", "spreadPerLane",
-  "judgeLane", "buffsPerBlessing", "venenoAlvos", "replicaVeneno", "finalizador",
-  "ecoUltimo", "animalNaVia", "protegeVia", "moverAnimal", "ganhoPorAnimalMorto",
-  "bonusPorViaCheia", "bonusPorAnimal", "buffNextDraw", "buffRandomHandCard",
-  "ativavelPorJogador", "spreadOnBlessing", "destroyOwnLane", "armadura",
-  "destroyAll", "bennu", "heka", "anubis", "sobek", "sekhmet", "khnum",
-  "praga", "outorga", "afoga", "sacrificio", "retorna", "silencia", "maat",
+  "trigger", "token", "praga", "outorga",
 ]);
 
 export const KNOWN_CARD_FIELDS = new Set([...META_FIELDS, ...EFFECT_FIELDS]);
@@ -51,6 +49,11 @@ export function validarColecao(cards = [...CARDS, ...PRAGAS, ...TOKENS]) {
         }
         if (effectIds.has(effect.id)) errors.push(`${label}: efeito duplicado "${effect.id}"`);
         effectIds.add(effect.id);
+        /* GUARDA: um id que não existe no registry é um efeito que nunca vai
+           rodar. Sem esta checagem a carta ganha texto, arte e teste de tipo, e
+           silenciosamente não faz nada — que é exatamente a armadilha que o
+           `trigger: "morrer"` decorativo era antes de virar evento. */
+        if (!getEffect(effect.id)) errors.push(`${label}: efeito "${effect.id}" não está registrado`);
       }
     }
     if (card?.trigger && !card?.efeitos?.length) errors.push(`${label}: trigger sem efeito registrado`);
