@@ -1,4 +1,3 @@
-import React from "react";
 
 /* Carta emoldurada: arte (atrás da janela transparente) + moldura por cima +
    campos vivos posicionados sobre as zonas da moldura.

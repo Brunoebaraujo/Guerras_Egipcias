@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 
 export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
   const base = import.meta.env.BASE_URL;

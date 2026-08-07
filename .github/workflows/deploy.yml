@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
       - uses: actions/setup-node@v4
         with:
@@ -27,8 +29,20 @@ jobs:
       - name: Instalar dependências
         run: npm ci
 
+      - name: Instalar dependências do servidor
+        run: npm ci --prefix server
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Verificação incremental de tipos
+        run: npm run typecheck
+
       - name: Testes do motor (vitest)
         run: npm test
+
+      - name: Testes de integração do servidor
+        run: npm run test:server
 
       - name: Build de produção
         run: npm run build
@@ -42,12 +56,26 @@ jobs:
           cname: ""
           commit_message: "deploy: atualiza via Actions"
 
-      # O servidor multiplayer (Render) importa src/match.js e src/engine.js, então
-      # precisa acompanhar cada mudança na coleção de cartas. O auto-deploy do Render
-      # não enxerga alterações fora de server/, o que congelava o servidor numa versão
-      # antiga e bloqueava o multiplayer pela divergência de CONTENT_SIG. O deploy hook
-      # equivale a apertar "Manual Deploy" e vale para qualquer commit.
+      - name: Detectar mudanças que afetam o servidor
+        id: server_changes
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
+             git diff --quiet HEAD^ HEAD -- server/ src/engine.js src/match.js src/deckLibrary.js src/rules.js; then
+            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+              echo "changed=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # O servidor importa módulos compartilhados de src/. O hook só é acionado
+      # quando esses contratos ou o próprio servidor mudam; CSS/arte não encerram
+      # mais partidas em andamento por um redeploy desnecessário.
       - name: Redeploy do servidor no Render
+        if: steps.server_changes.outputs.changed == 'true'
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |

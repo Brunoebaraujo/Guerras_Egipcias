@@ -3,11 +3,9 @@ import Carta from "./Carta.jsx";
 import MainMenu from "./MainMenu.jsx";
 import {
   CARDS, PRAGAS, OUTORGAS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
-  nextUid, resetUid, shuffled, coin, ctxOf, pushLog,
-  power, laneScore, laneWins, matchResult, laneHasMaat, onEnterBlocked, validTargets, buildRevealQueue,
-  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveDestroyAllOfTypeInLane, resolveSekhmet,
-  applyPendingBuff, resolveHeka, resolveBennuRebirth, aplicarBencao, descarregarPendentes,
-  montarLogPartida, snapshotTabuleiro, decomporPartes, resolveSet, resolveAnubis,
+  resetUid, shuffled, ctxOf,
+  power, laneScore, laneWins, matchResult, laneHasMaat,
+  montarLogPartida, decomporPartes,
   CONTENT_SIG, CARD_KEYS, laneProtegida,
 } from "./engine.js";
 import { freshMatch, applyAction, isAimable as podeMirar } from "./match.js";
@@ -15,6 +13,7 @@ import {
   loadStore, saveStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
   deckIntegro, SCHEMA_V, MAX_DECKS, NAME_MAX,
 } from "./deckLibrary.js";
+import { DECK_SIZE } from "./rules.js";
 
 /* ==========================================================================
    Guerras Egípcias — playtest (revelação simultânea com prioridade) sobre o tabuleiro
@@ -27,8 +26,6 @@ const DECK_LIST = [
   "armadura", "escaravelho", "ammit", "enxame",
   "mumia", "sobek", "hathor", "set", "selo",
 ];
-const START_HAND = 4;
-
 const PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "escaravelho", "heka", "lanceiro", "carruagem", "enxame", "montu", "guardareal", "amon", "general", "colosso"],
@@ -81,7 +78,7 @@ function DeckLibraryModal({ api, side, sideLabel, accent = "#818cf8", cards, foc
   const inputRef = useRef(null);
   useEffect(() => { if (focusSave && inputRef.current) inputRef.current.focus(); }, [focusSave]);
 
-  const completo = cards.length === 12 && new Set(cards).size === 12;
+  const completo = cards.length === DECK_SIZE && new Set(cards).size === DECK_SIZE;
   const chip = { padding: "7px 10px", borderRadius: 8, border: "1px solid #44403c", background: "#292524", color: "#e7e5e4", fontSize: 12.5, cursor: "pointer" };
   const chipOff = { ...chip, opacity: 0.45, cursor: "not-allowed" };
 
@@ -135,7 +132,7 @@ function DeckLibraryModal({ api, side, sideLabel, accent = "#818cf8", cards, foc
             <div style={{ textAlign: "center", color: "#78716c", fontSize: 13, padding: "26px 10px" }}>Nenhum deck salvo ainda.<br />Monte um deck e toque em 💾 Salvar.</div>
           )}
           {api.decks.map((d) => {
-            const integro = d.cards.length === 12 && new Set(d.cards).size === 12 && d.cards.every((k) => byKey[k] && CARDS.some((c) => c.key === k));
+            const integro = deckIntegro(d);
             const isLoaded = d.id === loadedId;
             return (
               <div key={d.id} style={{
@@ -559,7 +556,6 @@ export default function App() {
     }
   }, [aim, pausedForPlague, g.phase, g.finished, fast, g.blessings, g.round]);
 
-  const clone = (s) => JSON.parse(JSON.stringify(s));
   const commit = (s) => setG(s);
   function flash(t) { setMsg(t); clearTimeout(flashRef.current); flashRef.current = setTimeout(() => setMsg(""), 2600); }
 
@@ -664,7 +660,6 @@ export default function App() {
     setSel(null); setMoving(null);
     dispatch({ t: "nextRound" });
   }
-  function finish() { dispatch({ t: "finish" }); }
   function reset() { resetUid(); setSel(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); setG(freshState(chosen)); }
 
   // ---------------------------- SELEÇÃO DE DECK ----------------------------
@@ -672,12 +667,12 @@ export default function App() {
   function toggleCard(side, k) {
     const cur = build[side];
     if (cur.includes(k)) setDeck(side, cur.filter((x) => x !== k));
-    else if (cur.length < 12) setDeck(side, [...cur, k]);
+    else if (cur.length < DECK_SIZE) setDeck(side, [...cur, k]);
     else flash("Deck cheio — 12 cartas (remova uma antes de trocar).");
     // Editar as cartas desliga o "vínculo" com o deck salvo: o próximo Salvar
     // pergunta se atualiza, e ao editar manualmente o usuário sabe que mexeu.
   }
-  const randomDeck = (side) => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, 12));
+  const randomDeck = (side) => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, DECK_SIZE));
 
   /* ------------------------- BIBLIOTECA DE DECKS -------------------------- */
   // Persiste `decks` no localStorage e sincroniza o estado. Toda operação da
@@ -738,7 +733,7 @@ export default function App() {
   };
 
   function startMatch() {
-    if (build[0].length !== 12 || build[1].length !== 12) { flash("Cada deck precisa ter exatamente 12 cartas."); return; }
+    if (build[0].length !== DECK_SIZE || build[1].length !== DECK_SIZE) { flash(`Cada deck precisa ter exatamente ${DECK_SIZE} cartas.`); return; }
     setChosen([build[0].slice(), build[1].slice()]);
     setG(freshState(build)); setSel(null); setMoving(null); setFast(false);
     setScreen("game");
@@ -765,7 +760,7 @@ export default function App() {
 
   // ============================ TELA: LOBBY ================================
   if (screen === "lobby") {
-    return <Lobby onBack={() => setScreen("mpdeck")} deck={build[0].length === 12 ? build[0] : PRESETS["Padrão"]} />;
+    return <Lobby onBack={() => setScreen("mpdeck")} deck={build[0].length === DECK_SIZE ? build[0] : PRESETS["Padrão"]} />;
   }
 
   // ============================ TELA: GALERIA ==============================
@@ -853,10 +848,10 @@ export default function App() {
       <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={startMatch}
         setScreen={setScreen} setForceView={setForceView} msg={msg} libApi={libApi} />
     );
-    const ready = build[0].length === 12 && build[1].length === 12;
+    const ready = build[0].length === DECK_SIZE && build[1].length === DECK_SIZE;
     const DeckPanel = (side) => {
       const cur = build[side];
-      const full = cur.length === 12;
+      const full = cur.length === DECK_SIZE;
       return (
         <div key={side} className={`rounded-lg border ${side === 0 ? "border-amber-600" : "border-sky-600"} p-3`} style={{ backgroundColor: "#1c1a17" }}>
           <div className="flex items-center justify-between mb-2">
@@ -1602,7 +1597,6 @@ function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
    ========================================================================== */
 const mBtnBig = { flex: "1 1 auto", padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14, cursor: "pointer" };
 const mBtnSm = { flex: "0 0 auto", padding: "11px 12px", borderRadius: 9, border: "1px solid #44403c", background: "#292524", color: "#d6d3d1", fontSize: 14, cursor: "pointer" };
-const mBtnGhost = { flex: "0 0 auto", padding: "4px 8px", borderRadius: 7, border: "1px solid #44403c", background: "#1c1917", color: "#a8a29e", fontSize: 13, cursor: "pointer" };
 
 function MBanner({ tone, children }) {
   const map = {
@@ -1615,62 +1609,6 @@ function MBanner({ tone, children }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "0 8px 4px", padding: "6px 9px", borderRadius: 8, background: bg, border: `1px solid ${bd}`, color: fg, fontSize: 12 }}>
       {children}
-    </div>
-  );
-}
-
-function MScore({ v, tone, lead }) {
-  const ring = tone === "amber" ? "#fcd34d" : "#7dd3fc";
-  const bg = tone === "amber" ? "rgba(251,191,36,.16)" : "rgba(56,189,248,.16)";
-  const col = tone === "amber" ? "#fcd34d" : "#7dd3fc";
-  return (
-    <div style={{
-      minWidth: 30, textAlign: "center", padding: "2px 9px", borderRadius: 999,
-      background: bg, border: lead ? `2px solid ${ring}` : "1px solid rgba(120,113,108,.4)",
-      color: lead ? col : "#f5f5f4", fontWeight: 800, fontSize: 19, fontFamily: "Georgia, serif",
-      boxShadow: lead ? `0 0 8px ${ring}` : "none", transition: "box-shadow .3s ease", lineHeight: 1.15,
-    }}>{v}</div>
-  );
-}
-
-function MobileZone({ side, lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
-  const cards = g.board.filter((c) => c.lane === lane && c.owner === side);
-  const canDrop = planning && sel && sel.side === side && !moving && !aim;
-  const canMoveHere = moving && moving.side === side && moving.lane !== lane;
-  const active = canDrop || canMoveHere;
-  const ring = side === 0 ? "rgba(251,191,36,.85)" : "rgba(56,189,248,.85)";
-  const zoneClick = canMoveHere ? () => moveTo(side, lane) : canDrop ? () => placeCard(side, lane) : undefined;
-  return (
-    <div onClick={zoneClick} style={{
-      display: "grid", gridTemplateColumns: "1fr 1fr", gridTemplateRows: "1fr 1fr", gap: 3, padding: 3,
-      borderRadius: 7, border: active ? `1px solid ${ring}` : "1px solid rgba(247,233,192,.10)",
-      boxShadow: active ? `0 0 7px ${ring}` : "none", cursor: active ? "pointer" : "default",
-      transition: "box-shadow .2s ease, border-color .2s ease",
-    }}>
-      {[0, 1, 2, 3].map((slot) => {
-        const c = cards[slot];
-        if (!c) return <div key={slot} style={{ aspectRatio: "5 / 7", borderRadius: 4, border: active ? `1px dashed ${ring}` : "1px dashed rgba(247,233,192,.06)" }} />;
-        const canTarget = aim && isAimable(c);
-        const movable = isMovable(c);
-        const isMoving = moving && moving.uid === c.uid;
-        const reveal = g.lastReveal && g.lastReveal.uid === c.uid ? g.lastReveal.seq : null;
-        const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
-        const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
-        const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
-        let onClick;
-        if (c.dying) onClick = undefined;
-        else if (canTarget) onClick = (e) => { e.stopPropagation(); applyAim(c); };
-        else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); startMove(c); };
-        else onClick = (e) => { e.stopPropagation(); zoomBoard(c); };
-        const onRemove = pickUp && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
-        return (
-          <div key={c.uid} style={{ aspectRatio: "5 / 7", position: "relative" }}>
-            <MiniCard c={c} ctx={ctx} bw={MOBILE_BW} canTarget={canTarget} movable={movable} isMoving={isMoving}
-              reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging}
-              onClick={onClick} onRemove={onRemove} />
-          </div>
-        );
-      })}
     </div>
   );
 }
@@ -1813,29 +1751,6 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
   );
 }
 
-function MobileLane({ lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard }) {
-  const sA = laneScore(ctx, lane, 0), sB = laneScore(ctx, lane, 1);
-  const winner = sA > sB ? 0 : sB > sA ? 1 : -1;
-  const maat = laneHasMaat(g.board, lane);
-  const zprops = { lane, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard };
-  return (
-    <div style={{ flex: "1 1 0", minWidth: 0, display: "flex", flexDirection: "column", gap: 4 }}>
-      <MobileZone side={1} {...zprops} />
-      {/* Placar CENTRAL: os dois valores frente a frente, com a via no meio. */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 5, padding: "1px 0" }}>
-        <MScore v={sB} tone="sky" lead={winner === 1} />
-        <div style={{
-          textAlign: "center", fontSize: 9.5, color: "#f7e9c0", fontFamily: "Georgia, serif", letterSpacing: 0.3,
-          background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.3)", borderRadius: 999,
-          padding: "1px 6px", whiteSpace: "nowrap", lineHeight: 1.3,
-        }}>VIA {lane + 1}{maat ? " ⚖" : winner >= 0 ? ` ♛${winner === 0 ? "A" : "B"}` : ""}</div>
-        <MScore v={sA} tone="amber" lead={winner === 0} />
-      </div>
-      <MobileZone side={0} {...zprops} />
-    </div>
-  );
-}
-
 function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const base = import.meta.env.BASE_URL;
   const def = byKey[h.key];
@@ -1926,10 +1841,10 @@ function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, onResetPlan = 
 function GameMobile(p) {
   const {
     g, ctx, wins, planning, sel, setSel, aim, moving, msg, fast,
-    startReveal, setFast, reset, setScreen, setForceView,
+    startReveal, setFast, reset, setScreen,
     placeCard, pickUp, resetPlan, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
     zoomBoard, zoomHand,
-    online = false, seat = 0, myReady = false, oppReady = false, oppHand = 0,
+    online = false, seat = 0, myReady = false, oppHand = 0,
   } = p;
   const disabled = !planning || !!aim || !!moving;
   const phaseLabel = planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado";
@@ -2113,6 +2028,11 @@ function OnlineGame({ send, data, note, onLeave }) {
 
   // Handler para fechar zoom
   const handleZoomClose = () => setZoom(null);
+  const toggleActivateHu = (cardUid, side) => {
+    if (side !== seat || !planning) return;
+    sendAct({ t: "toggleActivate", uid: cardUid });
+    setZoom(null);
+  };
 
   const oppAiming = rawAim && rawAim.side !== seat;
   const msg = !oppConnected ? "⚠ Adversário desconectado." : oppAiming ? "🎯 O adversário está escolhendo um alvo…" : (note || "");
@@ -2258,12 +2178,12 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
   const [detail, setDetail] = useState(null); // def da carta ampliada, ou null
   const [lib, setLib] = useState(null);        // {focusSave} — modal da biblioteca
   const cur = build[side];
-  const ready = build[0].length === 12 && build[1].length === 12;
+  const ready = build[0].length === DECK_SIZE && build[1].length === DECK_SIZE;
   const accent = side === 0 ? "#fcd34d" : "#7dd3fc";
 
   const addCard = (k) => {
     if (build[side].includes(k)) return;
-    if (build[side].length >= 12) { flash("Deck cheio — 12 cartas (retire uma antes)."); return; }
+    if (build[side].length >= DECK_SIZE) { flash(`Deck cheio — ${DECK_SIZE} cartas (retire uma antes).`); return; }
     setDeck(side, [...build[side], k]);
   };
   const removeCard = (k) => setDeck(side, build[side].filter((x) => x !== k));
@@ -2288,7 +2208,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
         {[0, 1].map((s) => {
           const a = s === 0 ? "#fcd34d" : "#7dd3fc";
           const active = s === side;
-          const full = build[s].length === 12;
+          const full = build[s].length === DECK_SIZE;
           return (
             <button key={s} onClick={() => setSide(s)} style={{
               flex: "1 1 0", padding: "8px 6px", borderRadius: 9, cursor: "pointer",
@@ -2307,7 +2227,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
         {Object.keys(PRESETS).map((name) => (
           <button key={name} onClick={() => setDeck(side, PRESETS[name].slice())} style={chip}>{name}</button>
         ))}
-        <button onClick={() => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
+        <button onClick={() => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, DECK_SIZE))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(side, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
         {side === 1 && <button onClick={() => setDeck(1, build[0].slice())} style={chip}>Copiar A→B</button>}
       </div>
@@ -2354,7 +2274,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
       {/* carta ampliada */}
       {detail && (() => {
         const on = cur.includes(detail.key);
-        const full = cur.length >= 12;
+        const full = cur.length >= DECK_SIZE;
         return (
           <div onClick={() => setDetail(null)} style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,.82)", zIndex: 50,
@@ -2409,12 +2329,12 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
   const [detail, setDetail] = useState(null);
   const [lib, setLib] = useState(null);
   const cur = build[0];
-  const full = cur.length === 12;
+  const full = cur.length === DECK_SIZE;
   const accent = "#818cf8";
 
   const addCard = (k) => {
     if (cur.includes(k)) return;
-    if (cur.length >= 12) { flash("Deck cheio — 12 cartas (retire uma antes)."); return; }
+    if (cur.length >= DECK_SIZE) { flash(`Deck cheio — ${DECK_SIZE} cartas (retire uma antes).`); return; }
     setDeck(0, [...cur, k]);
   };
   const removeCard = (k) => setDeck(0, cur.filter((x) => x !== k));
@@ -2436,7 +2356,7 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
         {Object.keys(PRESETS).map((name) => (
           <button key={name} onClick={() => setDeck(0, PRESETS[name].slice())} style={chip}>{name}</button>
         ))}
-        <button onClick={() => setDeck(0, shuffled(CARDS.map((c) => c.key)).slice(0, 12))} style={chip}>Aleatório</button>
+        <button onClick={() => setDeck(0, shuffled(CARDS.map((c) => c.key)).slice(0, DECK_SIZE))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(0, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
       </div>
       <div style={{ display: "flex", gap: 6, padding: "0 10px 6px" }}>
@@ -2469,8 +2389,8 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
 
       <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         <button onClick={() => setScreen("deck")} style={{ ...chip, padding: "11px 12px" }}>← Voltar</button>
-        <span style={{ fontSize: 11, color: "#78716c" }}>{full ? "Deck pronto." : `Faltam ${Math.max(0, 12 - cur.length)}.`}</span>
-        <button onClick={() => { if (cur.length !== 12) { flash("Seu deck precisa ter exatamente 12 cartas."); return; } setScreen("lobby"); }} disabled={!full} style={{
+        <span style={{ fontSize: 11, color: "#78716c" }}>{full ? "Deck pronto." : `Faltam ${Math.max(0, DECK_SIZE - cur.length)}.`}</span>
+        <button onClick={() => { if (cur.length !== DECK_SIZE) { flash(`Seu deck precisa ter exatamente ${DECK_SIZE} cartas.`); return; } setScreen("lobby"); }} disabled={!full} style={{
           marginLeft: "auto", flex: "1 1 auto", maxWidth: 260, padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
           background: full ? "#4f46e5" : "#292524", color: full ? "#e0e7ff" : "#78716c", cursor: full ? "pointer" : "not-allowed",
         }}>Continuar → conectar</button>
@@ -2478,7 +2398,7 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
 
       {detail && (() => {
         const on = cur.includes(detail.key);
-        const cheio = cur.length >= 12;
+        const cheio = cur.length >= DECK_SIZE;
         return (
           <div onClick={() => setDetail(null)} style={{
             position: "fixed", inset: 0, background: "rgba(0,0,0,.82)", zIndex: 50,

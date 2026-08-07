@@ -1404,7 +1404,6 @@ export function resolveDestroyAllOfTypeInLane(s, card, tipo, { escopo = "todos" 
     if (c.uid === card.uid) return false;
     if (escopo === "inimigos" && c.owner === card.owner) return false;
 
-    const def = byKey[c.key];
     return temTipo(c, tipo);
   });
 

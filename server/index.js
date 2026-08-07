@@ -34,7 +34,8 @@ import http from "http";
 import { WebSocketServer } from "ws";
 import { randomUUID } from "crypto";
 import { freshMatch, applyAction } from "../src/match.js";
-import { byKey, CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
+import { CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
+import { deckValido } from "../src/deckLibrary.js";
 
 const PORT = process.env.PORT || 8080;
 const STEP_MS = Number(process.env.STEP_MS) || 850;
@@ -42,7 +43,14 @@ const STEP_MS = Number(process.env.STEP_MS) || 850;
    um passo de revelação de propósito: é o único momento em que os dois jogadores
    leem o tabuleiro resolvido antes de ele voltar a mudar. */
 const ROUND_PAUSE_MS = Number(process.env.ROUND_PAUSE_MS) || 2200;
-const DECK_SIZE = 12;
+const MAX_PAYLOAD = 64 * 1024;
+const MAX_CLIENTS = Number(process.env.MAX_CLIENTS) || 200;
+const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 100;
+const ROOM_TTL_MS = Number(process.env.ROOM_TTL_MS) || 2 * 60 * 60 * 1000;
+const RATE_WINDOW_MS = 10_000;
+const RATE_MAX_MESSAGES = 60;
+const DEFAULT_ORIGINS = ["https://brunoebaraujo.github.io", "http://localhost:5173", "http://127.0.0.1:5173"];
+const ALLOWED_ORIGINS = new Set((process.env.ALLOWED_ORIGINS || DEFAULT_ORIGINS.join(",")).split(",").map((x) => x.trim()).filter(Boolean));
 
 /* --------------------------- BLINDAGEM DO PROCESSO ------------------------
    Este servidor atende TODAS as salas num processo só. Antes, qualquer exceção
@@ -82,15 +90,38 @@ const seatClient = (room, seat) => clients.get(seat === 0 ? room.host : room.gue
 /* ---------------------- FILTRAGEM POR JOGADOR --------------------------- */
 function filterFor(state, seat) {
   const opp = 1 - seat;
-  const s = JSON.parse(JSON.stringify(state));
-  const oppHand = s.hand[opp].length;
-  s.hand[opp] = [];
-  s.oppHand = oppHand;
-  s.board = s.board.filter((c) => c.owner === seat || c.revealed);
-  s.deck = [Array(s.deck[0].length).fill(null), Array(s.deck[1].length).fill(null)];
-  s.justDrew = seat === 0 ? [s.justDrew[0], []] : [[], s.justDrew[1]];
-  s.log = (s.log || []).filter((l) => !/posicionou|recolheu/.test(l));
-  return s;
+  const ownHand = structuredClone(state.hand[seat]);
+  const hand = seat === 0 ? [ownHand, []] : [[], ownHand];
+  const ownDraw = structuredClone(state.justDrew?.[seat] || []);
+  const justDrew = seat === 0 ? [ownDraw, []] : [[], ownDraw];
+  return {
+    round: state.round,
+    energy: structuredClone(state.energy),
+    board: structuredClone(state.board.filter((c) => c.owner === seat || c.revealed)),
+    deaths: structuredClone(state.deaths),
+    plays: structuredClone(state.plays),
+    pendingEnergy: structuredClone(state.pendingEnergy),
+    pendingReturn: structuredClone(state.pendingReturn),
+    blessings: structuredClone(state.blessings),
+    deck: [Array(state.deck[0].length).fill(null), Array(state.deck[1].length).fill(null)],
+    hand,
+    oppHand: state.hand[opp].length,
+    seen: structuredClone(state.seen),
+    justDrew,
+    destroyedPower: structuredClone(state.destroyedPower),
+    priority: state.priority,
+    priorityReason: state.priorityReason,
+    phase: state.phase,
+    lastReveal: structuredClone(state.lastReveal),
+    effect: structuredClone(state.effect),
+    effectSeq: state.effectSeq,
+    awaitingAim: structuredClone(state.awaitingAim),
+    trevas: structuredClone(state.trevas),
+    lastPlagueRevealed: state.lastPlagueRevealed,
+    awaitingPlagueShowcase: state.awaitingPlagueShowcase,
+    log: structuredClone((state.log || []).filter((l) => !/posicionou|recolheu/.test(l))),
+    finished: state.finished,
+  };
 }
 
 function broadcastState(room) {
@@ -229,11 +260,19 @@ const server = http.createServer((req, res) => {
 });
 
 // ---- WebSocket ----------------------------------------------------------
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+  server,
+  maxPayload: MAX_PAYLOAD,
+  verifyClient: ({ origin }, done) => {
+    // Clientes de integração/CLI não enviam Origin; navegadores sempre enviam.
+    done(!origin || ALLOWED_ORIGINS.has(origin), origin ? 403 : 401, "Origin não permitida");
+  },
+});
 
 wss.on("connection", (ws) => {
+  if (clients.size >= MAX_CLIENTS) { ws.close(1013, "Servidor lotado"); return; }
   const id = randomUUID();
-  clients.set(id, { ws, name: "Jogador", roomId: null, seat: undefined });
+  clients.set(id, { ws, name: "Jogador", roomId: null, seat: undefined, rate: { since: Date.now(), count: 0 } });
   ws.isAlive = true;
   ws.on("pong", () => { ws.isAlive = true; });
   send(ws, { t: "welcome", id, sig: CONTENT_SIG, cards: CARD_KEYS.length });
@@ -243,6 +282,10 @@ wss.on("connection", (ws) => {
     let m; try { m = JSON.parse(raw.toString()); } catch { return; }
     const c = clients.get(id);
     if (!c) return;
+    const now = Date.now();
+    if (now - c.rate.since >= RATE_WINDOW_MS) c.rate = { since: now, count: 0 };
+    c.rate.count += 1;
+    if (c.rate.count > RATE_MAX_MESSAGES) { ws.close(1008, "Muitas mensagens"); return; }
 
     switch (m.t) {
       case "hello":
@@ -256,6 +299,7 @@ wss.on("connection", (ws) => {
 
       case "createRoom": {
         if (c.roomId) { send(ws, { t: "error", msg: "Voce ja esta numa sala." }); break; }
+        if (rooms.size >= MAX_ROOMS) { send(ws, { t: "error", msg: "Limite de salas atingido. Tente novamente em instantes." }); break; }
         const roomId = randomUUID().slice(0, 6);
         rooms.set(roomId, { id: roomId, host: id, guest: null, createdAt: Date.now(), match: null });
         c.roomId = roomId; c.seat = 0;
@@ -286,18 +330,9 @@ wss.on("connection", (ws) => {
       case "deckReady": {
         const room = roomOf(c);
         if (!room || !room.match || c.seat === undefined) { send(ws, { t: "error", msg: "Sem partida ativa." }); break; }
-        const deck = Array.isArray(m.deck) ? m.deck.slice(0, DECK_SIZE) : null;
-        if (!deck || deck.length !== DECK_SIZE) { send(ws, { t: "error", msg: "Deck precisa de " + DECK_SIZE + " cartas." }); break; }
-        /* Carta que o servidor não conhece = servidor mais velho que o site.
-           Antes isso explodia lá dentro (byKey[key].poder de undefined) e
-           derrubava o processo inteiro. Agora vira uma recusa explícita. */
-        const desconhecidas = deck.filter((k) => !byKey[k]);
-        if (desconhecidas.length) {
-          send(ws, { t: "error", msg:
-            "O servidor não conhece " + desconhecidas.join(", ") +
-            ". Ele está numa versão mais antiga que o site — refaça o deploy do serviço no Render." });
-          break;
-        }
+        const deck = Array.isArray(m.deck) ? m.deck.slice() : null;
+        const validation = deckValido(deck);
+        if (!validation.ok) { send(ws, { t: "error", msg: validation.error }); break; }
         room.match.decks[c.seat] = deck;
         tryStartMatch(room);
         break;
@@ -310,7 +345,7 @@ wss.on("connection", (ws) => {
         const a = m.action || {};
         // resetPlan ("Reiniciar rodada") existe no match.js e o cliente online
         // já mandava — faltava aqui, então online a tecla não fazia nada.
-        if (!["place", "pickup", "move", "resetPlan"].includes(a.t)) { send(ws, { t: "error", msg: "Ação inválida: " + a.t }); break; }
+        if (!["place", "pickup", "move", "resetPlan", "toggleActivate"].includes(a.t)) { send(ws, { t: "error", msg: "Ação inválida: " + a.t }); break; }
         const action = { ...a, side: c.seat };
         const r = applyAction(M.state, action);
         if (r.error) { send(ws, { t: "error", msg: r.error }); break; }
@@ -369,6 +404,16 @@ const heartbeat = setInterval(() => {
   }
 }, 30000);
 wss.on("close", () => clearInterval(heartbeat));
+
+const roomCleanup = setInterval(() => {
+  const cutoff = Date.now() - ROOM_TTL_MS;
+  for (const room of rooms.values()) {
+    if (room.createdAt < cutoff) {
+      for (const id of [room.host, room.guest]) if (id) leaveRoom(id);
+    }
+  }
+}, Math.min(ROOM_TTL_MS, 60_000));
+wss.on("close", () => clearInterval(roomCleanup));
 
 server.listen(PORT, "0.0.0.0", () => {
   console.log("Guerras Egipcias — servidor (Fase 2) ouvindo na porta " + PORT);

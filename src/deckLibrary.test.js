@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { CARDS, CONTENT_SIG } from "./engine.js";
 import {
-  emptyStore, parseStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
+  emptyStore, parseStore, migrateStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
   deckValido, deckIntegro, nomeValido, MAX_DECKS, NAME_MAX, DECK_SIZE,
 } from "./deckLibrary.js";
 
@@ -190,11 +190,22 @@ describe("parseStore — robustez de persistência", () => {
     expect(relido.decks[0].name).toBe("Persistente");
     expect(relido.decks[0].cards).toEqual(doze);
   });
+
+  it("migra v1 para o schema atual preservando decks e marcando sig ausente", () => {
+    const migrated = migrateStore({ v: 1, decks: [{ id: "d1", name: "Legado", cards: doze }] });
+    expect(migrated.v).toBe(2);
+    expect(migrated.decks[0]).toMatchObject({ id: "d1", sig: null });
+  });
+
+  it("não tenta interpretar schema futuro", () => {
+    expect(migrateStore({ v: 999, decks: [{ id: "x" }] })).toEqual(emptyStore());
+  });
 });
 
 describe("deckIntegro", () => {
-  it("true para deck de 12 válidas, false para incompleto", () => {
-    expect(deckIntegro({ cards: doze })).toBe(true);
+  it("exige cartas válidas e assinatura de conteúdo atual", () => {
+    expect(deckIntegro({ cards: doze, sig: CONTENT_SIG })).toBe(true);
     expect(deckIntegro({ cards: doze.slice(0, 8) })).toBe(false);
+    expect(deckIntegro({ cards: doze, sig: "desatualizada" })).toBe(false);
   });
 });

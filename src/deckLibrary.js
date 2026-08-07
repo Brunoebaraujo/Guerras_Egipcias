@@ -1,3 +1,4 @@
+// @ts-check
 /* ==========================================================================
    BIBLIOTECA DE DECKS — persistência local (Fase C, MVP)
 
@@ -17,12 +18,17 @@
    um deck "desatualizado" quando a coleção mudar.
    ========================================================================== */
 import { CARDS, CONTENT_SIG } from "./engine.js";
+import { DECK_SIZE } from "./rules.js";
+
+/** @typedef {{id:string,name:string,cards:string[],sig:string|null,createdAt:number,updatedAt:number}} SavedDeck */
+/** @typedef {{v:number,decks:SavedDeck[]}} DeckStore */
+/** @typedef {{name?:string,cards?:string[],now?:number}} DeckPatch */
 
 export const STORE_KEY = "ge_decks";
-export const SCHEMA_V = 1;
+export const SCHEMA_V = 2;
 export const MAX_DECKS = 20;
 export const NAME_MAX = 40;
-export const DECK_SIZE = 12;
+export { DECK_SIZE };
 
 // Conjunto de chaves ESCOLHÍVEIS (a coleção; exclui Pragas outorgadas e fichas).
 const SELECIONAVEIS = new Set(CARDS.map((c) => c.key));
@@ -42,8 +48,9 @@ export function parseStore(raw) {
     try { obj = JSON.parse(raw); } catch { return emptyStore(); }
   }
   if (!obj || typeof obj !== "object" || !Array.isArray(obj.decks)) return emptyStore();
+  const migrated = migrateStore(obj);
   const decks = [];
-  for (const d of obj.decks) {
+  for (const d of migrated.decks) {
     if (!d || typeof d !== "object") continue;
     if (typeof d.id !== "string" || typeof d.name !== "string") continue;
     if (!Array.isArray(d.cards)) continue;
@@ -58,6 +65,20 @@ export function parseStore(raw) {
     if (decks.length >= MAX_DECKS) break; // teto duro mesmo se o arquivo veio inflado
   }
   return { v: SCHEMA_V, decks };
+}
+
+/** Migra formatos conhecidos sem descartar decks válidos do jogador. */
+export function migrateStore(store) {
+  const version = Number.isInteger(store?.v) ? store.v : 1;
+  if (version > SCHEMA_V) return emptyStore();
+  let current = { ...store, v: version };
+  if (current.v === 1) {
+    current = {
+      v: 2,
+      decks: current.decks.map((deck) => ({ ...deck, sig: typeof deck.sig === "string" ? deck.sig : null })),
+    };
+  }
+  return current;
 }
 
 let idSeq = 0;
@@ -90,13 +111,14 @@ export function deckValido(cards) {
 
 // Um deck está "íntegro" para jogar se passa na validação atual da coleção.
 export function deckIntegro(deck) {
-  return deckValido(deck?.cards).ok;
+  return deckValido(deck?.cards).ok && deck?.sig === CONTENT_SIG;
 }
 
 /* ---------------------------- operações puras ---------------------------- */
 // Cada uma recebe `store`, devolve `{ store }` novo em sucesso ou `{ store, error }`
 // preservando o store original em falha. Nunca muta o store recebido.
 
+/** @param {DeckStore} store @param {DeckPatch} [options] */
 export function addDeck(store, { name, cards, now = Date.now() } = {}) {
   if (store.decks.length >= MAX_DECKS)
     return { store, error: `Limite de ${MAX_DECKS} decks atingido. Apague um para salvar outro.` };
@@ -111,6 +133,7 @@ export function addDeck(store, { name, cards, now = Date.now() } = {}) {
   return { store: { ...store, decks: [...store.decks, deck] }, deck };
 }
 
+/** @param {DeckStore} store @param {string} id @param {DeckPatch} [options] */
 export function updateDeck(store, id, { name, cards, now = Date.now() } = {}) {
   const i = store.decks.findIndex((d) => d.id === id);
   if (i < 0) return { store, error: "Deck não encontrado." };
@@ -135,6 +158,7 @@ export function renameDeck(store, id, name) {
   return updateDeck(store, id, { name });
 }
 
+/** @param {DeckStore} store @param {string} id @param {{now?:number}} [options] */
 export function duplicateDeck(store, id, { now = Date.now() } = {}) {
   if (store.decks.length >= MAX_DECKS)
     return { store, error: `Limite de ${MAX_DECKS} decks atingido. Apague um para duplicar.` };

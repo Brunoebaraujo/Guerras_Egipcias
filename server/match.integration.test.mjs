@@ -91,6 +91,9 @@ async function main() {
   check(A.last.state.hand[1].length === 0, "A NÃO vê a mão do adversário");
   check(A.last.state.oppHand === 4, "A vê a contagem da mão do adversário (4)");
   check(A.last.seat === 0 && B.last.seat === 1, "cada cliente recebe seu assento");
+  for (const secret of ["trace", "queue", "pendingBuff", "drawBuffReserve"]) {
+    check(!(secret in A.last.state), `estado público não expõe ${secret}`);
+  }
 
   // energia inicial 1: joga a carta de custo 0 (servo) se estiver na mão; senão pula
   const aServo = A.last.state.hand[0].find((h) => h.key === "servo");
@@ -168,10 +171,24 @@ async function main() {
   C.send({ t: "deckReady", deck: DECK });
   D.send({ t: "deckReady", deck: ["cartaQueNaoExiste", ...DECK.slice(1)] });
   const recusa = await C.waitFor(() => false, 300).catch(() => null); // só dá tempo
-  const errD = D.msgs.find((m) => m.t === "error" && /não conhece/.test(m.msg || ""));
+  const errD = D.msgs.find((m) => m.t === "error" && /desconhecida/.test(m.msg || ""));
   check(!!errD, "deck com carta desconhecida é recusado com mensagem clara");
   check(C.ws.readyState === C.ws.OPEN, "o servidor continua de pé depois da recusa");
   void recusa;
+
+  D.msgs.length = 0;
+  D.send({ t: "deckReady", deck: Array(12).fill("servo") });
+  await sleep(100);
+  check(D.msgs.some((m) => m.t === "error" && /repetidas/.test(m.msg || "")), "deck com cartas repetidas é recusado");
+
+  D.msgs.length = 0;
+  D.send({ t: "deckReady", deck: [...DECK.slice(0, 11), "token-gafanhoto"] });
+  await sleep(100);
+  check(D.msgs.some((m) => m.t === "error" && /desconhecida/.test(m.msg || "")), "deck com ficha é recusado");
+
+  // Um deck válido depois das recusas inicia normalmente a partida.
+  D.send({ t: "deckReady", deck: DECK });
+  await C.waitState((m) => m.state.round === 1 && m.state.phase === "plan");
 
   // ---- REGRESSÃO: resetPlan chega ao motor -------------------------------
   // O cliente online já mandava "resetPlan" (Reiniciar rodada), mas a lista
@@ -181,6 +198,11 @@ async function main() {
   await sleep(150);
   const invalida = D.msgs.find((m) => m.t === "error" && /Ação inválida/.test(m.msg || ""));
   check(!invalida, "resetPlan não é mais barrado pela lista branca");
+
+  D.msgs.length = 0;
+  D.send({ t: "act", action: { t: "toggleActivate", uid: "inexistente" } });
+  await sleep(150);
+  check(!D.msgs.some((m) => m.t === "error" && /Ação inválida/.test(m.msg || "")), "toggleActivate chega ao motor online");
 
   C.ws.close(); D.ws.close();
   srv.kill();

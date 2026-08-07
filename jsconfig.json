@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["node", "react", "react-dom"],
+    "skipLibCheck": true,
+    "strict": false
+  },
+  "include": ["src/**/*.js", "src/**/*.jsx", "server/**/*.js", "server/**/*.mjs", "vite.config.js"],
+  "exclude": ["node_modules", "server/node_modules", "dist", "src/**/*.test.js", "src/**/*.test.jsx", "server/**/*.test.mjs"]
+}
