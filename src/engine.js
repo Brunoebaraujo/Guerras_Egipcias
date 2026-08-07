@@ -4,6 +4,9 @@
    é coberto por testes em engine.test.js. A UI (App.jsx) só orquestra.
    ========================================================================== */
 
+import { defaultRng, shuffleWithRng } from "./rng.js";
+import { collectEvent, emitEvent, registerEventHandler } from "./events.js";
+
 export const GLYPH = {
   buff: "☀", debuff: "☾", sacrificio: "☥", reset: "⚖", silencio: "⊘",
   movimento: "⇄", crescimento: "⇑", fusao: "⛨", renascimento: "⟳", base: "𓂀",
@@ -34,7 +37,7 @@ export const CARDS = [
     lore: "O colosso de Ramsés ainda jaz em Mênfis, dez metros de calcário. Estátuas assim tinham culto próprio — o povo lhes rezava como intermediárias do rei." },
   // Efeito
   { key: "hathor", nome: "Hathor", tipo: "Divindade", custo: 2, poder: 3, arch: "buff",
-    trigger: "entrar", randomBuffAlly: 3, arte: "hathor", arteFoco: "center 0%",
+    trigger: "entrar", randomBuffAlly: 3, efeitos: [{ id: "buffRandomAlly", value: 3 }], arte: "hathor", arteFoco: "center 0%",
     lore: "Senhora do amor, da música e da alegria, Hathor tocava os corações e os fazia transbordar de coragem. Onde ela pousava a mão, o guerreiro esquecia o medo e lutava com o vigor de quem se sabe amado.",
     texto: "Ao Entrar: +3 de Poder a um aliado aleatório nesta via." },
   { key: "heka", nome: "Heka", tipo: "Divindade", custo: 2, poder: 1, arch: "buff",
@@ -178,7 +181,7 @@ export const CARDS = [
     texto: "Ao Entrar: +1 de Poder para cada outro Animal seu nesta via.",
     lore: "A cabra dava leite onde a terra não sustentava vaca, e por isso era o gado de quem não tinha gado. Os escribas contavam bois cabeça por cabeça; cabra ninguém contava uma a uma — contava-se o rebanho." },
   { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 1, arch: "animal", arte: "ganso",
-    trigger: "entrar", invocar: { key: "token-ganso", onde: "propria" },
+    trigger: "entrar", invocar: { key: "token-ganso", onde: "propria" }, efeitos: [{ id: "summon" }],
     texto: "Ao Entrar: invoque um Ganso (0/1) nesta via.",
     lore: "Do ganso Gengen Wer, o Grande Grasnador, teria saído o ovo que continha o sol. Em terra, porém, o ganso do Nilo era o mais banal dos bens: engordado à força, salgado em jarras e oferecido aos milhares nos altares." },
   { key: "gato", nome: "Gato Egípcio", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "gato", arteFoco: "center 0%",
@@ -186,7 +189,7 @@ export const CARDS = [
     texto: "Contínuo: suas cartas nesta via não podem ser alvo escolhido por efeitos inimigos. Não impede efeitos globais nem de via inteira.",
     lore: "Matar um gato, ainda que sem querer, era crime capital: Diodoro conta que uma multidão linchou um romano por isso, em plena missão diplomática. O animal que guardava o celeiro dos ratos acabou guardado pela cidade inteira." },
   { key: "macaco", nome: "Macaco Sagrado", tipo: "Animal", custo: 2, poder: 4, arch: "animal", arte: "macaco",
-    trigger: "entrar", moverAnimal: true,
+    trigger: "entrar", moverAnimal: true, efeitos: [{ id: "moveAnimal" }],
     texto: "Ao Entrar: move outro Animal seu para outra via com espaço.",
     lore: "Babuínos vinham de Punt e viviam nos templos de Tot, com nome, ração e sepultura própria. Nas pinturas aparecem trepando em figueiras a mando dos donos: o Egito descobriu cedo que o macaco alcança o que o homem não alcança." },
   { key: "hiena", nome: "Hiena do Deserto", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "hiena",
@@ -211,12 +214,12 @@ export const CARDS = [
     lore: "Um só touro por vez era Ápis, escolhido por marcas no pelo: vivia em Mênfis servido como rei e, ao morrer, era mumificado e descia ao Serapeu num sarcófago de granito de setenta toneladas. Enquanto ele vivia, todo o resto do gado do Egito era apenas gado." },
   // Escriba — prioridade de compra
   { key: "escriba", nome: "Escriba", tipo: "Humano", custo: 1, poder: 2, arch: "buff",
-    trigger: "entrar", buffNextDraw: 3, nomeCurto: "Escriba", arte: "escriba",
+    trigger: "entrar", buffNextDraw: 3, efeitos: [{ id: "buffNextDraw" }], nomeCurto: "Escriba", arte: "escriba",
     lore: "Os escribas do Egito eram guardiões do saber: sua caneta tocava papiro, e o futuro ficava escrito. Antes que um acontecimento chegasse, já havia palavras preparadas para recebê-lo.",
     texto: "Ao Entrar: sua próxima carta comprada do deck entra com +3 de Poder permanente." },
   // Conselheiro Real — fortalece a mão
   { key: "conselheiro", nome: "Conselheiro Real", tipo: "Humano", custo: 2, poder: 3, arch: "buff",
-    trigger: "entrar", buffRandomHandCard: 3, nomeCurto: "Conselheiro", arte: "conselheiro",
+    trigger: "entrar", buffRandomHandCard: 3, efeitos: [{ id: "buffRandomHandCard" }], nomeCurto: "Conselheiro", arte: "conselheiro",
     lore: "O conselheiro sussurrava ao ouvido do faraó, e suas palavras mudavam o rumo das batalhas. Quando escolhia, sua mão apontava para o guerreiro que se tornaria lenda.",
     texto: "Ao Entrar: uma carta aleatória sua na mão ganha +3 de Poder permanente." },
   // Hu — Mecânica Ativar: acumula buffs e os transfere para a próxima carta
@@ -406,15 +409,18 @@ export const SIDE_NAME = ["Lado A (ouro)", "Lado B (lápis)"];
 
 // ------------------------------- utilidades --------------------------------
 let UID = 1;
-export const nextUid = () => UID++;
+export const nextUid = (state = null) => {
+  if (state && Number.isInteger(state.nextUid)) {
+    const value = state.nextUid;
+    state.nextUid += 1;
+    return value;
+  }
+  return UID++;
+};
 export const resetUid = () => { UID = 1; };
 
-export const shuffled = (arr) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
-  return a;
-};
-export const coin = () => (Math.random() < 0.5 ? 0 : 1);
+export const shuffled = (arr, rng = defaultRng) => shuffleWithRng(arr, rng);
+export const coin = (rng = defaultRng) => (rng() < 0.5 ? 0 : 1);
 export const ctxOf = (s) => ({ board: s.board, deaths: s.deaths, plays: s.plays, destroyedPower: s.destroyedPower || [0, 0] });
 export const pushLog = (s, m) => {
   s.log = [m, ...s.log].slice(0, 80);           // painel: recente primeiro, 80 linhas
@@ -545,7 +551,7 @@ export function hinosPara(board, card) {
 // Decompoe o poder em parcelas nomeadas. O power() abaixo e a SOMA disto, para
 // que o numero exibido e a explicacao nunca possam divergir.
 export function decomporPartes(card, ctx) {
-  const { board, deaths, plays, destroyedPower } = ctx;
+  const { board } = ctx;
   // Anúbis grava card.judged: o base foi nivelado e os buffs permanentes caíram.
   const julgado = typeof card.judged === "number";
   const base = julgado ? card.judged : card.printed;
@@ -560,38 +566,7 @@ export function decomporPartes(card, ctx) {
   for (const m of card.mods)
     partes.push({ label: m.src, val: m.val, tipo: m.inert ? "inerte" : m.val > 0 ? "bencao" : "maldicao" });
 
-  const amons = board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
-  if (amons) partes.push({ label: "Amon", val: amons, tipo: "continuo" });
-
-  for (const h of hinosPara(board, card)) partes.push({ ...h, tipo: "continuo" });
-
-  /* Garça do Nilo: CONTÍNUA, e não Ao Entrar. Ela reconta as vias a cada leitura,
-     então cresce quando uma via sua fecha em qualquer rodada — e encolhe de novo
-     se a via se abrir. É o mesmo contrato do Amon e do Domador: aura viva, nada
-     gravado em `mods`. Consequências: a Maat continua desligando (o curto-circuito
-     lá em cima pega todas as auras) e o Selo do Silêncio deixa de alcançá-la,
-     porque o Selo só bloqueia efeito de entrada. */
-  const porViaCheia = byKey[card.key]?.bonusPorViaCheia;
-  if (porViaCheia) {
-    const cheias = contarViasCheias(board, card.owner);
-    if (cheias) partes.push({ label: `${byKey[card.key].nome} — ${cheias} via(s) cheia(s)`, val: porViaCheia * cheias, tipo: "continuo" });
-  }
-
-  if (card.key === "osiris") {
-    const totalMortes = deaths[0] + deaths[1];
-    if (totalMortes) partes.push({ label: "Osíris — mortes na partida", val: 2 * totalMortes, tipo: "continuo" });
-  }
-
-  if (card.key === "amheh") {
-    const dp = destroyedPower || [0, 0];
-    const absorvido = (dp[0] || 0) + (dp[1] || 0);
-    if (absorvido) partes.push({ label: "Am-heh — Poder absorvido dos destruídos", val: absorvido, tipo: "continuo" });
-  }
-
-  if (card.key === "ammit") {
-    const v = Math.max(0, plays[card.owner] - (card.entryPlays || 0));
-    if (v) partes.push({ label: "Ammit — cartas jogadas após ela", val: v, tipo: "continuo" });
-  }
+  partes.push(...collectEvent("continuousPower", { card, ctx }));
   return partes;
 }
 
@@ -737,23 +712,7 @@ export function destroyList(s, victims) {
   // auras deixam de contar quem está morrendo. Alimenta o acumulador do Am-heh
   // (que absorve o Poder real de cada destruída, positivo ou negativo).
   const powerAtDeath = victims.map((v) => power(v, ctxOf(s)));
-  victims.forEach((v, i) => {
-    if (v.key === "mumia") mumias.push({ owner: v.owner, val: powerAtDeath[i] * 2, venenos: (v.venenos || []).slice() });
-    if (v.key === "bennu") {
-      s.pendingEnergy[v.owner] += 1;
-      /* A ave leva TUDO o que estava escrito nela: a faixa acumulada, mais um, e
-         os bênçãos/maldições permanentes gravados em `mods` — venham da Heka, da
-         Hathor, da Armadura de Ptah ou de onde for. Morrer não limpa a carta;
-         renascer não é voltar ao impresso. Cópia funda de propósito: a instância
-         morta ainda vive no tabuleiro até a purga do fim da rodada, e as duas não
-         podem compartilhar o mesmo array. */
-      s.pendingReturn.push({
-        owner: v.owner, lane: v.lane, printed: v.printed, baked: (v.baked || 0) + 1,
-        mods: (v.mods || []).map((m) => ({ ...m })),
-        venenos: (v.venenos || []).slice(),
-      });
-    }
-  });
+  victims.forEach((v, i) => emitEvent(s, "beforeDeath", { card: v, powerAtDeath: powerAtDeath[i], returns: mumias }));
   if (!s.destroyedPower) s.destroyedPower = [0, 0];
   victims.forEach((v, i) => {
     v.dying = s.effectSeq;
@@ -764,7 +723,7 @@ export function destroyList(s, victims) {
      powerAtDeath das vítimas (o Am-heh absorveria o bônus dela) e, se a própria
      Hiena estiver na leva, já está `dying` e o filtro a exclui — que é a regra
      "destruída junto não ganha o bônus depois de sair". */
-  alimentarHienas(s, victims);
+  emitEvent(s, "afterDeaths", { victims });
   /* Mão cheia é absoluta: a Múmia dobrada não volta. Ela já foi contabilizada
      como destruída acima (deaths, destroyedPower, Am-heh, Osíris) — ficar na
      pilha de destruídas é literalmente não fazer nada além disso. Sai do array
@@ -781,7 +740,7 @@ export function destroyList(s, victims) {
        nada aqui precisa ser tocado — antes havia um 2 fixo aqui que teria
        silenciosamente divergido da coleção. */
     const impresso = byKey["mumia"].poder;
-    mao.push({ hid: nextUid(), key: "mumia", printed: impresso, baked: Math.max(0, r.val - impresso), venenos: r.venenos || [] });
+    mao.push({ hid: nextUid(s), key: "mumia", printed: impresso, baked: Math.max(0, r.val - impresso), venenos: r.venenos || [] });
     voltaram.push(r);
   }
   return voltaram;
@@ -791,7 +750,7 @@ export function destroyList(s, victims) {
 // Consome s.pendingReturn e recoloca cada Bennu AINDA NA MESMA RODADA, numa via
 // sorteada entre as que tem espaco (pode calhar de ser a via de origem).
 // rng injetavel para os testes.
-export function resolveBennuRebirth(s, rng = Math.random) {
+export function resolveBennuRebirth(s, rng = defaultRng) {
   if (!s.pendingReturn || s.pendingReturn.length === 0) return [];
   const nascidos = [];
   for (const r of s.pendingReturn) {
@@ -802,7 +761,7 @@ export function resolveBennuRebirth(s, rng = Math.random) {
     }
     const lane = livres[Math.floor(rng() * livres.length)];
     const card = {
-      uid: nextUid(), key: "bennu", owner: r.owner, lane,
+      uid: nextUid(s), key: "bennu", owner: r.owner, lane,
       printed: r.printed, baked: r.baked, mods: (r.mods || []).map((m) => ({ ...m })),
       venenos: (r.venenos || []).slice(),
       revealed: true, dying: false,
@@ -825,7 +784,7 @@ export function resolveBennuRebirth(s, rng = Math.random) {
 // `inert` marca o bônus que a própria Renenutet espalha: ele nunca dispara
 // gatilho, o que impede o laço entre duas cópias dela.
 
-export function aplicarBencao(s, alvo, val, srcNome, { inert = false, rng = Math.random } = {}) {
+export function aplicarBencao(s, alvo, val, srcNome, { inert = false, rng = defaultRng } = {}) {
   alvo.mods.push({ src: srcNome, val, inert });
   if (val <= 0 || inert) return [];
   return espalharSeAbencoada(s, alvo, rng);
@@ -844,7 +803,7 @@ function sortearAlvos(s, fonte, n, rng) {
 }
 
 // Uma onda de distribuição. Devolve os alvos tocados.
-export function espalharBencao(s, fonte, rng = Math.random, wave = 0) {
+export function espalharBencao(s, fonte, rng = defaultRng, wave = 0) {
   const def = byKey[fonte.key];
   let alvos = [];
   let valor = 1;
@@ -894,7 +853,7 @@ function espalharSeAbencoada(s, alvo, rng) {
 
 // Descarrega os gatilhos acumulados fora de jogo: uma onda independente por
 // gatilho, cada uma com sorteio próprio. Registra as ondas para a animação.
-export function descarregarPendentes(s, card, rng = Math.random) {
+export function descarregarPendentes(s, card, rng = defaultRng) {
   const n = card.pendentes || 0;
   card.pendentes = 0;
   let tocadas = 0;
@@ -1048,7 +1007,7 @@ const PRAGA_EFEITOS = {
     const lane = livres[Math.floor(rng() * livres.length)];
     s.plays[oponente] += 1;
     const ra = {
-      uid: nextUid(), key: "token-ra", owner: oponente, lane,
+      uid: nextUid(s), key: "token-ra", owner: oponente, lane,
       printed: byKey["token-ra"].poder, baked: 0, mods: [], revealed: true, dying: false,
       entryPlays: s.plays[oponente], enteredRound: s.round, moved: false, token: true,
     };
@@ -1101,7 +1060,7 @@ const PRAGA_EFEITOS = {
 
 // Resolve o efeito de uma Praga. Devolve o badge da animação, ou null quando a
 // Praga ainda não tem efeito implementado (Rãs, Úlceras e Trevas — Fase 4).
-export function resolvePraga(s, praga, rng = Math.random) {
+export function resolvePraga(s, praga, rng = defaultRng) {
   const fn = PRAGA_EFEITOS[praga.key];
   return fn ? fn(s, praga, rng) : null;
 }
@@ -1216,7 +1175,7 @@ export function montarLogPartida(s) {
 // Empurra ate N cartas inimigas da via do Set para outra via sorteada. Cada
 // carta rola de forma independente, e falha sozinha se nao houver espaco.
 // Nao consome o movimento proprio da carta: a vitima nao escolheu sair.
-export function resolveSet(s, set, rng = Math.random, def = byKey[set.key]) {
+export function resolveSet(s, set, rng = defaultRng, def = byKey[set.key]) {
   // Dispersar é escolher quem sai do lugar: o Gato Egípcio bloqueia.
   const pool = s.board.filter(
     (c) => c.owner !== set.owner && c.lane === set.lane && c.revealed && !c.dying
@@ -1368,29 +1327,29 @@ export function resolveSobek(s, sobek) {
   return { uid: sobek.uid, text: `☥ +${victims.length}`, kind: "sac", seq: s.effectSeq };
 }
 
-export function resolveArmadura(s, arm) {
+export function resolveArmadura(s, arm, rng = defaultRng) {
   const allies = s.board.filter((c) => c.owner === arm.owner && c.lane === arm.lane && c.uid !== arm.uid && emJogo(c));
   if (allies.length === 0) { pushLog(s, `Armadura de Ptah: sem aliado na via — permanece em campo (3).`); return { uid: arm.uid, text: "sem fusão", kind: "block", seq: s.effectSeq }; }
-  const target = allies[Math.floor(Math.random() * allies.length)];
+  const target = allies[Math.floor(rng() * allies.length)];
   const val = power(arm, ctxOf(s));
   // A Armadura e consumida pela fusao: precisa morrer ANTES de qualquer efeito
   // disparado pela bencao, senao ela entra no sorteio de alvos da Renenutet e
   // leva um +1 para o tumulo.
   arm.dying = s.effectSeq;
-  aplicarBencao(s, target, val, "Armadura de Ptah");
+  aplicarBencao(s, target, val, "Armadura de Ptah", { rng });
   pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
 }
 
 // Hathor: buffar aleatoriamente um aliado na via
-export function resolveRandomBuffAlly(s, card, val, rng = Math.random, def = byKey[card.key]) {
+export function resolveRandomBuffAlly(s, card, val, rng = defaultRng, def = byKey[card.key]) {
   const allies = s.board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && emJogo(c));
   if (allies.length === 0) {
     pushLog(s, `${def.nome}: sem aliado na via — efeito perdido.`);
     return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
   }
   const target = allies[Math.floor(rng() * allies.length)];
-  aplicarBencao(s, target, val, def.nome);
+  aplicarBencao(s, target, val, def.nome, { rng });
   pushLog(s, `${def.nome} concedeu +${val} para ${byKey[target.key].nome}.`);
   return { uid: target.uid, text: `☀ +${val}`, kind: "buff", seq: s.effectSeq };
 }
@@ -1465,10 +1424,10 @@ export function resolveKhnum(s, card, def = byKey[card.key]) {
 
 // Consome um buff pendente para a carta que acabou de revelar (se houver).
 // Grava como mod permanente e devolve o valor aplicado (0 se nada).
-export function applyPendingBuff(s, card) {
+export function applyPendingBuff(s, card, rng = defaultRng) {
   const val = s.pendingBuff?.[card.owner];
   if (!val) return 0;
-  aplicarBencao(s, card, val, "Heka");
+  aplicarBencao(s, card, val, "Heka", { rng });
   s.pendingBuff[card.owner] = null;
   return val;
 }
@@ -1499,7 +1458,7 @@ export function resolveEscriba(s, card, def = byKey[card.key]) {
 // ------------------- Conselheiro: buffa carta aleatória na mão -------------------
 // O Conselheiro escolhe uma carta aleatória na mão do dono e aplica +3 em baked.
 // Se não houver cartas na mão, o efeito é nulo.
-export function resolveConselheiro(s, card, rng = Math.random, def = byKey[card.key]) {
+export function resolveConselheiro(s, card, rng = defaultRng, def = byKey[card.key]) {
   const mao = s.hand[card.owner];
   if (!mao || mao.length === 0) {
     pushLog(s, `${def.nome}: nenhuma carta na mão — efeito nulo.`);
@@ -1614,7 +1573,7 @@ export function invocarFicha(s, { key, owner, lane }) {
   if (viaCheia(s.board, owner, lane)) return null;
   s.plays[owner] += 1;            // ficha é carta colocada em jogo: alimenta a Ammit
   const ficha = {
-    uid: nextUid(), key, owner, lane,
+    uid: nextUid(s), key, owner, lane,
     printed: byKey[key].poder, baked: 0, mods: [], revealed: true, dying: false,
     entryPlays: s.plays[owner], enteredRound: s.round, moved: false, token: true,
   };
@@ -1680,7 +1639,7 @@ export function resolveApis(s, apis, def = byKey[apis.key]) {
 // sem pausa de mira, e a pausa existe hoje só para a Hathor.
 // Não consome o movimento próprio da carta movida (o Escaravelho continua com
 // o dele) e não redispara o Ao Entrar de quem foi movido.
-export function resolveMacaco(s, macaco, rng = Math.random, def = byKey[macaco.key]) {
+export function resolveMacaco(s, macaco, rng = defaultRng, def = byKey[macaco.key]) {
   const candidatos = animaisEmJogo(s.board, { owner: macaco.owner, exceto: macaco.uid })
     .filter((c) => viasComEspaco(s.board, c.owner, c.lane).length > 0);
   if (candidatos.length === 0) {
@@ -1715,3 +1674,81 @@ export function alimentarHienas(s, victims) {
     pushLog(s, `𓃒 Hiena do Deserto se alimentou: ${alimentadas.map((a) => `+${a.ganho}`).join(", ")}.`);
   return alimentadas;
 }
+
+/* ---------------------- gatilhos declarados no barramento -----------------
+   A ordem é explícita. Novas cartas não exigem branches em destroyList() ou
+   decomporPartes(): registram uma reação ou contribuição com prioridade. */
+registerEventHandler("beforeDeath", {
+  id: "mumia-return", priority: 10,
+  when: ({ card }) => byKey[card.key]?.trigger === "morrer" && card.key === "mumia",
+  handle: ({ card, powerAtDeath, returns }) => {
+    returns.push({ owner: card.owner, val: powerAtDeath * 2, venenos: (card.venenos || []).slice() });
+  },
+});
+
+registerEventHandler("beforeDeath", {
+  id: "bennu-rebirth", priority: 20,
+  when: ({ card }) => byKey[card.key]?.trigger === "morrer" && card.key === "bennu",
+  handle: ({ card }, state) => {
+    state.pendingEnergy[card.owner] += 1;
+    state.pendingReturn.push({
+      owner: card.owner, lane: card.lane, printed: card.printed, baked: (card.baked || 0) + 1,
+      mods: (card.mods || []).map((mod) => ({ ...mod })),
+      venenos: (card.venenos || []).slice(),
+    });
+  },
+});
+
+registerEventHandler("afterDeaths", {
+  id: "hiena-feeds", priority: 100,
+  handle: ({ victims }, state) => alimentarHienas(state, victims),
+});
+
+registerEventHandler("continuousPower", {
+  id: "amon-aura", priority: 10,
+  handle: ({ card, ctx }) => {
+    const value = ctx.board.filter((source) => source.owner === card.owner && source.key === "amon" && source.revealed && !source.dying && source.uid !== card.uid).length;
+    return value ? { label: "Amon", val: value, tipo: "continuo" } : null;
+  },
+});
+
+registerEventHandler("continuousPower", {
+  id: "type-anthems", priority: 20,
+  handle: ({ card, ctx }) => hinosPara(ctx.board, card).map((anthem) => ({ ...anthem, tipo: "continuo" })),
+});
+
+registerEventHandler("continuousPower", {
+  id: "full-lanes", priority: 30,
+  when: ({ card }) => !!byKey[card.key]?.bonusPorViaCheia,
+  handle: ({ card, ctx }) => {
+    const full = contarViasCheias(ctx.board, card.owner);
+    return full ? { label: `${byKey[card.key].nome} — ${full} via(s) cheia(s)`, val: byKey[card.key].bonusPorViaCheia * full, tipo: "continuo" } : null;
+  },
+});
+
+registerEventHandler("continuousPower", {
+  id: "osiris-deaths", priority: 40,
+  when: ({ card }) => card.key === "osiris",
+  handle: ({ ctx }) => {
+    const total = ctx.deaths[0] + ctx.deaths[1];
+    return total ? { label: "Osíris — mortes na partida", val: 2 * total, tipo: "continuo" } : null;
+  },
+});
+
+registerEventHandler("continuousPower", {
+  id: "amheh-absorption", priority: 50,
+  when: ({ card }) => card.key === "amheh",
+  handle: ({ ctx }) => {
+    const value = (ctx.destroyedPower?.[0] || 0) + (ctx.destroyedPower?.[1] || 0);
+    return value ? { label: "Am-heh — Poder absorvido dos destruídos", val: value, tipo: "continuo" } : null;
+  },
+});
+
+registerEventHandler("continuousPower", {
+  id: "ammit-plays", priority: 60,
+  when: ({ card }) => card.key === "ammit",
+  handle: ({ card, ctx }) => {
+    const value = Math.max(0, ctx.plays[card.owner] - (card.entryPlays || 0));
+    return value ? { label: "Ammit — cartas jogadas após ela", val: value, tipo: "continuo" } : null;
+  },
+});

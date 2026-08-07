@@ -152,6 +152,7 @@ function tryStartMatch(room) {
   if (!M.decks[0] || !M.decks[1]) return;
   guard("tryStartMatch", () => {
     M.state = freshMatch([M.decks[0], M.decks[1]]);
+    console.log(JSON.stringify({ event: "match_started", roomId: room.id, seed: M.state.random?.seed }));
     M.ready = [false, false];
     broadcastState(room);
   }, () => { M.state = null; abortMatch(room, "Não consegui iniciar a partida (erro no servidor). Saia da sala e tente de novo."); });

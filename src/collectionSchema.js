@@ -4,7 +4,7 @@ import { CARDS, PRAGAS, TOKENS, GLYPH } from "./engine.js";
 const REQUIRED_FIELDS = ["key", "nome", "tipo", "custo", "poder", "arch"];
 const META_FIELDS = new Set([
   ...REQUIRED_FIELDS, "nomeCurto", "texto", "lore", "arte", "arteFoco", "set",
-  "tipos", "abertura", "ordem",
+  "tipos", "abertura", "ordem", "efeitos",
 ]);
 
 /* Flags de regra atualmente reconhecidas pelo motor. Enquanto o Registry de

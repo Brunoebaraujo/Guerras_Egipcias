@@ -45,6 +45,8 @@ import {
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
   power, ctxOf,
 } from "./engine.js";
+import { createRng, defaultRng, randomSeed, shuffleWithRng } from "./rng.js";
+import { resolveEffectPhase } from "./effects/index.js";
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
 export const START_HAND = OPENING_DEAL; // compat
@@ -57,17 +59,10 @@ export const DECK_SIZE = 12;
 export const MAX_ROUND = 6;
 
 /* --- utilidades locais, cientes de rng (para o servidor semear) ------------
-   Espelham shuffled()/coin() do engine, mas aceitam um rng injetável. Com o
-   padrão Math.random, o resultado é estatisticamente idêntico ao single-player. */
-const shuffledR = (arr, rng = Math.random) => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rng() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
-const coinR = (rng = Math.random) => (rng() < 0.5 ? 0 : 1);
+   O fluxo normal usa um PRNG semeado e serializado no estado. A injeção segue
+   disponível para testes e integrações legadas. */
+const shuffledR = (arr, rng = defaultRng) => shuffleWithRng(arr, rng);
+const coinR = (rng = defaultRng) => (rng() < 0.5 ? 0 : 1);
 
 /* --- outorga: sub-decks que vêm de brinde com uma carta escolhida -----------
    Moisés declara `outorga: "pragas"`. Escolhê-lo custa 1 das 12 vagas e enfia as
@@ -104,7 +99,7 @@ function drawOne(s, side) {
   if (!s.deck[side] || s.deck[side].length === 0) return null;
   if (s.hand[side].length >= MAO_MAX) return null;
   const key = s.deck[side].shift();
-  const hid = nextUid();
+  const hid = nextUid(s);
   const card = { hid, key, printed: byKey[key].poder, baked: 0 };
   // Aplica buff reservado pelo Escriba (próxima carta comprada)
   if (s.drawBuffReserve?.[side]) {
@@ -129,7 +124,7 @@ function drawPraga(s, side) {
   const idx = s.deck[side].findIndex((k) => byKey[k]?.praga);
   if (idx < 0) return null;
   const [key] = s.deck[side].splice(idx, 1);
-  const hid = nextUid();
+  const hid = nextUid(s);
   s.hand[side].push({ hid, key, printed: byKey[key].poder, baked: 0 });
   s.seen[side] += 1;
   return hid;
@@ -150,18 +145,21 @@ function drawForRound(s) {
 }
 
 /* ============================ ESTADO INICIAL ============================== */
-export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEAL } = {}) {
+export function freshMatch(lists, { rng: injectedRng, seed = randomSeed(), openingDeal = OPENING_DEAL } = {}) {
+  const ownedRng = injectedRng ? null : createRng(seed);
+  const rng = injectedRng || ownedRng;
   const listas = [expandirDeck(lists[0]), expandirDeck(lists[1])];
   const decks = listas.map((l) => puxarParaAbertura(shuffledR(l, rng)));
   const pr = coinR(rng);
   const linha = `Rodada 1 — mão de abertura ${openingDeal}, compra a ${openingDeal + 1}ª. Prioridade: ${SIDE_NAME[pr]} (sorteio).`;
   const s = {
-    round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
+    nextUid: 1, eventSeq: 0, round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
     pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], drawBuffReserve: [0, 0], blessings: [],
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: "plan", queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
     lastPlagueRevealed: null, awaitingPlagueShowcase: false,
+    random: ownedRng ? ownedRng.snapshot() : null,
     log: [linha], trace: [linha], finished: false,
   };
   for (const side of [0, 1]) {
@@ -174,11 +172,14 @@ export function freshMatch(lists, { rng = Math.random, openingDeal = OPENING_DEA
 }
 
 /* ============================== AÇÕES ==================================== */
-export function applyAction(state, action, { rng = Math.random } = {}) {
+export function applyAction(state, action, { rng: injectedRng } = {}) {
   if (!action || typeof action.t !== "string") return err(state, "Ação inválida.");
   const handler = ACTIONS[action.t];
   if (!handler) return err(state, `Ação desconhecida: ${action.t}`);
-  return handler(state, action, rng);
+  const ownedRng = !injectedRng && state.random ? createRng(state.random) : null;
+  const result = handler(state, action, injectedRng || ownedRng || defaultRng);
+  if (ownedRng && !result.error && result.state !== state) result.state.random = ownedRng.snapshot();
+  return result;
 }
 
 const planning = (s) => s.phase === "plan" && !s.finished;
@@ -196,6 +197,10 @@ const planning = (s) => s.phase === "plan" && !s.finished;
 
    Não há `return` de badge: quem despacha grava em `s.effect`, como antes. */
 function resolverEntrada(s, card, def, rng) {
+  if (def.efeitos?.length) {
+    s.effect = resolveEffectPhase({ state: s, source: card, definition: def, phase: "enter", rng });
+    return;
+  }
   if (def.judgeLane) {
     const { nivel, julgadas } = resolveAnubis(s, card);
     s.effect = { uid: card.uid, text: nivel === null ? "⚖ —" : `⚖ =${nivel}`, kind: julgadas.length ? "debuff" : "block", seq: s.effectSeq };
@@ -220,7 +225,7 @@ function resolverEntrada(s, card, def, rng) {
   if (def.key === "sobek") { s.effect = resolveSobek(s, card); return; }
   if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true, def); return; }
   if (def.afogaCusto) { s.effect = resolveAfogamento(s, card, def); return; }
-  if (def.fuse) { s.effect = resolveArmadura(s, card); return; }
+  if (def.fuse) { s.effect = resolveArmadura(s, card, rng); return; }
   if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return; }
   if (def.buffsPerBlessing) { s.effect = resolveKhnum(s, card, def); return; }
   if (def.veneno) { s.effect = resolveAssassino(s, card, def); return; }
@@ -297,7 +302,7 @@ const ACTIONS = {
     const s = clone(g);
     s.plays[side] += 1;
     s.board.push({
-      uid: nextUid(), key: h.key, owner: side, lane,
+      uid: nextUid(s), key: h.key, owner: side, lane,
       printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
       custoMod: h.custoMod || 0, venenos: h.venenos ? [...h.venenos] : [],
       entryPlays: s.plays[side], enteredRound: s.round, moved: false,
@@ -323,7 +328,7 @@ const ACTIONS = {
     const def = byKey[c.key];
     s.energy[c.owner] += custoDe(c);   // devolve o que foi realmente pago
     s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
-    s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
+    s.hand[c.owner].push({ hid: nextUid(s), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
     s.board.splice(idx, 1);
     pushLog(s, `${SIDE_NAME[c.owner]} recolheu ${def.nome} para a mão.`);
     return ok(s);
@@ -346,7 +351,7 @@ const ACTIONS = {
     for (const c of voltando) {
       s.energy[c.owner] += custoDe(c);
       s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
-      s.hand[c.owner].push({ hid: nextUid(), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
+      s.hand[c.owner].push({ hid: nextUid(s), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
       s.board.splice(s.board.findIndex((x) => x.uid === c.uid), 1);
     }
     pushLog(s, `${SIDE_NAME[side]} reiniciou a rodada — ${voltando.length} carta(s) de volta à mão.`);
@@ -434,12 +439,12 @@ const ACTIONS = {
     const s = clone(g);
     s.blessings = [];
     if (s.board.some((c) => c.dying)) s.board = s.board.filter((c) => !c.dying);
-    resolveBennuRebirth(s, rng); // Bennu volta na MESMA rodada, em via sorteada
+    resolveBennuRebirth(s, rng);
 
     let card = null;
     while (s.queue.length && !card) {
-      const cu = s.queue.shift();
-      card = s.board.find((c) => c.uid === cu) || null;
+      const uid = s.queue.shift();
+      card = s.board.find((c) => c.uid === uid) || null;
     }
     if (!card) {
       s.phase = "revealed"; s.lastReveal = null; s.effect = null;
@@ -457,14 +462,13 @@ const ACTIONS = {
     card.revealSeq = s.effectSeq;
     s.lastReveal = { uid: card.uid, seq: s.effectSeq };
     s.effect = null;
-
     const def0 = byKey[card.key];
     // Consome buff pendente (Heka) ANTES do bloqueio: receber um buff não é o
     // "Ao Entrar" da carta, então o Selo do Silêncio não o impede.
     // Pragas NÃO consomem a reserva: elas não têm Poder e deixam o campo, então
     // o +3 seria perda pura, sem interação. Assim a reserva espera o Moisés — e
     // aí sim as Pragas seguintes dobram o bônus da Heka, que é o combo do set.
-    const ganho = def0.praga ? 0 : applyPendingBuff(s, card);
+    const ganho = def0.praga ? 0 : applyPendingBuff(s, card, rng);
     if (ganho) {
       s.effect = { uid: card.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
       pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
@@ -574,7 +578,7 @@ const ACTIONS = {
     const def = byKey[a.srcKey];
     s.effectSeq = (s.effectSeq || 0) + 1;
     s.blessings = [];
-    aplicarBencao(s, t, def.buffTarget, def.nome);
+    aplicarBencao(s, t, def.buffTarget, def.nome, { rng: _rng });
     s.effect = { uid: t.uid, text: `${def.buffTarget > 0 ? "+" : ""}${def.buffTarget}`, kind: def.buffTarget > 0 ? "buff" : "debuff", seq: s.effectSeq };
     pushLog(s, `${a.srcNome} deu ${def.buffTarget > 0 ? "+" : ""}${def.buffTarget} a ${byKey[t.key].nome} (${SIDE_NAME[t.owner]}).`);
     s.awaitingAim = null;
@@ -647,7 +651,7 @@ export function isAimable(s, c) {
    fila esvaziar OU até uma mira pendente parar o fluxo. O cliente NÃO usa isto
    — ele dá um "step" por vez para animar. Devolve { state, awaiting } onde
    `awaiting` indica que o fluxo parou esperando um alvo. */
-export function autoReveal(state, { rng = Math.random, maxSteps = 500 } = {}) {
+export function autoReveal(state, { rng, maxSteps = 500 } = {}) {
   let s = state;
   for (let i = 0; i < maxSteps; i++) {
     if (s.phase !== "revealing") return { state: s, awaiting: false };
