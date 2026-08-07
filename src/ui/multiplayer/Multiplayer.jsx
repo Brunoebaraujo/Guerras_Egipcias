@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { CARD_KEYS, CONTENT_SIG, SIDE_NAME, byKey, ctxOf, custoDe, decomporPartes, laneWins, power } from "../../engine.js";
 import { isAimable as podeMirar } from "../../match.js";
-import { MAX_DECKS, NAME_MAX } from "../../deckLibrary.js";
 import { normalizeWs } from "../../net/wsUrl.js";
 import { GameMobile } from "../game/MobileGame.jsx";
 import { BannerVitoria } from "../game/BannerVitoria.jsx";
@@ -211,18 +210,6 @@ function OnlineGame({ send, data, note, onLeave }) {
 }
 
 export { OnlineGame };
-
-/* ==========================================================================
-   MONTAGEM DE DECK — MOBILE.
-   Grade de cartas (2 col). Tocar NÃO alterna: abre a carta ampliada (Carta)
-   com stats/efeito/lore, X para fechar e botões Adicionar/Retirar do deck.
-   Uma aba escolhe qual lado (A/B) está sendo editado.
-   ========================================================================== */
-export const LIB_API_STUB = {
-  decks: [], loadedId: [null, null], max: MAX_DECKS, nameMax: NAME_MAX,
-  salvar: () => false, atualizar: () => false, renomear: () => false,
-  duplicar: () => false, apagar: () => false, carregar: () => false,
-};
 
 function Lobby({ onBack, deck }) {
   const readLS = (k, d) => { try { return (typeof window !== "undefined" && localStorage.getItem(k)) || d; } catch { return d; } };

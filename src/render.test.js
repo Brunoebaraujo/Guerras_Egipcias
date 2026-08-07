@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
    pegar lendo o arquivo. Vale para todo componente que alguém venha a escrever.
    ========================================================================== */
 describe("nenhum componente é declarado dentro de outro", () => {
-  const arquivos = ["src/ui/App.jsx", "src/ui/game/DesktopGameComponents.jsx", "src/ui/game/MobileGame.jsx", "src/ui/multiplayer/Multiplayer.jsx", "src/Carta.jsx"];
+  const arquivos = ["src/ui/App.jsx", "src/ui/game/DesktopGameComponents.jsx", "src/ui/game/MobileGame.jsx", "src/ui/multiplayer/Multiplayer.jsx", "src/ui/decks/DeckUi.jsx", "src/ui/gallery/GalleryComponents.jsx", "src/Carta.jsx"];
 
   /* Uma linha como "  const Foo = (" ou "    const Foo = function" com QUALQUER
      indentação está dentro de outra função. Só é problema se o nome for usado

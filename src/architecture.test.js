@@ -32,4 +32,15 @@ describe("fronteiras arquiteturais", () => {
       expect(importsOf(path).some((name) => name === "../engine.js" || name === "../rng.js"), path).toBe(false);
     }
   });
+
+  it("mantém App como fachada e o orquestrador abaixo do limite M10", () => {
+    const facade = readFileSync(join(src, "App.jsx"), "utf8").trim().split("\n");
+    const orchestrator = readFileSync(join(src, "ui", "App.jsx"), "utf8").split("\n");
+
+    expect(facade.length).toBeLessThanOrEqual(5);
+    expect(orchestrator.length).toBeLessThanOrEqual(900);
+    for (const area of ["decks", "gallery", "game", "multiplayer"]) {
+      expect(statSync(join(src, "ui", area)).isDirectory(), area).toBe(true);
+    }
+  });
 });
