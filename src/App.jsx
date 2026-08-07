@@ -1362,7 +1362,7 @@ function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, ble
           <React.Fragment key={`a${b.seq}-${b.wave}-${i}`}>
             <div className="duat-bless-ring" style={{ position: "absolute", inset: -4, borderRadius: "inherit", pointerEvents: "none", zIndex: 6, border: "2.5px solid rgba(74,222,128,.95)", animationDelay: d }} />
             <div className="duat-bless-glow" style={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", zIndex: 6, animationDelay: d }} />
-            <span className="duat-bless-rise" style={{ position: "absolute", left: "50%", top: "-4px", zIndex: 9, pointerEvents: "none", fontWeight: 900, fontSize: f(1.6), color: "#4ade80", textShadow: "0 0 6px rgba(74,222,128,.7), 0 1px 3px rgba(0,0,0,.95)", animationDelay: d }}>+1</span>
+            <span className="duat-bless-rise" style={{ position: "absolute", left: "50%", top: "-4px", zIndex: 9, pointerEvents: "none", fontWeight: 900, fontSize: f(1.6), color: "#4ade80", textShadow: "0 0 6px rgba(74,222,128,.7), 0 1px 3px rgba(0,0,0,.95)", animationDelay: d }}>+{b.val}</span>
           </React.Fragment>
         );
       })}
