@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getEffect, listEffects } from "./index.js";
-import { applyAction, autoReveal, freshMatch } from "../match.js";
-import { byKey } from "../engine.js";
+import { applyAction, autoReveal, freshMatch } from "../../match.js";
+import { byKey, CARDS, PRAGAS } from "../../engine.js";
 
 const base = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escriba", "conselheiro", "ganso", "macaco"];
 
@@ -16,6 +16,11 @@ describe("registry de efeitos", () => {
     const declarados = Object.values(byKey).flatMap((card) => card.efeitos || []);
     expect(declarados.length).toBeGreaterThan(0);
     expect(declarados.every((effect) => getEffect(effect.id))).toBe(true);
+  });
+
+  it("não deixa cartas Ao Entrar no dispatcher legado", () => {
+    const legacy = [...CARDS, ...PRAGAS].filter((card) => card.trigger === "entrar" && !card.efeitos?.length);
+    expect(legacy.map((card) => card.key)).toEqual([]);
   });
 
   it("resolve uma carta migrada pelo caminho novo", () => {

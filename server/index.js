@@ -36,6 +36,8 @@ import { randomUUID } from "crypto";
 import { freshMatch, applyAction } from "../src/match.js";
 import { CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
 import { deckValido } from "../src/deckLibrary.js";
+import { filterStateForSeat } from "../src/net/filterState.js";
+import { isPlanningActionType } from "../src/net/protocol.js";
 
 const PORT = process.env.PORT || 8080;
 const STEP_MS = Number(process.env.STEP_MS) || 850;
@@ -87,43 +89,6 @@ const broadcastRooms = () => {
 
 const seatClient = (room, seat) => clients.get(seat === 0 ? room.host : room.guest);
 
-/* ---------------------- FILTRAGEM POR JOGADOR --------------------------- */
-function filterFor(state, seat) {
-  const opp = 1 - seat;
-  const ownHand = structuredClone(state.hand[seat]);
-  const hand = seat === 0 ? [ownHand, []] : [[], ownHand];
-  const ownDraw = structuredClone(state.justDrew?.[seat] || []);
-  const justDrew = seat === 0 ? [ownDraw, []] : [[], ownDraw];
-  return {
-    round: state.round,
-    energy: structuredClone(state.energy),
-    board: structuredClone(state.board.filter((c) => c.owner === seat || c.revealed)),
-    deaths: structuredClone(state.deaths),
-    plays: structuredClone(state.plays),
-    pendingEnergy: structuredClone(state.pendingEnergy),
-    pendingReturn: structuredClone(state.pendingReturn),
-    blessings: structuredClone(state.blessings),
-    deck: [Array(state.deck[0].length).fill(null), Array(state.deck[1].length).fill(null)],
-    hand,
-    oppHand: state.hand[opp].length,
-    seen: structuredClone(state.seen),
-    justDrew,
-    destroyedPower: structuredClone(state.destroyedPower),
-    priority: state.priority,
-    priorityReason: state.priorityReason,
-    phase: state.phase,
-    lastReveal: structuredClone(state.lastReveal),
-    effect: structuredClone(state.effect),
-    effectSeq: state.effectSeq,
-    awaitingAim: structuredClone(state.awaitingAim),
-    trevas: structuredClone(state.trevas),
-    lastPlagueRevealed: state.lastPlagueRevealed,
-    awaitingPlagueShowcase: state.awaitingPlagueShowcase,
-    log: structuredClone((state.log || []).filter((l) => !/posicionou|recolheu/.test(l))),
-    finished: state.finished,
-  };
-}
-
 function broadcastState(room) {
   const M = room.match;
   if (!M) return;
@@ -131,7 +96,7 @@ function broadcastState(room) {
     const c = seatClient(room, seat);
     if (!c) continue;
     const oppConnected = !!seatClient(room, 1 - seat);
-    send(c.ws, { t: "gameState", seat, state: filterFor(M.state, seat), ready: M.ready.slice(), oppConnected });
+    send(c.ws, { t: "gameState", seat, state: filterStateForSeat(M.state, seat), ready: M.ready.slice(), oppConnected });
   }
 }
 
@@ -346,7 +311,7 @@ wss.on("connection", (ws) => {
         const a = m.action || {};
         // resetPlan ("Reiniciar rodada") existe no match.js e o cliente online
         // já mandava — faltava aqui, então online a tecla não fazia nada.
-        if (!["place", "pickup", "move", "resetPlan", "toggleActivate"].includes(a.t)) { send(ws, { t: "error", msg: "Ação inválida: " + a.t }); break; }
+        if (!isPlanningActionType(a.t)) { send(ws, { t: "error", msg: "Ação inválida: " + a.t }); break; }
         const action = { ...a, side: c.seat };
         const r = applyAction(M.state, action);
         if (r.error) { send(ws, { t: "error", msg: r.error }); break; }
