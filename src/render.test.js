@@ -17,7 +17,7 @@ import { readFileSync } from "node:fs";
    pegar lendo o arquivo. Vale para todo componente que alguém venha a escrever.
    ========================================================================== */
 describe("nenhum componente é declarado dentro de outro", () => {
-  const arquivos = ["src/App.jsx", "src/Carta.jsx"];
+  const arquivos = ["src/ui/App.jsx", "src/Carta.jsx"];
 
   /* Uma linha como "  const Foo = (" ou "    const Foo = function" com QUALQUER
      indentação está dentro de outra função. Só é problema se o nome for usado
@@ -43,13 +43,13 @@ describe("nenhum componente é declarado dentro de outro", () => {
   }
 
   it("a mão usa HandThumb do nível do módulo", () => {
-    const src = readFileSync("src/App.jsx", "utf8");
+    const src = readFileSync("src/ui/App.jsx", "utf8");
     expect(src).toMatch(/^function HandThumb\(/m);
     expect(src).toContain("<HandThumb key={h.hid}");
   });
 
   it("o halo da compra continua sendo uma animação de disparo único", () => {
-    const src = readFileSync("src/App.jsx", "utf8");
+    const src = readFileSync("src/ui/App.jsx", "utf8");
     const regra = src.split("\n").find((l) => l.includes(".duat-draw {"));
     expect(regra).toBeDefined();
     // Sem `infinite`: ela toca uma vez ao montar e para. Se um dia virar

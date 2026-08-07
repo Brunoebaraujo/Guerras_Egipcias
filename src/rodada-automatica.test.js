@@ -64,7 +64,7 @@ describe("a rodada emenda sem clique", () => {
 });
 
 describe("a interface não deixou botão órfão", () => {
-  const app = readFileSync("src/App.jsx", "utf8");
+  const app = readFileSync("src/ui/App.jsx", "utf8");
   const srv = readFileSync("server/index.js", "utf8");
 
   it("nenhum botão de próxima rodada ou de finalizar sobrou", () => {

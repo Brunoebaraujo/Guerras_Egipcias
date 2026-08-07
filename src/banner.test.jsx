@@ -42,7 +42,7 @@ describe("o arquivo do banner", () => {
 });
 
 describe("a geometria do painel", () => {
-  const src = readFileSync("src/App.jsx", "utf8");
+  const src = readFileSync("src/ui/App.jsx", "utf8");
   const m = src.match(/const BANNER = \{[^}]*painel: \{ left: ([\d.]+), top: ([\d.]+), width: ([\d.]+), height: ([\d.]+) \}/);
 
   it("está declarada em percentuais do recorte", () => {
@@ -163,7 +163,7 @@ describe("o texto cabe dentro do painel", () => {
   });
 
   it("o componente quebra mesmo a frase local em duas linhas", () => {
-    const src = readFileSync("src/App.jsx", "utf8");
+    const src = readFileSync("src/ui/App.jsx", "utf8");
     expect(src).toMatch(/linhas = \[`Lado \$\{[^}]+\}`, "venceu"\]/);
   });
 });

@@ -70,7 +70,7 @@ describe("nomeCurto", () => {
 });
 
 describe("onde o nome curto é usado", () => {
-  const src = readFileSync("src/App.jsx", "utf8");
+  const src = readFileSync("src/ui/App.jsx", "utf8");
 
   it("a mão e o tabuleiro usam nomeCurto", () => {
     // 2x na MiniCard (oculta e revelada) + 2x nas mãos (desktop e mobile)
