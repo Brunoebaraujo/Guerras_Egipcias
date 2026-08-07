@@ -70,7 +70,7 @@ describe("nomeCurto", () => {
 });
 
 describe("onde o nome curto é usado", () => {
-  const src = ["src/ui/App.jsx", "src/ui/game/DesktopGameComponents.jsx"]
+  const src = ["src/ui/App.jsx", "src/ui/game/DesktopGameComponents.jsx", "src/ui/game/MobileGame.jsx"]
     .map((path) => readFileSync(path, "utf8"))
     .join("\n");
 
