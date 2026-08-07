@@ -7,9 +7,8 @@ const META_FIELDS = new Set([
   "tipos", "abertura", "ordem", "efeitos",
 ]);
 
-/* Flags de regra atualmente reconhecidas pelo motor. Enquanto o Registry de
-   Efeitos não existe, esta lista torna typos em definições um erro de CI em vez
-   de uma carta que silenciosamente não faz nada. */
+/* Campos legados ainda lidos dentro de resolvers durante a migração dos
+   parâmetros. O despacho e a descoberta de capacidades já usam `efeitos[]`. */
 const EFFECT_FIELDS = new Set([
   "trigger", "token", "veneno", "absorb", "anthemType", "anthemVal", "invocar",
   "randomBuffAlly", "buffNext", "scatterEnemies", "destroyAllOfTypeInLane", "block",
@@ -41,6 +40,20 @@ export function validarColecao(cards = [...CARDS, ...PRAGAS, ...TOKENS]) {
     for (const field of Object.keys(card || {})) {
       if (!KNOWN_CARD_FIELDS.has(field)) errors.push(`${label}: campo desconhecido "${field}"`);
     }
+    if (card?.efeitos !== undefined && !Array.isArray(card.efeitos)) {
+      errors.push(`${label}: efeitos deve ser uma lista`);
+    } else if (Array.isArray(card?.efeitos)) {
+      const effectIds = new Set();
+      for (const effect of card.efeitos) {
+        if (!effect || typeof effect.id !== "string" || !effect.id) {
+          errors.push(`${label}: efeito sem id válido`);
+          continue;
+        }
+        if (effectIds.has(effect.id)) errors.push(`${label}: efeito duplicado "${effect.id}"`);
+        effectIds.add(effect.id);
+      }
+    }
+    if (card?.trigger && !card?.efeitos?.length) errors.push(`${label}: trigger sem efeito registrado`);
   }
   return errors;
 }

@@ -37,28 +37,24 @@
 import {
   byKey, SIDE_NAME, nextUid, pushLog, custoDe, OUTORGAS, MAO_MAX, consumirCarta, registrarPraga, resolvePraga, aplicarUlceras,
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
-  resolveBennuRebirth, applyPendingBuff, onEnterBlocked,
-  resolveAnubis, resolveSet, descarregarPendentes, resolveHeka, resolveEscriba, resolveConselheiro, resolveAssassino, resolveSeqerMau, resolveSemerj,
-  resolveSobek, resolveDestroyOwnLane, resolveArmadura, resolveRandomBuffAlly, resolveSekhmet, resolveKhnum,
-  resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
-  resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
+  resolveBennuRebirth, applyPendingBuff, onEnterBlocked, aplicarBencao,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
-  power, ctxOf,
+  power, ctxOf, cartaTemEfeito,
 } from "./engine.js";
 import { createRng, defaultRng, randomSeed, shuffleWithRng } from "./rng.js";
 import { resolveEffectPhase } from "./effects/index.js";
 import { PHASE, phaseInvariantErrors, transitionPhase } from "./match/phases.js";
 import { PIPELINE_STOP, runRevealPipeline } from "./match/revealPipeline.js";
 
-export const OPENING_DEAL = 3;   // cartas na mão de abertura
+export const OPENING_DEAL = 3;
 export const START_HAND = OPENING_DEAL; // compat
+export const DECK_SIZE = 12;
+export const MAX_ROUND = 6;
 /* Teto global de mão. Mão cheia não compra e não repõe: a compra simplesmente
    não acontece e a carta fica no deck. Regra global, não específica de Praga —
    mas é ela que regula o arquétipo do Moisés, porque acumular Praga cara custa
    as compras normais justamente quando se precisa de guerreiro na segunda via. */
 export { MAO_MAX };
-export const DECK_SIZE = 12;
-export const MAX_ROUND = 6;
 
 /* --- utilidades locais, cientes de rng (para o servidor semear) ------------
    O fluxo normal usa um PRNG semeado e serializado no estado. A injeção segue
@@ -201,62 +197,7 @@ const planning = (s) => s.phase === PHASE.PLAN && !s.finished;
 
    Não há `return` de badge: quem despacha grava em `s.effect`, como antes. */
 function resolverEntrada(s, card, def, rng) {
-  if (def.efeitos?.length) {
-    s.effect = resolveEffectPhase({ state: s, source: card, definition: def, phase: "enter", rng });
-    return;
-  }
-  if (def.judgeLane) {
-    const { nivel, julgadas } = resolveAnubis(s, card);
-    s.effect = { uid: card.uid, text: nivel === null ? "⚖ —" : `⚖ =${nivel}`, kind: julgadas.length ? "debuff" : "block", seq: s.effectSeq };
-    return;
-  }
-  if (def.scatterEnemies) {
-    const { movidas } = resolveSet(s, card, rng, def);
-    s.effect = { uid: card.uid, text: movidas.length ? `⇄ ${movidas.length}` : "⇄ —", kind: movidas.length ? "debuff" : "block", seq: s.effectSeq };
-    return;
-  }
-  /* Renenutet: o Ao Entrar dela é descarregar os gatilhos que ELA acumulou fora
-     de campo. É efeito de instância, não de definição — um Ka que a ecoe não tem
-     gatilho nenhum guardado e, corretamente, não faz nada. */
-  if (def.spreadOnBlessing) {
-    const { ondas } = descarregarPendentes(s, card, rng);
-    s.effect = ondas ? { uid: card.uid, text: `✦ ${ondas}×`, kind: "buff", seq: s.effectSeq } : null;
-    return;
-  }
-  if (def.buffNext) { s.effect = resolveHeka(s, card, def); return; }
-  if (def.buffNextDraw) { s.effect = resolveEscriba(s, card, def); return; }
-  if (def.buffRandomHandCard) { s.effect = resolveConselheiro(s, card, rng, def); return; }
-  if (def.key === "sobek") { s.effect = resolveSobek(s, card); return; }
-  if (def.absorb) { s.effect = resolveDestroyOwnLane(s, card, true, def); return; }
-  if (def.afogaCusto) { s.effect = resolveAfogamento(s, card, def); return; }
-  if (def.fuse) { s.effect = resolveArmadura(s, card, rng); return; }
-  if (def.wipeCost) { s.effect = resolveSekhmet(s, card, def.wipeCost); return; }
-  if (def.buffsPerBlessing) { s.effect = resolveKhnum(s, card, def); return; }
-  if (def.veneno) { s.effect = resolveAssassino(s, card, def); return; }
-  if (def.replicaVeneno) { s.effect = resolveSemerj(s, card, def); return; }
-  if (def.finalizador) { s.effect = resolveSeqerMau(s, card, def); return; }
-  if (def.destroyAllOfTypeInLane) { s.effect = resolveDestroyAllOfTypeInLane(s, card, def.destroyAllOfTypeInLane); return; }
-  // ---- Arquétipo Animal ----
-  if (def.invocar) { s.effect = resolveInvocar(s, card, def); return; }
-  if (def.animalNaVia) { s.effect = resolveCabraDoNilo(s, card, def); return; }
-  if (def.bonusPorAnimal) { s.effect = resolveApis(s, card, def); return; }
-  if (def.moverAnimal) { s.effect = resolveMacaco(s, card, rng, def); return; }
-  if (def.randomBuffAlly) {
-    s.effect = resolveRandomBuffAlly(s, card, def.randomBuffAlly, rng, def);
-    return;
-  }
-  if (def.needs) {
-    const tg = validTargets(card, def.needs, s.board);
-    if (tg.length === 0) {
-      s.effect = { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
-      pushLog(s, `${def.nome}: sem alvo — efeito perdido.`);
-      return;
-    }
-    /* Pausa de mira: vive no ESTADO, não no React. `uid` e `lane` são os do Ka
-       quando é ele que age (a mira acontece na via DELE); `srcKey` é a carta
-       ecoada, que é de onde sai o valor da bênção. */
-    s.awaitingAim = { uid: card.uid, side: card.owner, lane: card.lane, needs: def.needs, srcNome: def.nome, srcKey: def.key };
-  }
+  s.effect = resolveEffectPhase({ state: s, source: card, definition: def, phase: "enter", rng });
 }
 
 /* ============================ ECO ESPIRITUAL ================================
@@ -368,7 +309,7 @@ const ACTIONS = {
     if (!c0) return err(g, "Carta não está no tabuleiro.");
     if (c0.owner !== side) return err(g, "Carta não é sua.");
     const def0 = byKey[c0.key];
-    if (!def0.move) return err(g, "Esta carta não se move.");
+    if (!cartaTemEfeito(def0, "moveOnceNextRound")) return err(g, "Esta carta não se move.");
     if (c0.dying || !c0.revealed || c0.moved || c0.enteredRound >= g.round)
       return err(g, "Carta não pode se mover agora.");
     if (lane === c0.lane) return ok(g); // sem efeito
@@ -385,7 +326,7 @@ const ACTIONS = {
     if (!c0) return err(g, "Carta não está no tabuleiro.");
     if (c0.owner !== side) return err(g, "Carta não é sua.");
     const def = byKey[c0.key];
-    if (!def.ativavelPorJogador) return err(g, "Esta carta não pode ser ativada.");
+    if (!cartaTemEfeito(def, "activateTransferPower")) return err(g, "Esta carta não pode ser ativada.");
     if (c0.jaBufou) return err(g, "Esta carta já foi usada.");
     if (c0.revealed && c0.enteredRound >= g.round) {
       // Pode ativar na mesma rodada em que foi jogada, contanto que não tenha sido revelada

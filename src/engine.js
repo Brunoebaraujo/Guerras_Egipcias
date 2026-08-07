@@ -7,6 +7,8 @@
 import { defaultRng, shuffleWithRng } from "./rng.js";
 import { collectEvent, emitEvent, registerEventHandler } from "./events.js";
 
+const LANES = Object.freeze([0, 1, 2]);
+
 export const GLYPH = {
   buff: "☀", debuff: "☾", sacrificio: "☥", reset: "⚖", silencio: "⊘",
   movimento: "⇄", crescimento: "⇑", fusao: "⛨", renascimento: "⟳", base: "𓂀",
@@ -41,89 +43,89 @@ export const CARDS = [
     lore: "Senhora do amor, da música e da alegria, Hathor tocava os corações e os fazia transbordar de coragem. Onde ela pousava a mão, o guerreiro esquecia o medo e lutava com o vigor de quem se sabe amado.",
     texto: "Ao Entrar: +3 de Poder a um aliado aleatório nesta via." },
   { key: "heka", nome: "Heka", tipo: "Divindade", custo: 2, poder: 1, arch: "buff",
-    trigger: "entrar", buffNext: 3, arte: "heka",
+    trigger: "entrar", buffNext: 3, efeitos: [{ id: "reserveNextReveal", value: 3 }], arte: "heka",
     lore: "Heka é a magia que precede a criação — a força que anima o gesto dos deuses. Antes que qualquer poder se manifeste, Heka já o preparou.",
     texto: "Ao Entrar: sua próxima carta revelada nesta rodada entra com +3 de Poder permanente." },
   { key: "amon", nome: "Amon", tipo: "Divindade", custo: 5, poder: 5, arch: "buff",
-    trigger: "continuo", arte: "amon",
+    trigger: "continuo", efeitos: [{ id: "auraAllOtherAllies", value: 1 }], arte: "amon",
     lore: "Rei dos deuses e senhor dos ventos, Amon ergue os exércitos do Egito sob a luz eterna do Sol.",
     texto: "Contínuo: +1 a todas as suas outras cartas em jogo (todas as vias)." },
   { key: "set", nome: "Set", tipo: "Divindade", custo: 5, poder: 5, arch: "debuff",
-    trigger: "entrar", scatterEnemies: 2, arte: "set",
+    trigger: "entrar", scatterEnemies: 2, efeitos: [{ id: "scatterEnemies", quantity: 2 }], arte: "set",
     lore: "Set matou Osíris e disputou o trono com Hórus por oitenta anos. Deus do deserto e da tempestade, era a força que desarruma o que Maat arruma.",
     texto: "Ao Entrar: duas cartas inimigas desta via são lançadas para vias aleatórias. Sem espaço, permanecem." },
   { key: "maat", nome: "Maat", tipo: "Divindade", custo: 4, poder: 3, arch: "reset",
-    trigger: "continuo", arte: "maat", arteFoco: "center 0%",
+    trigger: "continuo", efeitos: [{ id: "resetLaneToPrinted" }], arte: "maat", arteFoco: "center 0%",
     lore: "Maat é a filha de Rá e Hathor. Ela é irmã do faraó mítico, assegura o equilíbrio cósmico e é graças a ela que o mundo funciona perfeitamente.",
     texto: "Contínuo: nesta via, toda carta (dos dois lados) volta ao Poder impresso." },
   { key: "sobek", nome: "Sobek", tipo: "Criatura", custo: 2, poder: 2, arch: "sacrificio",
-    trigger: "entrar", arte: "sobek", arteFoco: "center 0%",
+    trigger: "entrar", efeitos: [{ id: "sacrificeLane", absorb: false, valuePerCard: 1 }], arte: "sobek", arteFoco: "center 0%",
     lore: "Senhor das águas do Nilo, Sobek era temido e cortejado: a mesma fome que devorava também fertilizava a terra. Os egípcios criavam crocodilos sagrados em lagos de templo, pois compreendiam que a força do deus se alimentava do que consumia.",
     texto: "Ao Entrar: destrua suas outras cartas nesta via; +1 por carta destruída." },
   { key: "osiris", nome: "Osíris", tipo: "Divindade", custo: 4, poder: 4, arch: "sacrificio",
-    trigger: "continuo", arte: "osiris", arteFoco: "center 0%",
+    trigger: "continuo", efeitos: [{ id: "growPerDeath", value: 2 }], arte: "osiris", arteFoco: "center 0%",
     lore: "Assassinado e esquartejado por Set, Osíris renasceu como senhor dos mortos e juiz do além. Deus que morreu para reinar sobre a morte, ele cresce com cada fim.",
     texto: "Contínuo: +2 para cada carta destruída na partida, de qualquer lado." },
   { key: "mumia", nome: "Múmia", tipo: "Criatura", custo: 1, poder: 1, arch: "sacrificio",
-    trigger: "morrer", arte: "mumia",
+    trigger: "morrer", efeitos: [{ id: "returnToHandOnDeath", multiplier: 2 }], arte: "mumia",
     lore: "Os egípcios não mumificavam seus mortos para lembrar o passado, mas para prepará-los para o futuro. Se o corpo permanecesse intacto, a alma poderia retornar e erguer-se novamente. O corpo era preservado para que o Ka e o Ba pudessem reconhecê-lo após a morte.",
     texto: "Ao Morrer: volta à mão com o dobro do Poder atual (Faixa)." },
   { key: "enxame", nome: "Enxame de Gafanhotos", tipo: "Guerreiro · Animal", tipos: ["Guerreiro", "Animal"],
     custo: 3, poder: 2, arch: "crescimento",
-    trigger: "entrar", absorb: "swarm", arte: "enxame",
+    trigger: "entrar", absorb: "swarm", efeitos: [{ id: "summonSwarm" }], arte: "enxame",
     lore: "Quando a oitava praga desceu sobre o Egito, o céu escureceu de asas e a terra foi devorada num só dia. Onde pousa um gafanhoto, logo há mil — a fome se multiplica mais depressa do que se pode contá-la.",
     texto: "Ao Entrar: invoque 2 Gafanhotos nesta via, com o Poder atual desta carta. Guerreiro e Animal ao mesmo tempo: recebe Montu e o Domador." },
   { key: "assassino-medjay", nome: "Assassino Medjay", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff", arte: "assassino-medjay",
     trigger: "entrar",
-    destroyAllOfTypeInLane: "Divindade",
+    destroyAllOfTypeInLane: "Divindade", efeitos: [{ id: "destroyLaneType", type: "Divindade" }],
     texto: "Ao Entrar: destrói todas as Divindades nesta via.",
     lore: "Os Medjay protegiam as fronteiras do Egito, mas alguns eram treinados para missões mais sombrias: silenciar falsos milagres, profanar altares inimigos e lembrar até aos deuses que o faraó também tinha lâminas." },
   { key: "selo", nome: "Selo do Silêncio", tipo: "Magia", custo: 3, poder: 3, arch: "silencio",
-    trigger: "continuo", block: true, arte: "selo",
+    trigger: "continuo", block: true, efeitos: [{ id: "blockEnemyEntryInLane" }], arte: "selo",
     lore: "Gravado por sacerdotes que temiam as palavras de poder, o selo impõe um silêncio absoluto: onde é aposto, nenhum encantamento desperta e nenhum nome divino ecoa. Os feitiços inimigos morrem na garganta, calados antes de nascer.",
     texto: "Contínuo: cartas inimigas que revelarem nesta via não disparam Ao Entrar." },
   { key: "montu", nome: "Montu", tipo: "Divindade", custo: 3, poder: 1, arch: "buff",
-    trigger: "continuo", anthemType: "Guerreiro", anthemVal: 2, arte: "montu", arteFoco: "center 0%",
+    trigger: "continuo", anthemType: "Guerreiro", anthemVal: 2, efeitos: [{ id: "anthemType", type: "Guerreiro", value: 2 }], arte: "montu", arteFoco: "center 0%",
     lore: "Deus-falcão da guerra de Tebas, Montu ardia no coração dos exércitos. Do faraó que se lançava valente à batalha, os egípcios diziam: combate como um Montu. Onde sua fúria pousava, guerreiros comuns lutavam como leões.",
     texto: "Contínuo: seus Guerreiros ganham +2 de Poder." },
   { key: "armadura", nome: "Armadura de Ptah", tipo: "Relíquia", custo: 2, poder: 3, arch: "fusao", arte: "armadura", arteFoco: "center 0%",
-    trigger: "entrar", fuse: true,
+    trigger: "entrar", fuse: true, efeitos: [{ id: "fuseWithAlly" }],
     lore: "Ptah moldou o mundo com as próprias mãos, e em cada obra deixou parte de si. Sua armadura não protege um corpo: funde-se a ele, cedendo a têmpera divina do artífice a quem a vestir.",
     texto: "Ao Entrar: funde-se com um aliado aleatório nesta via, conferindo seu Poder a ele." },
   { key: "escaravelho", nome: "Escaravelho Alado", tipo: "Criatura", custo: 1, poder: 3, arch: "movimento",
-    move: true, arte: "escaravelho", arteFoco: "center 0%",
+    move: true, efeitos: [{ id: "moveOnceNextRound" }], arte: "escaravelho", arteFoco: "center 0%",
     lore: "Khepri empurra o sol pelo céu a cada amanhecer, e assim o mundo se refaz. O escaravelho não pertence a lugar nenhum: alça voo, muda de rumo e recomeça onde for preciso — o Egito o gravava em amuletos justamente por essa promessa de eterno movimento.",
     texto: "Pode mover-se para outra via uma vez, a partir da rodada seguinte à sua entrada." },
   { key: "ammit", nome: "Ammit, a Devoradora", tipo: "Criatura", custo: 3, poder: 1, arch: "crescimento",
-    trigger: "continuo", growPerPlay: true, arte: "ammit",
+    trigger: "continuo", growPerPlay: true, efeitos: [{ id: "growPerLaterPlay", value: 1 }], arte: "ammit",
     lore: "À sombra da balança, Ammit aguardava o veredito: todo coração mais pesado que a pena de Maat era seu. Crocodilo, leão e hipopótamo num só corpo, sua fome jamais se saciava — quanto mais devorava, mais faminta e vasta se tornava.",
     texto: "Contínuo: +1 de Poder para cada carta que você colocar em jogo depois dela." },
   { key: "sekhmet", nome: "Sekhmet", tipo: "Divindade", custo: 3, poder: 4, arch: "debuff",
-    trigger: "entrar", wipeCost: 1, arte: "sekhmet", arteFoco: "center 0%",
+    trigger: "entrar", wipeCost: 1, efeitos: [{ id: "destroyGlobalCost", cost: 1 }], arte: "sekhmet", arteFoco: "center 0%",
     lore: "Enviada por Rá para punir a humanidade, a leoa não conheceu saciedade: bebeu sangue até quase varrer os homens da terra. Só cessou quando os deuses inundaram os campos de cerveja tingida de vermelho, que ela confundiu com sangue e sorveu até dormir. Onde ela passa, os fracos viram cinza.",
     texto: "Ao Entrar: destrói todas as cartas de custo 1 em jogo (dos dois lados)." },
   { key: "apofis", nome: "Apófis", tipo: "Criatura", custo: 4, poder: 3, arch: "sacrificio", arte: "apofis",
-    trigger: "entrar", absorb: true,
+    trigger: "entrar", absorb: true, efeitos: [{ id: "sacrificeLane", absorb: true }],
     lore: "Serpente do caos primordial, Apófis se enrosca nas trevas para engolir o sol a cada noite. Devora tudo o que encontra — até os seus — e de cada presa retira a força para o próximo bote.",
     texto: "Ao Entrar: destrói suas outras cartas nesta via e ganha o Poder total delas." },
   { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 5, arch: "sacrificio",
-    trigger: "entrar", afogaCusto: [1, 2], arte: "diluvio", arteFoco: "center 0%",
+    trigger: "entrar", afogaCusto: [1, 2], efeitos: [{ id: "destroyLaneCosts", costs: [1, 2] }], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
     texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas. Não alcança quem estiver sob um Gato Egípcio." },
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
-    trigger: "morrer", arte: "bennu",
+    trigger: "morrer", efeitos: [{ id: "rebirthOnDeath", value: 1, nextEnergy: 1 }], arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
     texto: "Ao Morrer: renasce na mesma rodada, em via aleatória, com +1 de Poder. Mantém os bônus permanentes que tinha. +1 de energia no próximo turno." },
   { key: "renenutet", nome: "Renenutet", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
-    trigger: "entrar", spreadPerLane: true, arte: "renenutet", arteFoco: "center 0%",
+    trigger: "entrar", spreadPerLane: true, efeitos: [{ id: "flushPendingBlessings" }], arte: "renenutet", arteFoco: "center 0%",
     lore: "Renenutet dava à criança o seu ren — o nome verdadeiro — e fazia o grão render. Sem nome, nada existia; por isso ela alimentava e batizava no mesmo gesto.",
     texto: "Ao receber uma bênção permanente: +2 a uma de suas cartas em cada via (ou ela mesma, se sozinha). Bênçãos recebidas fora de jogo resolvem ao entrar." },
   { key: "anubis", nome: "Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "reset",
-    trigger: "entrar", judgeLane: true, arte: "anubis", arteFoco: "center 0%",
+    trigger: "entrar", judgeLane: true, efeitos: [{ id: "judgeLane" }], arte: "anubis", arteFoco: "center 0%",
     lore: "Anúbis pesava o coração do morto contra a pluma de Maat. Sua justiça não conhecia posição nem riqueza: diante da balança, todos os corações valiam pelo mesmo peso.",
     texto: "Ao Entrar: todas as outras cartas desta via têm o Poder base nivelado ao menor entre elas. Buffs permanentes somem; auras permanecem. O julgamento persiste." },
   { key: "khnum", nome: "Khnum, o Oleiro Divino", tipo: "Divindade", custo: 6, poder: 5, arch: "buff",
-    trigger: "entrar", buffsPerBlessing: 1, arte: "khnum", arteFoco: "center 0%",
+    trigger: "entrar", buffsPerBlessing: 1, efeitos: [{ id: "growPerBlessedAlly", value: 1 }], arte: "khnum", arteFoco: "center 0%",
     lore: "Khnum, o deus oleiro que molda as almas dos deuses, reforja a si mesmo conforme trabalha em harmonia com seus pares abençoados. Sua forma se torna mais robusta, seu poder mais refinado — cada bênção que flui ao seu redor alimenta sua transformação divina.",
     texto: "Ao Entrar: ganha +1 de Poder para cada carta aliada com bênção revelada em jogo." },
   /* ASSASSINOS — Arquétipo de Veneno
@@ -132,31 +134,31 @@ export const CARDS = [
      Semerj replica os venenos da via para outras vias; Seqer-Mau (finisher) repete
      imediatamente o dano de todas as cartas envenenadas do campo. */
   { key: "sicario", nome: "Sicário", tipo: "Guerreiro", custo: 1, poder: 1, arch: "debuff",
-    trigger: "entrar", veneno: 1, arte: "sicario",
+    trigger: "entrar", veneno: 1, efeitos: [{ id: "poisonRandomEnemies", value: 1, quantity: 1 }], arte: "sicario",
     lore: "Criminoso de rua que trabalha por migalhas. Sua faca é curta, seu veneno é letal.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno I (-1/rodada)." },
   { key: "senti", nome: "Senti, o Finalizador", tipo: "Guerreiro", custo: 2, poder: 2, arch: "debuff",
-    trigger: "entrar", veneno: 1, venenoAlvos: 2, arte: "senti", arteFoco: "center 0%",
+    trigger: "entrar", veneno: 1, venenoAlvos: 2, efeitos: [{ id: "poisonRandomEnemies", value: 1, quantity: 2 }], arte: "senti", arteFoco: "center 0%",
     lore: "Executor cuja função é semear a morte em dobro. Onde passa, dois caem em vez de um.",
     texto: "Ao Entrar: marca até 2 cartas inimigas aleatórias nesta via com Veneno I (-1/rodada cada)." },
   { key: "hemsu", nome: "Hemsu, o Golpeador", tipo: "Guerreiro", custo: 3, poder: 3, arch: "debuff",
-    trigger: "entrar", veneno: 2, arte: "hemsu",
+    trigger: "entrar", veneno: 2, efeitos: [{ id: "poisonRandomEnemies", value: 2, quantity: 1 }], arte: "hemsu",
     lore: "Assassino treinado que acerta sempre na fraqueza. Seu veneno corrói corpo e espírito.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno II (-2/rodada)." },
   { key: "semerj", nome: "Semerj, o Executor", tipo: "Guerreiro", custo: 4, poder: 4, arch: "debuff",
-    trigger: "entrar", replicaVeneno: true, arte: "semerj", arteFoco: "center 0%",
+    trigger: "entrar", replicaVeneno: true, efeitos: [{ id: "replicatePoison" }], arte: "semerj", arteFoco: "center 0%",
     lore: "Executor que propaga a peste. O veneno de uma via, ele espalha por todo o campo de batalha.",
     texto: "Ao Entrar: replica os venenos das cartas inimigas desta via para cartas inimigas de outras vias (1 por carta). Nulo se não houver venenos aqui ou cartas em outras vias." },
   { key: "akhu", nome: "Akhu, o Espírito", tipo: "Criatura", custo: 5, poder: 5, arch: "debuff",
-    trigger: "entrar", veneno: 3, arte: "akhu", arteFoco: "center 0%",
+    trigger: "entrar", veneno: 3, efeitos: [{ id: "poisonRandomEnemies", value: 3, quantity: 1 }], arte: "akhu", arteFoco: "center 0%",
     lore: "Espírito vingativo dos mortos, sem repouso. Seu veneno é a própria raiva dos séculos.",
     texto: "Ao Entrar: marca uma carta inimiga aleatória nesta via com Veneno III (-3/rodada)." },
   { key: "seqer-mau", nome: "Seqer-Mau, o Destruidor", tipo: "Criatura", custo: 6, poder: 6, arch: "debuff",
-    trigger: "entrar", finalizador: true, arte: "seqer-mau", arteFoco: "center 0%",
+    trigger: "entrar", finalizador: true, efeitos: [{ id: "triggerPoisonDamage" }], arte: "seqer-mau", arteFoco: "center 0%",
     lore: "O grande assassino das eras. Quando surge, todo o veneno do campo ferve de uma só vez.",
     texto: "Ao Entrar: repete imediatamente o dano de veneno de todas as cartas inimigas envenenadas do campo (todas as vias)." },
   { key: "amheh", nome: "Am-heh, o Devorador de Milhões", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio",
-    trigger: "continuo", arte: "amheh", arteFoco: "center 0%",
+    trigger: "continuo", efeitos: [{ id: "absorbDestroyedPower" }], arte: "amheh", arteFoco: "center 0%",
     lore: "No lago de fogo do Duat morava Am-heh, o Comedor da Eternidade — face de cão, fome sem fundo. Não julgava como Osíris nem pesava como Maat: simplesmente devorava, e do poder de cada destruído fazia o seu próprio.",
     texto: "Contínuo: absorve o Poder de cada carta destruída na partida, de qualquer lado (inclusive valores negativos)." },
   /* KA ERRANTE — o ECO. Não tem efeito próprio: reexecuta o Ao Entrar da última
@@ -165,7 +167,7 @@ export const CARDS = [
      por isso que a carta ganha valor com prioridade contrária: quem revela
      depois escolhe entre os efeitos que acabou de ver. */
   { key: "ka-errante", nome: "Ka Errante", tipo: "Criatura", custo: 3, poder: 3, arch: "renascimento",
-    trigger: "entrar", ecoUltimo: true, arte: "ka-errante",
+    trigger: "entrar", ecoUltimo: true, efeitos: [{ id: "echoLastEntry" }], arte: "ka-errante",
     lore: "O ka nascia junto com a pessoa, duplo exato dela, e continuava a ter fome depois da morte: por isso as tumbas recebiam pão e cerveja todos os dias, e uma estátua guardada no serdab servia de corpo reserva caso o primeiro apodrecesse. Quando as oferendas cessavam, o ka não morria — saía a vagar, repetindo os gestos de quem já não estava ali.",
     texto: "Copia o último efeito ao entrar em jogo." },
   /* ------------------------------ ANIMAIS ---------------------------------
@@ -177,7 +179,7 @@ export const CARDS = [
   { key: "cao", nome: "Cão do Deserto", tipo: "Animal", custo: 0, poder: 1, arch: "animal", arte: "cao",
     lore: "O tesem, de orelhas eretas e cauda enrolada, corre nas paredes dos túmulos desde antes das pirâmides. Não era símbolo de coisa alguma: era o bicho que ia à frente do caçador — e a quem se dava nome próprio. Abutiu, o cão de um faraó, tem o nome mais antigo de cão que se conhece." },
   { key: "cabra-nilo", nome: "Cabra do Nilo", tipo: "Animal", custo: 1, poder: 1, arch: "animal", arte: "cabra-nilo",
-    trigger: "entrar", animalNaVia: 1,
+    trigger: "entrar", animalNaVia: 1, efeitos: [{ id: "growPerLaneAnimal", value: 1 }],
     texto: "Ao Entrar: +1 de Poder para cada outro Animal seu nesta via.",
     lore: "A cabra dava leite onde a terra não sustentava vaca, e por isso era o gado de quem não tinha gado. Os escribas contavam bois cabeça por cabeça; cabra ninguém contava uma a uma — contava-se o rebanho." },
   { key: "ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 1, poder: 1, arch: "animal", arte: "ganso",
@@ -185,7 +187,7 @@ export const CARDS = [
     texto: "Ao Entrar: invoque um Ganso (0/1) nesta via.",
     lore: "Do ganso Gengen Wer, o Grande Grasnador, teria saído o ovo que continha o sol. Em terra, porém, o ganso do Nilo era o mais banal dos bens: engordado à força, salgado em jarras e oferecido aos milhares nos altares." },
   { key: "gato", nome: "Gato Egípcio", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "gato", arteFoco: "center 0%",
-    trigger: "continuo", protegeVia: true,
+    trigger: "continuo", protegeVia: true, efeitos: [{ id: "protectLaneFromTargets" }],
     texto: "Contínuo: suas cartas nesta via não podem ser alvo escolhido por efeitos inimigos. Não impede efeitos globais nem de via inteira.",
     lore: "Matar um gato, ainda que sem querer, era crime capital: Diodoro conta que uma multidão linchou um romano por isso, em plena missão diplomática. O animal que guardava o celeiro dos ratos acabou guardado pela cidade inteira." },
   { key: "macaco", nome: "Macaco Sagrado", tipo: "Animal", custo: 2, poder: 4, arch: "animal", arte: "macaco",
@@ -193,23 +195,23 @@ export const CARDS = [
     texto: "Ao Entrar: move outro Animal seu para outra via com espaço.",
     lore: "Babuínos vinham de Punt e viviam nos templos de Tot, com nome, ração e sepultura própria. Nas pinturas aparecem trepando em figueiras a mando dos donos: o Egito descobriu cedo que o macaco alcança o que o homem não alcança." },
   { key: "hiena", nome: "Hiena do Deserto", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "hiena",
-    trigger: "continuo", ganhoPorAnimalMorto: 2,
+    trigger: "continuo", ganhoPorAnimalMorto: 2, efeitos: [{ id: "growWhenOwnAnimalDies", value: 2 }],
     texto: "Contínuo: +2 de Poder permanente sempre que um Animal seu for destruído em campo.",
     lore: "Nos relevos do Império Antigo há hienas amarradas e alimentadas à força, como se engordam gansos: o Egito tentou criar a carniceira em cativeiro. Não deu certo — o bicho que prospera do que morre não se deixa domesticar." },
   { key: "garca", nome: "Garça do Nilo", tipo: "Animal", custo: 2, poder: 2, arch: "animal", arte: "garca",
-    trigger: "continuo", bonusPorViaCheia: 3,
+    trigger: "continuo", bonusPorViaCheia: 3, efeitos: [{ id: "growPerFullLane", value: 3 }],
     texto: "Contínuo: +3 de Poder para cada via sua com os quatro espaços ocupados.",
     lore: "A garça pousa no primeiro monte de terra que emerge da cheia, e foi dessa imagem que os egípcios fizeram o relato da criação. Ela só desce quando já não sobra água: chega por último, e chega ao cheio." },
   { key: "rebanho", nome: "Rebanho de Cabras", tipo: "Animal", custo: 3, poder: 2, arch: "animal", arte: "rebanho",
-    trigger: "entrar", invocar: { key: "token-cabra", onde: "outras" },
+    trigger: "entrar", invocar: { key: "token-cabra", onde: "outras" }, efeitos: [{ id: "summon" }],
     texto: "Ao Entrar: invoque uma Cabra (0/1) em cada uma das outras duas vias.",
     lore: "O Censo do Gado marcava os anos do reinado: contava-se o rebanho do Egito inteiro e o número virava data. Rebanho não andava em fila — espalhava-se por onde houvesse mato, e era assim que se media a riqueza de um homem." },
   { key: "domador", nome: "Domador de Animais", tipo: "Humano", custo: 3, poder: 2, arch: "animal", arte: "domador", arteFoco: "center 25%",
-    trigger: "continuo", anthemType: "Animal", anthemVal: 2,
+    trigger: "continuo", anthemType: "Animal", anthemVal: 2, efeitos: [{ id: "anthemType", type: "Animal", value: 2 }],
     texto: "Contínuo: seus Animais ganham +2 de Poder.",
     lore: "Havia o pastor, o guardador de gansos, o tratador de babuínos — cada bicho com seu homem, e cada homem com o título gravado na parede do túmulo. No Egito, animal nenhum ficava selvagem por muito tempo: encontrava dono, nome e ração." },
   { key: "apis", nome: "Touro Ápis", tipo: "Animal", custo: 6, poder: 7, arch: "animal", arte: "apis",
-    trigger: "entrar", bonusPorAnimal: 1,
+    trigger: "entrar", bonusPorAnimal: 1, efeitos: [{ id: "growPerBoardAnimal", value: 1 }],
     texto: "Ao Entrar: +1 de Poder para cada outro Animal revelado em jogo, dos dois lados.",
     lore: "Um só touro por vez era Ápis, escolhido por marcas no pelo: vivia em Mênfis servido como rei e, ao morrer, era mumificado e descia ao Serapeu num sarcófago de granito de setenta toneladas. Enquanto ele vivia, todo o resto do gado do Egito era apenas gado." },
   // Escriba — prioridade de compra
@@ -224,7 +226,7 @@ export const CARDS = [
     texto: "Ao Entrar: uma carta aleatória sua na mão ganha +3 de Poder permanente." },
   // Hu — Mecânica Ativar: acumula buffs e os transfere para a próxima carta
   { key: "hu", nome: "Hu", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
-    ativavelPorJogador: true, arte: "hu",
+    ativavelPorJogador: true, efeitos: [{ id: "activateTransferPower" }], arte: "hu",
     lore: "Hu é o poder da criação, a força que dá forma às palavras do deus. Aquele que o possui controla o momento exato em que sua autoridade divina se manifesta, transferindo seu poder para o próximo guerreiro.",
     texto: "Ao ser jogado, fica inativo. No zoom, clique Ativar para que a próxima carta jogada receba um buff de +[seu poder atual, incluindo auras] em Poder. Pode ser ativado apenas uma vez." },
   // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
@@ -244,7 +246,7 @@ export const CARDS = [
 
    Reusam os arquétipos existentes (debuff, sacrificio, silencio) em vez de criar
    um glifo novo — a identidade visual do set virá da moldura em medalhão. */
-export const PRAGAS = [
+const PRAGAS_BASE = [
   { key: "sangue", ordem: 1, nome: "Águas em Sangue", tipo: "Praga", custo: 1, poder: 0, arch: "debuff", set: "pragas", praga: true,
     arte: "sangue",
     texto: "Uma carta inimiga aleatória em cada via ocupada recebe -1 de Poder.",
@@ -286,6 +288,11 @@ export const PRAGAS = [
     texto: "Destrua a carta inimiga de maior custo em jogo. Em caso de empate, escolha aleatória.",
     lore: "Era o filho mais velho que abria a boca do morto e lhe servia pão e cerveja pela eternidade; sem ele, o ka do pai passava fome para sempre. A décima praga não matou apenas herdeiros — condenou uma geração de pais à segunda morte." },
 ];
+export const PRAGAS = PRAGAS_BASE.map((card) => ({
+  ...card,
+  trigger: "entrar",
+  efeitos: [{ id: "resolvePlague", key: card.key }],
+}));
 
 export const PRAGA_KEYS = PRAGAS.map((p) => p.key);
 
@@ -327,6 +334,11 @@ export const TOKENS = [
 ];
 
 export const byKey = Object.fromEntries([...CARDS, ...PRAGAS, ...TOKENS].map((c) => [c.key, c]));
+export const efeitoDe = (def, id) => def?.efeitos?.find((effect) => effect.id === id) || null;
+export const cartaTemEfeito = (cardOrDef, id) => {
+  const def = cardOrDef?.key && byKey[cardOrDef.key] ? byKey[cardOrDef.key] : cardOrDef;
+  return !!efeitoDe(def, id);
+};
 
 /* ------------------------------ NOME CURTO ---------------------------------
    Uma miniatura tem ~49px de largura. "Am-heh, o Devorador de Milhões" não cabe
@@ -443,9 +455,9 @@ export const ocupacaoDaVia = (board, owner, lane) =>
   board.filter((c) => c.owner === owner && c.lane === lane && !c.dying).length;
 export const viaCheia = (board, owner, lane) => ocupacaoDaVia(board, owner, lane) >= LANE_CAP;
 export const viasComEspaco = (board, owner, exceto = null) =>
-  [0, 1, 2].filter((l) => l !== exceto && !viaCheia(board, owner, l));
+  LANES.filter((l) => l !== exceto && !viaCheia(board, owner, l));
 export const contarViasCheias = (board, owner) =>
-  [0, 1, 2].filter((l) => viaCheia(board, owner, l)).length;
+  LANES.filter((l) => viaCheia(board, owner, l)).length;
 
 /* ------------------------------- ANIMAIS -----------------------------------
    O arquétipo é lido pelo `tipo` da definição — o mesmo campo que a Peste nos
@@ -509,7 +521,7 @@ export const animaisEmJogo = (board, { owner = null, lane = null, exceto = null 
    varredura à parte) — assim o alvo é revalidado no momento da resolução, e
    não só quando a interface pinta o realce. */
 export const laneProtegida = (board, owner, lane) =>
-  board.some((c) => c.key === "gato" && c.owner === owner && c.lane === lane && emJogo(c));
+  board.some((c) => cartaTemEfeito(c, "protectLaneFromTargets") && c.owner === owner && c.lane === lane && emJogo(c));
 
 /* `ignoraDono` inverte a regra do dono para efeitos INDISCRIMINADOS — os que
    varrem a via sem separar amigo de inimigo, hoje só o Dilúvio de Hápi. Nesses,
@@ -526,7 +538,7 @@ export function podeSerAlvo(board, alvo, fonte, { ignoraDono = false } = {}) {
 
 // ----------------------------- motor de poder -------------------------------
 export const laneHasMaat = (board, lane) =>
-  board.some((c) => c.lane === lane && c.key === "maat" && c.revealed && !c.dying);
+  board.some((c) => c.lane === lane && cartaTemEfeito(c, "resetLaneToPrinted") && c.revealed && !c.dying);
 
 /* HINOS — auras contínuas que fortalecem um TIPO inteiro do próprio dono.
    Montu (+2 aos Guerreiros) era um caso especial escrito à mão; o Domador de
@@ -542,8 +554,9 @@ export function hinosPara(board, card) {
   for (const c of board) {
     if (c.owner !== card.owner || !c.revealed || c.dying || c.uid === card.uid) continue;
     const d = byKey[c.key];
-    if (!d?.anthemType || !temTipo(card, d.anthemType)) continue;
-    soma.set(d.nome, (soma.get(d.nome) || 0) + d.anthemVal);
+    const anthem = efeitoDe(d, "anthemType");
+    if (!anthem || !temTipo(card, anthem.type)) continue;
+    soma.set(d.nome, (soma.get(d.nome) || 0) + anthem.value);
   }
   return [...soma].map(([label, val]) => ({ label, val }));
 }
@@ -650,10 +663,11 @@ export function acharEcoAlvo(s, ka) {
    gatilho nenhum. E fica também o próprio Eco: dois Ka Errantes em campo se
    ecoariam em círculo, então o segundo encontra o primeiro e não copia nada. */
 export const temEntradaCopiavel = (def) =>
-  !!def && def.trigger === "entrar" && !def.praga && !def.ecoUltimo;
+  !!def && def.trigger === "entrar"
+  && def.efeitos?.some((effect) => effect.id !== "resolvePlague" && effect.id !== "echoLastEntry");
 
 export const onEnterBlocked = (card, board) =>
-  board.some((b) => b.revealed && !b.dying && byKey[b.key].block && b.lane === card.lane && b.owner !== card.owner);
+  board.some((b) => b.revealed && !b.dying && cartaTemEfeito(b, "blockEnemyEntryInLane") && b.lane === card.lane && b.owner !== card.owner);
 
 export const validTargets = (card, needs, board) => {
   if (needs === "ally") return board.filter((c) => c.owner === card.owner && c.lane === card.lane && c.uid !== card.uid && emJogo(c));
@@ -1233,7 +1247,10 @@ export function resolveAnubis(s, anubis) {
 
 function copyVisibleAuraBonus(s, card) {
   if (laneHasMaat(s.board, card.lane)) return 0;
-  const amon = s.board.filter((c) => c.owner === card.owner && c.key === "amon" && c.revealed && !c.dying && c.uid !== card.uid).length;
+  const amon = s.board.reduce((total, c) => {
+    const effect = efeitoDe(byKey[c.key], "auraAllOtherAllies");
+    return total + (c.owner === card.owner && c.revealed && !c.dying && c.uid !== card.uid ? effect?.value || 0 : 0);
+  }, 0);
   const hinos = hinosPara(s.board, card).reduce((t, h) => t + h.val, 0);
   return amon + hinos;
 }
@@ -1476,7 +1493,7 @@ export function resolveConselheiro(s, card, rng = defaultRng, def = byKey[card.k
 // ----------------------- Assassinos: marcar veneno ----------------------
 // Marca `def.venenoAlvos` (padrão 1) cartas inimigas DISTINTAS aleatórias na via,
 // cada uma com uma marca de nível `def.veneno`.
-export function resolveAssassino(s, card, def = byKey[card.key]) {
+export function resolveAssassino(s, card, def = byKey[card.key], rng = defaultRng) {
   const pool = s.board.filter((c) => c.owner !== card.owner && c.lane === card.lane && emJogo(c));
 
   if (pool.length === 0) {
@@ -1485,7 +1502,7 @@ export function resolveAssassino(s, card, def = byKey[card.key]) {
   }
 
   const qtd = def.venenoAlvos || 1;
-  const alvos = [...pool].sort(() => Math.random() - 0.5).slice(0, qtd);
+  const alvos = shuffleWithRng(pool, rng).slice(0, qtd);
   for (const alvo of alvos) marcarVeneno(s, alvo, def.veneno, def.nome);
 
   const suf = alvos.length > 1 ? `×${alvos.length}` : "";
@@ -1663,10 +1680,10 @@ export function alimentarHienas(s, victims) {
   const mortos = victims.filter((v) => temTipo(v, "Animal"));
   if (mortos.length === 0) return [];
   const alimentadas = [];
-  for (const h of s.board.filter((c) => c.key === "hiena" && c.revealed && !c.dying)) {
+  for (const h of s.board.filter((c) => cartaTemEfeito(c, "growWhenOwnAnimalDies") && c.revealed && !c.dying)) {
     const n = mortos.filter((m) => m.owner === h.owner && m.uid !== h.uid).length;
     if (n === 0) continue;
-    const ganho = byKey[h.key].ganhoPorAnimalMorto * n;
+    const ganho = efeitoDe(byKey[h.key], "growWhenOwnAnimalDies").value * n;
     aplicarBencao(s, h, ganho, `Hiena — ${n} Animal(is) destruído(s)`);
     alimentadas.push({ uid: h.uid, ganho, n });
   }
@@ -1680,19 +1697,21 @@ export function alimentarHienas(s, victims) {
    decomporPartes(): registram uma reação ou contribuição com prioridade. */
 registerEventHandler("beforeDeath", {
   id: "mumia-return", priority: 10,
-  when: ({ card }) => byKey[card.key]?.trigger === "morrer" && card.key === "mumia",
+  when: ({ card }) => cartaTemEfeito(card, "returnToHandOnDeath"),
   handle: ({ card, powerAtDeath, returns }) => {
-    returns.push({ owner: card.owner, val: powerAtDeath * 2, venenos: (card.venenos || []).slice() });
+    const effect = efeitoDe(byKey[card.key], "returnToHandOnDeath");
+    returns.push({ owner: card.owner, val: powerAtDeath * effect.multiplier, venenos: (card.venenos || []).slice() });
   },
 });
 
 registerEventHandler("beforeDeath", {
   id: "bennu-rebirth", priority: 20,
-  when: ({ card }) => byKey[card.key]?.trigger === "morrer" && card.key === "bennu",
+  when: ({ card }) => cartaTemEfeito(card, "rebirthOnDeath"),
   handle: ({ card }, state) => {
-    state.pendingEnergy[card.owner] += 1;
+    const effect = efeitoDe(byKey[card.key], "rebirthOnDeath");
+    state.pendingEnergy[card.owner] += effect.nextEnergy;
     state.pendingReturn.push({
-      owner: card.owner, lane: card.lane, printed: card.printed, baked: (card.baked || 0) + 1,
+      owner: card.owner, lane: card.lane, printed: card.printed, baked: (card.baked || 0) + effect.value,
       mods: (card.mods || []).map((mod) => ({ ...mod })),
       venenos: (card.venenos || []).slice(),
     });
@@ -1707,7 +1726,10 @@ registerEventHandler("afterDeaths", {
 registerEventHandler("continuousPower", {
   id: "amon-aura", priority: 10,
   handle: ({ card, ctx }) => {
-    const value = ctx.board.filter((source) => source.owner === card.owner && source.key === "amon" && source.revealed && !source.dying && source.uid !== card.uid).length;
+    const value = ctx.board.reduce((total, source) => {
+      const effect = efeitoDe(byKey[source.key], "auraAllOtherAllies");
+      return total + (source.owner === card.owner && source.revealed && !source.dying && source.uid !== card.uid ? effect?.value || 0 : 0);
+    }, 0);
     return value ? { label: "Amon", val: value, tipo: "continuo" } : null;
   },
 });
@@ -1719,25 +1741,27 @@ registerEventHandler("continuousPower", {
 
 registerEventHandler("continuousPower", {
   id: "full-lanes", priority: 30,
-  when: ({ card }) => !!byKey[card.key]?.bonusPorViaCheia,
+  when: ({ card }) => cartaTemEfeito(card, "growPerFullLane"),
   handle: ({ card, ctx }) => {
     const full = contarViasCheias(ctx.board, card.owner);
-    return full ? { label: `${byKey[card.key].nome} — ${full} via(s) cheia(s)`, val: byKey[card.key].bonusPorViaCheia * full, tipo: "continuo" } : null;
+    const effect = efeitoDe(byKey[card.key], "growPerFullLane");
+    return full ? { label: `${byKey[card.key].nome} — ${full} via(s) cheia(s)`, val: effect.value * full, tipo: "continuo" } : null;
   },
 });
 
 registerEventHandler("continuousPower", {
   id: "osiris-deaths", priority: 40,
-  when: ({ card }) => card.key === "osiris",
-  handle: ({ ctx }) => {
+  when: ({ card }) => cartaTemEfeito(card, "growPerDeath"),
+  handle: ({ card, ctx }) => {
     const total = ctx.deaths[0] + ctx.deaths[1];
-    return total ? { label: "Osíris — mortes na partida", val: 2 * total, tipo: "continuo" } : null;
+    const effect = efeitoDe(byKey[card.key], "growPerDeath");
+    return total ? { label: `${byKey[card.key].nome} — mortes na partida`, val: effect.value * total, tipo: "continuo" } : null;
   },
 });
 
 registerEventHandler("continuousPower", {
   id: "amheh-absorption", priority: 50,
-  when: ({ card }) => card.key === "amheh",
+  when: ({ card }) => cartaTemEfeito(card, "absorbDestroyedPower"),
   handle: ({ ctx }) => {
     const value = (ctx.destroyedPower?.[0] || 0) + (ctx.destroyedPower?.[1] || 0);
     return value ? { label: "Am-heh — Poder absorvido dos destruídos", val: value, tipo: "continuo" } : null;
@@ -1746,9 +1770,10 @@ registerEventHandler("continuousPower", {
 
 registerEventHandler("continuousPower", {
   id: "ammit-plays", priority: 60,
-  when: ({ card }) => card.key === "ammit",
+  when: ({ card }) => cartaTemEfeito(card, "growPerLaterPlay"),
   handle: ({ card, ctx }) => {
-    const value = Math.max(0, ctx.plays[card.owner] - (card.entryPlays || 0));
+    const effect = efeitoDe(byKey[card.key], "growPerLaterPlay");
+    const value = Math.max(0, ctx.plays[card.owner] - (card.entryPlays || 0)) * effect.value;
     return value ? { label: "Ammit — cartas jogadas após ela", val: value, tipo: "continuo" } : null;
   },
 });
