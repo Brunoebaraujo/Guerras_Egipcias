@@ -1,87 +1,100 @@
-name: Testar e publicar no GitHub Pages
+name: Validar e publicar
 
 on:
+  pull_request:
   push:
     branches: [main]
   workflow_dispatch:
 
-permissions:
-  contents: write   # necessário para publicar a dist na branch gh-pages
-
 concurrency:
-  group: pages-deploy
+  group: deploy-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-deploy:
+  verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 2
-
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
-
-      - name: Instalar dependências
-        run: npm ci
-
-      - name: Instalar dependências do servidor
-        run: npm ci --prefix server
-
+      - run: npm ci
+      - run: npm ci --prefix server
       - name: Lint
         run: npm run lint
-
-      - name: Verificação incremental de tipos
+      - name: Tipos
         run: npm run typecheck
-
-      - name: Testes do motor (vitest)
+      - name: Testes do cliente
         run: npm test
-
-      - name: Testes de integração do servidor
+      - name: Testes do servidor
         run: npm run test:server
-
       - name: Build de produção
         run: npm run build
+      - name: Instalar Chromium E2E
+        run: npx playwright install --with-deps chromium
+      - name: Fluxos críticos E2E
+        run: npm run test:e2e
+      - name: Relatório E2E em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
 
-      - name: Publicar dist/ na branch gh-pages
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Publicar GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./dist
           force_orphan: true
-          cname: ""
           commit_message: "deploy: atualiza via Actions"
-
-      - name: Detectar mudanças que afetam o servidor
+      - name: Detectar impacto no servidor
         id: server_changes
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || \
-             git diff --quiet HEAD^ HEAD -- server/ src/domain/ src/match/ src/net/ src/storage/ src/engine.js src/match.js src/deckLibrary.js src/rules.js; then
-            if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-              echo "changed=true" >> "$GITHUB_OUTPUT"
-            else
-              echo "changed=false" >> "$GITHUB_OUTPUT"
-            fi
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          elif git diff --quiet "${{ github.event.before }}" HEAD -- server/ src/domain/ src/match/ src/net/ src/storage/ src/engine.js src/match.js src/deckLibrary.js src/rules.js; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
-
-      # O servidor importa módulos compartilhados de src/. O hook só é acionado
-      # quando esses contratos ou o próprio servidor mudam; CSS/arte não encerram
-      # mais partidas em andamento por um redeploy desnecessário.
       - name: Redeploy do servidor no Render
         if: steps.server_changes.outputs.changed == 'true'
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           if [ -z "$HOOK" ]; then
-            echo "RENDER_DEPLOY_HOOK não configurado — servidor não foi redeployado."
+            echo "RENDER_DEPLOY_HOOK não configurado; servidor não foi redeployado."
             exit 0
           fi
           curl -fsS -X POST "$HOOK" -o /dev/null
-          echo "Deploy do servidor disparado no Render."
+      - name: Aguardar propagação
+        run: sleep 20
+      - name: Smoke pós-deploy
+        env:
+          SMOKE_APP_URL: https://brunoebaraujo.github.io/Guerras_Egipcias/
+          SMOKE_HEALTH_URL: https://guerras-egipcias-server.onrender.com/health
+        run: npm run smoke:deploy

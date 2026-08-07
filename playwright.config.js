@@ -1,5 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const browserChannel = process.env.E2E_CHANNEL;
+
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: false,
@@ -8,6 +10,7 @@ export default defineConfig({
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://127.0.0.1:4173",
     trace: "retain-on-failure",
+    ...(browserChannel ? { channel: browserChannel } : {}),
   },
   webServer: process.env.E2E_BASE_URL ? undefined : {
     command: "npm run preview -- --host 127.0.0.1",
