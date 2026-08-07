@@ -17,7 +17,7 @@ import { useViewport } from "./hooks/useViewport.js";
 import { resultLabel } from "./matchPresentation.js";
 import { BannerVitoria } from "./game/BannerVitoria.jsx";
 import {
-  BOARD, Chip, Tabuleiro, ZoomModal,
+  BOARD, Chip, Hand, Tabuleiro, ZoomModal,
 } from "./game/DesktopGameComponents.jsx";
 import { GameMobile } from "./game/MobileGame.jsx";
 import { DUAT_KEYFRAMES } from "./game/animations.js";

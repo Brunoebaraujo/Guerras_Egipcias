@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 
-const browserChannel = process.env.E2E_CHANNEL;
+const browserChannel = process.env.E2E_CHANNEL || (process.platform === "win32" ? "chrome" : undefined);
 
 export default defineConfig({
   testDir: "./e2e",
