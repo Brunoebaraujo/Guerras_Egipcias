@@ -14,6 +14,9 @@ import {
   deckIntegro, SCHEMA_V, MAX_DECKS, NAME_MAX,
 } from "../deckLibrary.js";
 import { DECK_SIZE } from "../rules.js";
+import { normalizeWs } from "../net/wsUrl.js";
+import { useViewport } from "./hooks/useViewport.js";
+import { resultLabel } from "./matchPresentation.js";
 
 /* ==========================================================================
    Guerras Egípcias — playtest (revelação simultânea com prioridade) sobre o tabuleiro
@@ -418,33 +421,6 @@ const MOBILE_BW = 780;
 
 /* Servidor multiplayer (Render). Pode ser sobrescrito no campo do lobby. */
 const LOBBY_SERVER_DEFAULT = "wss://guerras-egipcias-server.onrender.com";
-/* Aceita colar tanto a URL https:// (a que abre no navegador) quanto wss://. */
-function normalizeWs(u) {
-  let s = (u || "").trim().replace(/\/+$/, "");
-  if (s.startsWith("https://")) s = "wss://" + s.slice(8);
-  else if (s.startsWith("http://")) s = "ws://" + s.slice(7);
-  else if (!/^wss?:\/\//.test(s)) s = "wss://" + s;
-  return s;
-}
-
-/* Rótulo do resultado final, com o desempate por saldo de pontos. */
-function resultLabel(g) {
-  const r = matchResult(g);
-  if (r.side === -1) return "Empate";
-  return `Lado ${r.side === 0 ? "A" : "B"} venceu` + (r.tiebreak ? ` · saldo +${r.margin}` : "");
-}
-
-/* Largura de viewport, para escolher entre interface desktop e mobile. */
-function useViewport() {
-  const [w, setW] = useState(typeof window !== "undefined" ? window.innerWidth : 1024);
-  useEffect(() => {
-    const on = () => setW(window.innerWidth);
-    window.addEventListener("resize", on);
-    return () => window.removeEventListener("resize", on);
-  }, []);
-  return w;
-}
-
 // =================================== APP ===================================
 export default function App() {
   // A orquestração da partida vive em match.js (redutor puro, compartilhado com
