@@ -386,6 +386,14 @@ const ACTIONS = {
     const s = clone(g);
     const c = s.board.find((x) => x.uid === uid);
     c.aguardandoProxima = !c.aguardandoProxima;
+    /* Carimbo de ORDEM DE JOGADA na ativação. O requisito é "seguir a ordem da
+       jogada": só é buffada a carta posicionada DEPOIS da ativação. `s.plays[side]`
+       é o contador cumulativo de jogadas do lado; gravá-lo aqui fixa o ponto da
+       sequência em que a ativação aconteceu. Na revelação, comparamos com o
+       `entryPlays` da carta candidata (que também é um snapshot de `plays`). Assim,
+       ativar-depois-de-Hathor-e-antes-de-Renenutet buffa a Renenutet, não a Hathor.
+       Ao desativar, zeramos o carimbo. */
+    c.ativadoEmPlays = c.aguardandoProxima ? s.plays[side] : null;
     const estadoText = c.aguardandoProxima ? "ativado" : "desativado";
     pushLog(s, `${SIDE_NAME[side]} ${estadoText} ${def.nome}.`);
     return ok(s);
@@ -465,20 +473,36 @@ const ACTIONS = {
     /* HU — Mecânica Ativar: se há uma carta Hu no lado DO CARD aguardando próxima
        e ainda não foi usada, calcula o poder atual de Hu (incluindo auras) e buffa
        a carta que está entrando. Hu então volta ao estado inativo e marca que foi
-       usada (jaBufou). */
+       usada (jaBufou).
+
+       ORDEM DA JOGADA: só buffa a carta posicionada DEPOIS da ativação. O carimbo
+       `ativadoEmPlays` (gravado no toggleActivate) guarda o valor de `plays` do
+       lado no instante da ativação; a candidata só é válida se seu `entryPlays`
+       for MAIOR — isto é, se foi jogada depois. Sem essa comparação, o Hu agarrava
+       a primeira carta a ser REVELADA (que pode ter sido posicionada antes da
+       ativação, como a Hathor no combo Hathor→ativar→Renenutet). */
     const huAguardando = s.board.find((c) => 
       c.owner === card.owner && 
       c.key === "hu" && 
       c.aguardandoProxima && 
       !c.jaBufou && 
       c.uid !== card.uid &&
-      !c.dying
+      !c.dying &&
+      (c.ativadoEmPlays == null || (card.entryPlays || 0) > c.ativadoEmPlays)
     );
     if (huAguardando && card.key !== "hu") {
       const ctx = ctxOf(s);
       const poderHu = power(huAguardando, ctx);
       if (poderHu > 0) {
-        card.mods.push({ src: `${byKey[huAguardando.key].nome}`, val: poderHu });
+        /* O buff do Hu é uma BÊNÇÃO PERMANENTE, não um mod cru. Precisa passar por
+           aplicarBencao (val > 0, não-inerte) para que a carta buffada dispare seus
+           próprios encadeamentos — em especial a Renenutet, que espalha +2 por via
+           ao RECEBER uma bênção permanente. Empurrar direto em `card.mods` (como era
+           antes) contornava esse gatilho e quebrava o combo Hathor→Hu→Renenutet.
+           Todas as fontes de bênção do projeto roteiam por aplicarBencao; o Hu não
+           era exceção — foi um bug meu. */
+        s.blessings = s.blessings || [];
+        aplicarBencao(s, card, poderHu, byKey[huAguardando.key].nome, { rng });
         s.effect = { uid: card.uid, text: `+${poderHu}`, kind: "buff", seq: s.effectSeq };
         pushLog(s, `✦ ${byKey[card.key].nome} recebeu +${poderHu} de Poder de ${byKey[huAguardando.key].nome}.`);
       }
