@@ -219,6 +219,11 @@ export const CARDS = [
     trigger: "entrar", buffRandomHandCard: 3, nomeCurto: "Conselheiro", arte: "conselheiro",
     lore: "O conselheiro sussurrava ao ouvido do faraó, e suas palavras mudavam o rumo das batalhas. Quando escolhia, sua mão apontava para o guerreiro que se tornaria lenda.",
     texto: "Ao Entrar: uma carta aleatória sua na mão ganha +3 de Poder permanente." },
+  // Hu — Mecânica Ativar: acumula buffs e os transfere para a próxima carta
+  { key: "hu", nome: "Hu", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
+    ativavelPorJogador: true, arte: "hu",
+    lore: "Hu é o poder da criação, a força que dá forma às palavras do deus. Aquele que o possui controla o momento exato em que sua autoridade divina se manifesta, transferindo seu poder para o próximo guerreiro.",
+    texto: "Ao ser jogado, fica inativo. No zoom, clique Ativar para que a próxima carta jogada receba um buff de +[seu poder atual, incluindo auras] em Poder. Pode ser ativado apenas uma vez." },
   // Set das Pragas — a ÚNICA carta escolhível do set. Ela traz as outras dez.
   { key: "moises", nome: "Moisés, Portador das Pragas", tipo: "Divindade", custo: 1, poder: 0, arch: "crescimento",
     set: "pragas", abertura: true, outorga: "pragas",
@@ -348,7 +353,7 @@ const NOME_CURTO = {
   // Assassinos
   sicario: "Sicário", senti: "Senti", hemsu: "Hemsu", semerj: "Semerj", akhu: "Akhu", "seqer-mau": "Seqer-Mau",
   // Divindades de nome composto
-  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum",
+  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum", hu: "Hu",
   // Criaturas e demais
   escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
   selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",

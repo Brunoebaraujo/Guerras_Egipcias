@@ -588,6 +588,7 @@ export default function App() {
       partes: c.revealed ? decomporPartes(c, ctxOf(g)) : null,
       sub: `Via ${c.lane + 1} · ${SIDE_NAME[c.owner]}` + (c.revealed ? "" : " · por revelar"),
       onReturn: podeVoltar ? () => { pickUp(c.uid); setZoom(null); } : null,
+      cardUid: c.uid, cardOwner: c.owner, aguardandoProxima: c.aguardandoProxima, jaBufou: c.jaBufou,
     });
   }
   function zoomHand(h) {
@@ -623,6 +624,12 @@ export default function App() {
         plagueTimerRef.current = null;
       }
       setPausedForPlague(false);
+    }
+  }
+
+  function toggleActivateHu(cardUid, side) {
+    if (dispatch({ t: "toggleActivate", side, uid: cardUid })) {
+      // Sucesso — zoom já será fechado
     }
   }
 
@@ -951,7 +958,7 @@ export default function App() {
           placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
-        {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
+        {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} onToggleActivate={toggleActivateHu} />}
         {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
       </>
     );
@@ -1085,7 +1092,7 @@ export default function App() {
         </main>
       </div>
 
-      {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
+      {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} onToggleActivate={toggleActivateHu} />}
       {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
     </div>
   );
@@ -1429,10 +1436,11 @@ const PART_COLOR = {
   maat: "text-yellow-300", julgado: "text-yellow-300",
 };
 
-function ZoomModal({ zoom, onClose }) {
-  const { def, printed, baked, current, sub, partes, onReturn } = zoom;   // zoom.custo = custo efetivo
+function ZoomModal({ zoom, onClose, onToggleActivate }) {
+  const { def, printed, baked, current, sub, partes, onReturn, cardUid, cardOwner, aguardandoProxima, jaBufou } = zoom;   // zoom.custo = custo efetivo
   const shown = current != null ? current : printed + (baked || 0);
   const w = Math.min(320, typeof window !== "undefined" ? window.innerWidth * 0.78 : 320);
+  const isHu = def.ativavelPorJogador;
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,.72)", display: "flex", alignItems: "center", justifyContent: "center", padding: 16, cursor: "zoom-out" }}>
       <div className="duat-zoom" onClick={(e) => e.stopPropagation()} style={{ cursor: "default" }}>
@@ -1444,6 +1452,16 @@ function ZoomModal({ zoom, onClose }) {
             <button onClick={onReturn}
               className="mt-2 w-full rounded border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 hover:bg-amber-500/20">
               ↩ Retornar para a mão
+            </button>
+          )}
+          {isHu && onToggleActivate && !jaBufou && (
+            <button onClick={() => {
+              onToggleActivate(cardUid, cardOwner);
+              onClose();
+            }}
+              disabled={jaBufou}
+              className="mt-2 w-full rounded border border-amber-500/60 bg-amber-500/10 px-3 py-2 text-sm text-amber-200 hover:bg-amber-500/20 disabled:opacity-50 disabled:cursor-not-allowed">
+              {aguardandoProxima ? "✓ Desativar" : "○ Ativar"}
             </button>
           )}
           <div className="text-xs text-stone-400 mt-0.5">
@@ -2115,7 +2133,7 @@ function OnlineGame({ send, data, note, onLeave }) {
           placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
           zoomBoard={zoomBoard} zoomHand={zoomHand} />
-        {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
+        {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} onToggleActivate={toggleActivateHu} />}
         {!bannerVisto && <BannerVitoria g={g} online={true} mySeat={seat} onFechar={() => setBannerVisto(true)} />}
       </>
     );
@@ -2215,7 +2233,7 @@ function OnlineGame({ send, data, note, onLeave }) {
         </main>
       </div>
 
-      {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} />}
+      {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} onToggleActivate={toggleActivateHu} />}
       {!bannerVisto && <BannerVitoria g={g} online={true} mySeat={seat} onFechar={() => setBannerVisto(true)} />}
     </div>
   );

@@ -43,6 +43,7 @@ import {
   resolveDestroyAllOfTypeInLane, validTargets, aplicarBencao,
   resolveInvocar, resolveCabraDoNilo, resolveApis, resolveMacaco, resolveAfogamento,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
+  power, ctxOf,
 } from "./engine.js";
 
 export const OPENING_DEAL = 3;   // cartas na mão de abertura
@@ -370,6 +371,26 @@ const ACTIONS = {
     return ok(s);
   },
 
+  toggleActivate(g, { side, uid }, _rng) {
+    const c0 = g.board.find((x) => x.uid === uid);
+    if (!c0) return err(g, "Carta não está no tabuleiro.");
+    if (c0.owner !== side) return err(g, "Carta não é sua.");
+    const def = byKey[c0.key];
+    if (!def.ativavelPorJogador) return err(g, "Esta carta não pode ser ativada.");
+    if (c0.jaBufou) return err(g, "Esta carta já foi usada.");
+    if (c0.revealed && c0.enteredRound >= g.round) {
+      // Pode ativar na mesma rodada em que foi jogada, contanto que não tenha sido revelada
+      // Mas se foi revelada nesta rodada, pode ativar após a revelação
+      return err(g, "Carta não pode ser ativada agora.");
+    }
+    const s = clone(g);
+    const c = s.board.find((x) => x.uid === uid);
+    c.aguardandoProxima = !c.aguardandoProxima;
+    const estadoText = c.aguardandoProxima ? "ativado" : "desativado";
+    pushLog(s, `${SIDE_NAME[side]} ${estadoText} ${def.nome}.`);
+    return ok(s);
+  },
+
   // ------------------------------ REVELAR --------------------------------
   startReveal(g, _a, _rng) {
     if (!planning(g)) return err(g, "Não é fase de planejamento.");
@@ -439,6 +460,31 @@ const ACTIONS = {
     if (ganho) {
       s.effect = { uid: card.uid, text: `+${ganho}`, kind: "buff", seq: s.effectSeq };
       pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
+    }
+
+    /* HU — Mecânica Ativar: se há uma carta Hu no lado DO CARD aguardando próxima
+       e ainda não foi usada, calcula o poder atual de Hu (incluindo auras) e buffa
+       a carta que está entrando. Hu então volta ao estado inativo e marca que foi
+       usada (jaBufou). */
+    const huAguardando = s.board.find((c) => 
+      c.owner === card.owner && 
+      c.key === "hu" && 
+      c.aguardandoProxima && 
+      !c.jaBufou && 
+      c.uid !== card.uid &&
+      !c.dying
+    );
+    if (huAguardando && card.key !== "hu") {
+      const ctx = ctxOf(s);
+      const poderHu = power(huAguardando, ctx);
+      if (poderHu > 0) {
+        card.mods.push({ src: `${byKey[huAguardando.key].nome}`, val: poderHu });
+        s.effect = { uid: card.uid, text: `+${poderHu}`, kind: "buff", seq: s.effectSeq };
+        pushLog(s, `✦ ${byKey[card.key].nome} recebeu +${poderHu} de Poder de ${byKey[huAguardando.key].nome}.`);
+      }
+      huAguardando.aguardandoProxima = false;
+      huAguardando.jaBufou = true;
+      pushLog(s, `${byKey[huAguardando.key].nome} completou sua ativação.`);
     }
 
     const def = byKey[card.key];
