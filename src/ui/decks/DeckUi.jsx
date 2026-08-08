@@ -1,7 +1,7 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import Carta from "../../Carta.jsx";
 import { ARCH_COLOR, CARDS, GLYPH, OUTORGAS, PRAGAS, SIDE_NAME, byKey, shuffled } from "../../engine.js";
-import { MAX_DECKS, NAME_MAX, deckIntegro } from "../../deckLibrary.js";
+import { MAX_DECKS, NAME_MAX, estadoDoDeck } from "../../deckLibrary.js";
 import { DECK_SIZE } from "../../rules.js";
 import { calcularJanela, fatiar, mesmaJanela } from "../janela.js";
 
@@ -270,7 +270,7 @@ export function DeckLibraryModal({ api, side, sideLabel, accent = "#818cf8", car
             <div style={{ textAlign: "center", color: "#78716c", fontSize: 13, padding: "26px 10px" }}>Nenhum deck salvo ainda.<br />Monte um deck e toque em 💾 Salvar.</div>
           )}
           {api.decks.map((d) => {
-            const integro = deckIntegro(d);
+            const { estado: estadoDeck } = estadoDoDeck(d);
             const isLoaded = d.id === loadedId;
             return (
               <div key={d.id} style={{
@@ -291,7 +291,10 @@ export function DeckLibraryModal({ api, side, sideLabel, accent = "#818cf8", car
                     <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
                       <span style={{ fontWeight: 700, fontSize: 14, color: "#e7e5e4", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{d.name}</span>
                       {isLoaded && <span style={{ fontSize: 10.5, color: accent, flex: "0 0 auto" }}>carregado</span>}
-                      {!integro && <span style={{ fontSize: 10.5, color: "#fbbf24", flex: "0 0 auto" }} title="Incompatível com a coleção atual">⚠ desatualizado</span>}
+                      {/* Dois selos distintos: "desatualizado" é aviso (joga),
+                          "não jogável" é impedimento (falta carta ou repete). */}
+                      {estadoDeck === "desatualizado" && <span style={{ fontSize: 10.5, color: "#fbbf24", flex: "0 0 auto" }} title="A coleção mudou desde que este deck foi salvo — ele ainda joga, mas confira os números">⚠ desatualizado</span>}
+                      {estadoDeck === "invalido" && <span style={{ fontSize: 10.5, color: "#fb7185", flex: "0 0 auto" }} title="Este deck não é jogável: edite antes de usar">✕ não jogável</span>}
                     </div>
                     <div style={{ fontSize: 11, color: "#78716c", marginTop: 2 }}>{d.cards.length} cartas · custo médio {custoMedio(d.cards)}</div>
                     <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { CARDS, CONTENT_SIG } from "./engine.js";
 import {
   emptyStore, parseStore, migrateStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
-  deckValido, deckIntegro, nomeValido, MAX_DECKS, NAME_MAX, DECK_SIZE,
+  deckValido, deckIntegro, estadoDoDeck, deckJogavel, nomeValido, MAX_DECKS, NAME_MAX, DECK_SIZE,
 } from "./deckLibrary.js";
 
 // Um deck válido de 12 chaves escolhíveis distintas, tirado da própria coleção.
@@ -207,5 +207,45 @@ describe("deckIntegro", () => {
     expect(deckIntegro({ cards: doze, sig: CONTENT_SIG })).toBe(true);
     expect(deckIntegro({ cards: doze.slice(0, 8) })).toBe(false);
     expect(deckIntegro({ cards: doze, sig: "desatualizada" })).toBe(false);
+  });
+});
+
+/* "Desatualizado" e "inválido" eram o mesmo booleano, então o jogador recebia
+   "edite antes de jogar" para um deck que continuava perfeitamente jogável —
+   só assinado antes de a coleção mudar. São coisas diferentes: uma é aviso, a
+   outra é impedimento. */
+describe("estadoDoDeck", () => {
+  it("deck assinado com a coleção atual está ok", () => {
+    expect(estadoDoDeck({ cards: doze, sig: CONTENT_SIG })).toEqual({ estado: "ok" });
+  });
+
+  it("cartas legais com assinatura antiga é DESATUALIZADO, não inválido", () => {
+    const r = estadoDoDeck({ cards: doze, sig: "assinatura-de-outra-epoca" });
+    expect(r.estado).toBe("desatualizado");
+    expect(r.motivo).toBeUndefined();       // não há defeito a corrigir
+  });
+
+  it("assinatura ausente também é desatualizado — decks salvos antes do campo", () => {
+    expect(estadoDoDeck({ cards: doze }).estado).toBe("desatualizado");
+    expect(estadoDoDeck({ cards: doze, sig: null }).estado).toBe("desatualizado");
+  });
+
+  it("cartas erradas é INVÁLIDO, e diz por quê", () => {
+    expect(estadoDoDeck({ cards: doze.slice(0, 8), sig: CONTENT_SIG }).estado).toBe("invalido");
+    expect(estadoDoDeck({ cards: doze.slice(0, 8), sig: CONTENT_SIG }).motivo).toMatch(/12 cartas/);
+    const repetido = [...doze.slice(0, 11), doze[0]];
+    expect(estadoDoDeck({ cards: repetido, sig: CONTENT_SIG }).motivo).toMatch(/repetidas/);
+  });
+
+  it("inválido vence desatualizado — o impedimento é a informação útil", () => {
+    const r = estadoDoDeck({ cards: doze.slice(0, 8), sig: "antiga" });
+    expect(r.estado).toBe("invalido");
+  });
+
+  it("deck desatualizado continua jogável; inválido não", () => {
+    expect(deckJogavel({ cards: doze, sig: "antiga" })).toBe(true);
+    expect(deckJogavel({ cards: doze, sig: CONTENT_SIG })).toBe(true);
+    expect(deckJogavel({ cards: doze.slice(0, 8), sig: CONTENT_SIG })).toBe(false);
+    expect(deckJogavel(null)).toBe(false);
   });
 });

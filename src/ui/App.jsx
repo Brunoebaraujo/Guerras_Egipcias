@@ -11,7 +11,7 @@ import {
 import { freshMatch, applyAction, isAimable as podeMirar } from "../match.js";
 import {
   loadStore, saveStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
-  deckIntegro, SCHEMA_V, MAX_DECKS, NAME_MAX,
+  estadoDoDeck, SCHEMA_V, MAX_DECKS, NAME_MAX,
 } from "../deckLibrary.js";
 import { DECK_SIZE } from "../rules.js";
 import { useViewport } from "./hooks/useViewport.js";
@@ -295,10 +295,17 @@ export default function App() {
     carregar(side, id) {
       const deck = libDecks.find((d) => d.id === id);
       if (!deck) { flash("Deck não encontrado."); return false; }
-      if (!deckIntegro(deck)) { flash("Este deck está incompatível com a coleção atual — edite antes de jogar."); }
+      /* UMA mensagem só. Antes havia dois `flash` em sequência e o segundo
+         apagava o primeiro depois de um quadro, então o aviso de deck
+         desatualizado era invisível na prática. E ele também dizia
+         "incompatível — edite antes de jogar" para um deck que continua
+         perfeitamente jogável, só assinado antes de a coleção mudar. */
+      const { estado, motivo } = estadoDoDeck(deck);
       setDeck(side, deck.cards.slice());
       setLibLoadedId((ids) => { const n = ids.slice(); n[side] = id; return n; });
-      flash(`Deck "${deck.name}" carregado.`);
+      if (estado === "invalido") flash(`Deck "${deck.name}" carregado, mas não é jogável: ${motivo}`);
+      else if (estado === "desatualizado") flash(`Deck "${deck.name}" carregado — a coleção mudou desde que foi salvo; confira os números.`);
+      else flash(`Deck "${deck.name}" carregado.`);
       return true;
     },
     loadedId: libLoadedId,

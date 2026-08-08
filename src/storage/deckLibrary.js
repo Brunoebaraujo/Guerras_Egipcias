@@ -109,9 +109,37 @@ export function deckValido(cards) {
   return { ok: true };
 }
 
-// Um deck está "íntegro" para jogar se passa na validação atual da coleção.
+/**
+ * Estado de um deck salvo em relação à coleção ATUAL. Três casos distintos, que
+ * antes eram um booleano só e por isso davam a mesma mensagem ao jogador:
+ *
+ *   "ok"            joga sem ressalva
+ *   "desatualizado" as cartas continuam legais, mas a coleção mudou desde que
+ *                   ele foi salvo (rebalanceamento). O deck FUNCIONA — só pode
+ *                   não valer mais o que valia. Bloquear seria errado.
+ *   "invalido"      não é jogável: contagem errada, repetição, carta que saiu.
+ *
+ * A distinção importa porque a mensagem "edite antes de jogar" é correta para o
+ * terceiro caso e alarmista para o segundo.
+ *
+ * @param {SavedDeck|null|undefined} deck
+ * @returns {{ estado: "ok"|"desatualizado"|"invalido", motivo?: string }}
+ */
+export function estadoDoDeck(deck) {
+  const v = deckValido(deck?.cards);
+  if (!v.ok) return { estado: "invalido", motivo: v.error };
+  if (deck?.sig !== CONTENT_SIG) return { estado: "desatualizado" };
+  return { estado: "ok" };
+}
+
+/** Atalho para "joga sem ressalva". Mantido porque é o que a maioria pergunta. */
 export function deckIntegro(deck) {
-  return deckValido(deck?.cards).ok && deck?.sig === CONTENT_SIG;
+  return estadoDoDeck(deck).estado === "ok";
+}
+
+/** Jogável, mesmo que a coleção tenha mudado. */
+export function deckJogavel(deck) {
+  return estadoDoDeck(deck).estado !== "invalido";
 }
 
 /* ---------------------------- operações puras ---------------------------- */
