@@ -1,4 +1,4 @@
-import { getEffect, registerEffect, resolveEffectPhase, listEffects } from "./registry.js";
+import { getEffect, registerEffect, resolveEffectPhase, listEffects, temEfeitoDeFase } from "./registry.js";
 import {
   aplicarBencao, byKey, descarregarPendentes, pushLog,
   resolveAnubis, resolveArmadura, resolveAssassino, resolveConselheiro,
@@ -163,4 +163,4 @@ for (const [id, phase] of [
   registerEffect(id, { phase, resolver: () => null });
 }
 
-export { getEffect, resolveEffectPhase, listEffects };
+export { getEffect, resolveEffectPhase, listEffects, temEfeitoDeFase };

@@ -19,6 +19,14 @@ export function registerEffect(id, spec) {
 export const getEffect = (id) => registry.get(id) || null;
 export const listEffects = () => [...registry.values()];
 
+/* "Esta definição tem algum efeito que resolve na fase X?" — a pergunta que o
+   maestro faz para montar a lista de fontes de uma fase que varre o tabuleiro
+   (hoje só `endRound`), em vez de olhar `def.trigger`. A fase é declarada no
+   REGISTRY, não na carta: uma carta que ganhe um segundo efeito de outra fase
+   passa a aparecer nas duas varreduras sem precisar de flag nova. */
+export const temEfeitoDeFase = (def, phase) =>
+  (def?.efeitos || []).some((effect) => getEffect(effect.id)?.phase === phase);
+
 export function resolveEffectPhase({ state, source, definition, phase, rng }) {
   const effects = (definition.efeitos || [])
     .map((params, index) => ({ params, index, spec: getEffect(params.id) }))
