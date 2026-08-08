@@ -311,8 +311,14 @@ export const TOKENS = [
   { key: "token-ra", nome: "Rã", tipo: "Animal", custo: 1, poder: 1, arch: "base", set: "pragas", token: true,
     arte: "token-ra",
     lore: "A segunda praga subiu do Nilo e entrou nos fornos, nas camas e nas amassadeiras. Não matava ninguém: apenas ocupava cada palmo até não haver onde pisar." },
-  { key: "token-mosca", nome: "Mosca", tipo: "Animal", custo: 1, poder: 0, arch: "base", set: "pragas", token: true,
+  /* A Mosca deixou de ser compra morta e virou um CORPO QUE APODRECE A VIA:
+     todo Fim de Rodada ela come 1 de Poder de uma carta sorteada ali, sem
+     distinguir dono — pode acertar a si mesma, outra Mosca, ou quem a plantou.
+     Custo 1 preservado: é o que mantém a Sekhmet capaz de varrê-la. */
+  { key: "token-mosca", nome: "Mosca", tipo: "Animal", custo: 1, poder: 0, arch: "debuff", set: "pragas", token: true,
     arte: "token-mosca",
+    trigger: "fim", efeitos: [{ id: "endRoundCurseLane", value: -1 }],
+    texto: "Fim da Rodada: -1 de Poder permanente a uma carta aleatória desta via, de qualquer lado — a própria Mosca inclusive.",
     lore: "O enxame da quarta praga não devorava nem picava — apenas estava em toda parte, num zumbido que não deixava pensar. O Egito aprendeu que atrapalhar basta." },
   /* Fichas do arquétipo Animal. Custo 0, e não 1 como as duas de cima: as fichas
      das Pragas foram feitas alcançáveis pela Sekhmet de propósito, mas estas são
@@ -1616,6 +1622,40 @@ export function resolveInvocar(s, card, def = byKey[card.key]) {
   }
   pushLog(s, `${def.nome} invocou ${criadas.length}× ${nome} na(s) Via(s) ${criadas.map((c) => c.lane + 1).join(", ")}.${recado}`);
   return { uid: card.uid, text: `＋${criadas.length} ${nome}`, kind: "buff", seq: s.effectSeq };
+}
+
+/* ------------------------------- Mosca -------------------------------------
+   Fim de Rodada: -1 permanente numa carta sorteada da PRÓPRIA VIA.
+
+   O sorteio é sobre a via inteira, os dois lados juntos, e a Mosca entra no
+   próprio bolo. Não há filtro de dono de propósito: a Mosca não é uma arma
+   apontada, é sujeira — quem a planta no campo alheio está apostando, não
+   executando. Duas Moscas fazem dois sorteios INDEPENDENTES (cada uma resolve
+   sozinha na fase), e podem calhar de bater na mesma carta.
+
+   O Gato Egípcio continua valendo: sortear é escolher, e `podeSerAlvo` já é a
+   regra única disso no motor. Como ele nunca bloqueia o próprio dono, uma Mosca
+   sempre consegue ao menos a si mesma — a via nunca fica sem alvo enquanto ela
+   estiver nela.
+
+   O -1 passa por `aplicarBencao` (valor negativo, que é como o motor grava
+   maldição permanente): fica em `mods`, sobrevive à saída da Mosca, aparece
+   nomeado na decomposição do Poder e NÃO tem piso. Poder negativo é resultado
+   válido, e é a matéria-prima da Purificação do Nilo. */
+export function resolveMosca(s, mosca, def = byKey[mosca.key], rng = defaultRng) {
+  const val = efeitoDe(def, "endRoundCurseLane")?.value ?? -1;
+  const pool = s.board.filter(
+    (c) => c.lane === mosca.lane && emJogo(c) && podeSerAlvo(s.board, c, mosca),
+  );
+  if (pool.length === 0) {
+    pushLog(s, `${def.nome}: nada ao alcance na Via ${mosca.lane + 1}.`);
+    return { uid: mosca.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  const alvo = pool[Math.floor(rng() * pool.length)];
+  aplicarBencao(s, alvo, val, def.nome, { rng });
+  const quem = alvo.uid === mosca.uid ? "a si mesma" : `${byKey[alvo.key].nome} (${SIDE_NAME[alvo.owner]})`;
+  pushLog(s, `☾ ${def.nome} corroeu ${quem} na Via ${mosca.lane + 1}: ${val}.`);
+  return { uid: alvo.uid, text: `${val}`, kind: "debuff", seq: s.effectSeq };
 }
 
 // ----------------------------- Cabra do Nilo --------------------------------
