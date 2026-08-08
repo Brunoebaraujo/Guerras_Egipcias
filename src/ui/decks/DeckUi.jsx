@@ -36,6 +36,47 @@ export const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.
 const contarOutorgadas = (deck) =>
   deck.reduce((n, k) => n + (byKey[k]?.outorga ? (OUTORGAS[byKey[k].outorga] || []).length : 0), 0);
 
+/**
+ * Grade de seleção de cartas das telas mobile de deck.
+ *
+ * `DeckMobile` (solo) e `MpDeck` (online) tinham esta grade duplicada linha por
+ * linha — a única diferença real eram as colunas: duas fixas no solo, encaixe
+ * automático no online. Toda mudança de aparência da carta na lista precisava
+ * ser feita nos dois lugares, e nada garantia que fossem.
+ *
+ * A grade do desktop (App.jsx) NÃO entrou aqui de propósito: ela usa Tailwind e
+ * alterna a carta no clique, enquanto estas usam estilo inline e abrem um modal
+ * de detalhe. São interações diferentes, não a mesma tela duas vezes — juntá-las
+ * seria impor um sistema de estilo ao outro, com risco de reescrita e nenhum
+ * ganho de correção.
+ */
+function GradeSelecaoCartas({ cartas = COLLECTION, selecionadas, accent, colunas, onEscolher }) {
+  return (
+    <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: colunas, gap: 8 }}>
+        {cartas.map((def) => {
+          const on = selecionadas.includes(def.key);
+          return (
+            <button key={def.key} onClick={() => onEscolher(def)} style={{
+              textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
+              background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
+            }}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+                <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
+                {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
+              </div>
+              <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/* Colunas de cada tela, nomeadas para não virarem string mágica repetida. */
+const COLUNAS = { solo: "1fr 1fr", online: "repeat(auto-fill, minmax(150px, 1fr))" };
+
 export function AvisoOutorga({ deck, estilo = "web" }) {
   const extras = contarOutorgadas(deck);
   if (!extras) return null;
@@ -238,25 +279,7 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
       {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
 
       {/* grade de cartas — tocar abre a carta ampliada (não alterna) */}
-      <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-          {COLLECTION.map((def) => {
-            const on = cur.includes(def.key);
-            return (
-              <button key={def.key} onClick={() => setDetail(def)} style={{
-                textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
-                background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
-              }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
-                  <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
-                  {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
-                </div>
-                <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <GradeSelecaoCartas selecionadas={cur} accent={accent} colunas={COLUNAS.solo} onEscolher={setDetail} />
 
       {/* rodapé */}
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
@@ -364,25 +387,7 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
 
       {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
 
-      <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))", gap: 8 }}>
-          {COLLECTION.map((def) => {
-            const on = cur.includes(def.key);
-            return (
-              <button key={def.key} onClick={() => setDetail(def)} style={{
-                textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
-                background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
-              }}>
-                <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
-                  <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
-                  {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
-                </div>
-                <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      <GradeSelecaoCartas selecionadas={cur} accent={accent} colunas={COLUNAS.online} onEscolher={setDetail} />
 
       <div style={{ display: "flex", gap: 6, alignItems: "center", padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         <button onClick={() => setScreen("deck")} style={{ ...chip, padding: "11px 12px" }}>← Voltar</button>
