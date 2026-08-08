@@ -222,6 +222,15 @@ export const CARDS = [
     trigger: "entrar", efeitos: [{ id: "buffRandomHandCard", value: 3 }], nomeCurto: "Conselheiro", arte: "conselheiro",
     lore: "O conselheiro sussurrava ao ouvido do faraó, e suas palavras mudavam o rumo das batalhas. Quando escolhia, sua mão apontava para o guerreiro que se tornaria lenda.",
     texto: "Ao Entrar: uma carta aleatória sua na mão ganha +3 de Poder permanente." },
+  /* SERVO COBERTO DE MEL — pune a via PARADA, e pune os dois lados por igual.
+     Os dois lados da via dele são verificados em separado: quem não jogou ali
+     nesta rodada ganha uma Mosca em via aleatória do próprio campo. Quem o
+     joga também está sob a regra — abandonar a via depois de plantá-lo custa
+     Mosca própria. */
+  { key: "servo-mel", nome: "Servo Coberto de Mel", tipo: "Humano", custo: 1, poder: 1, arch: "debuff",
+    trigger: "fim", efeitos: [{ id: "endRoundSummonPerIdleSide", token: "token-mosca" }],
+    texto: "Fim da Rodada: para cada lado desta via em que nenhuma carta foi jogada nesta rodada, invoque 1 Mosca para aquele jogador em uma via aleatória do campo dele.",
+    lore: "Heródoto conta que os egípcios untavam de mel os servos postos à porta, para que as moscas fossem a eles e deixassem o senhor em paz. O cargo não tinha nome, e ninguém o pedia duas vezes." },
   // Hu — Mecânica Ativar: acumula buffs e os transfere para a próxima carta
   { key: "hu", nome: "Hu", tipo: "Divindade", custo: 3, poder: 3, arch: "buff",
     efeitos: [{ id: "activateTransferPower" }], arte: "hu",
@@ -382,6 +391,8 @@ const NOME_CURTO = {
   cao: "Cão", "cabra-nilo": "Cabra", ganso: "Ganso", gato: "Gato",
   macaco: "Macaco", hiena: "Hiena", garca: "Garça", rebanho: "Rebanho",
   domador: "Domador", apis: "Ápis",
+  // Humanos de nome composto — "Servo" já é o Servo do Templo
+  "servo-mel": "Mel",
   // Pragas — o número da praga já aparece na plaqueta, então o nome pode ser curto
   sangue: "Sangue", ras: "Rãs", piolhos: "Piolhos", moscas: "Moscas",
   peste: "Peste", ulceras: "Úlceras", granizo: "Granizo", gafanhotos: "Nuvem",
@@ -462,6 +473,31 @@ export const viasComEspaco = (board, owner, exceto = null) =>
   LANES.filter((l) => l !== exceto && !viaCheia(board, owner, l));
 export const contarViasCheias = (board, owner) =>
   LANES.filter((l) => viaCheia(board, owner, l)).length;
+
+/* --------------------- JOGADAS POR VIA, POR LADO, POR RODADA ---------------
+   `s.playsLane[lado][via]` conta quantas cartas AQUELE lado colocou NAQUELA via
+   NESTA rodada. Zera em toda virada de rodada.
+
+   Por que um contador no estado, e não uma varredura do tabuleiro? Porque
+   "jogou na via nesta rodada" e "tem carta na via agora" são perguntas
+   diferentes, e as três fontes de divergência já existem no jogo:
+     - a carta jogada pode ter MORRIDO antes do fim da rodada (Sekhmet, Dilúvio);
+     - as TREVAS atrasam a REVELAÇÃO, não a jogada — quem posicionou na rodada 2
+       jogou na rodada 2, ainda que a carta só vire na 3;
+     - cartas que CHEGAM por outro caminho (ficha invocada, Set, Escaravelho,
+       Purificação do Nilo) estão na via sem que ninguém as tenha jogado ali.
+   O contador só é tocado por `place` (+1) e pelos dois caminhos que desfazem
+   uma colocação, `pickup` e `resetPlan` (-1). É essa lista curta que define
+   "jogar uma carta na via" para todo o motor.
+
+   Defensivo com `||=`: estados serializados antes desta versão não têm o campo,
+   e o servidor pode ter partidas em curso na hora do deploy. */
+export function marcarJogadaNaVia(s, side, lane, delta) {
+  s.playsLane ||= [[0, 0, 0], [0, 0, 0]];
+  s.playsLane[side] ||= [0, 0, 0];
+  s.playsLane[side][lane] = Math.max(0, (s.playsLane[side][lane] || 0) + delta);
+}
+export const jogouNaVia = (s, side, lane) => (s.playsLane?.[side]?.[lane] || 0) > 0;
 
 /* ------------------------------- ANIMAIS -----------------------------------
    O arquétipo é lido pelo `tipo` da definição — o mesmo campo que a Peste nos
@@ -1622,6 +1658,49 @@ export function resolveInvocar(s, card, def = byKey[card.key]) {
   }
   pushLog(s, `${def.nome} invocou ${criadas.length}× ${nome} na(s) Via(s) ${criadas.map((c) => c.lane + 1).join(", ")}.${recado}`);
   return { uid: card.uid, text: `＋${criadas.length} ${nome}`, kind: "buff", seq: s.effectSeq };
+}
+
+/* -------------------------- Servo Coberto de Mel ---------------------------
+   Fim da Rodada: para cada LADO da via dele que ficou parado nesta rodada,
+   uma Mosca para aquele jogador, em via aleatória do campo dele.
+
+   A verificação é DE LADO, não de via: são duas perguntas independentes sobre
+   a mesma via, e uma não sabe da outra. Os quatro desfechos (jogou/jogou,
+   jogou/parou, parou/jogou, parou/parou) saem todos deste laço, sem caso
+   especial. O dono do Servo está sob a mesma regra que o adversário — plantá-lo
+   e abandonar a via custa Mosca própria.
+
+   "Jogar na via" é `jogouNaVia`, e só isso: a carta tem de ter sido COLOCADA
+   ali por aquele lado nesta rodada. Ficha invocada, carta empurrada pelo Set,
+   Escaravelho que se mudou e carta transferida pela Purificação do Nilo estão
+   todas na via sem que ninguém as tenha jogado ali — nenhuma delas salva o lado
+   da Mosca.
+
+   A Mosca não nasce na via do Servo: nasce em qualquer via do lado punido que
+   tenha espaço. Falta de espaço também é avaliada por lado, então um campo
+   cheio de um jogador não cancela a Mosca do outro. */
+export function resolveServoDoMel(s, servo, def = byKey[servo.key], rng = defaultRng) {
+  const key = efeitoDe(def, "endRoundSummonPerIdleSide")?.token;
+  const nome = byKey[key].nome;
+  const criadas = [], semEspaco = [];
+  for (const side of [0, 1]) {
+    if (jogouNaVia(s, side, servo.lane)) continue;
+    const livres = viasComEspaco(s.board, side);
+    if (livres.length === 0) { semEspaco.push(side); continue; }
+    const lane = livres[Math.floor(rng() * livres.length)];
+    const ficha = invocarFicha(s, { key, owner: side, lane });
+    if (ficha) criadas.push(ficha); else semEspaco.push(side);
+  }
+  for (const side of semEspaco)
+    pushLog(s, `${def.nome}: ${SIDE_NAME[side]} parou na Via ${servo.lane + 1}, mas não há espaço para a ${nome}.`);
+  if (criadas.length === 0) {
+    if (semEspaco.length === 0)
+      pushLog(s, `${def.nome}: os dois lados jogaram na Via ${servo.lane + 1} — nenhuma ${nome}.`);
+    return { uid: servo.uid, text: "𓆟 —", kind: "block", seq: s.effectSeq };
+  }
+  for (const f of criadas)
+    pushLog(s, `𓆟 ${def.nome}: ${SIDE_NAME[f.owner]} parou na Via ${servo.lane + 1} — ${nome} na Via ${f.lane + 1}.`);
+  return { uid: servo.uid, text: `𓆟 ${criadas.length}`, kind: "debuff", seq: s.effectSeq };
 }
 
 /* ------------------------------- Mosca -------------------------------------

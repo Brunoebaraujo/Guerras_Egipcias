@@ -39,7 +39,7 @@ import {
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked, aplicarBencao,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
-  power, ctxOf, cartaTemEfeito,
+  power, ctxOf, cartaTemEfeito, marcarJogadaNaVia, jogouNaVia,
 } from "../domain/engine.js";
 import { createRng, defaultRng, randomSeed, shuffleWithRng } from "../domain/rng.js";
 import { resolveEffectPhase, temEfeitoDeFase } from "../domain/effects/index.js";
@@ -48,6 +48,7 @@ import { PIPELINE_STOP, runRevealPipeline } from "./revealPipeline.js";
 import { DECK_SIZE, MAX_ROUND, OPENING_DEAL } from "../domain/rules.js";
 
 export { DECK_SIZE, MAX_ROUND, OPENING_DEAL };
+export { jogouNaVia };
 export const START_HAND = OPENING_DEAL; // compat
 
 /* Tempo de exibição da Praga revelada. Fica NO ESTADO, e não num timer de
@@ -158,31 +159,6 @@ function drawForRound(s) {
     else if (cheia) pushLog(s, `✋ ${SIDE_NAME[side]}: mão cheia (${MAO_MAX}) — sem compra nesta rodada.`);
   }
 }
-
-/* --------------------- JOGADAS POR VIA, POR LADO, POR RODADA ---------------
-   `s.playsLane[lado][via]` conta quantas cartas AQUELE lado colocou NAQUELA via
-   NESTA rodada. Zera em toda virada de rodada.
-
-   Por que um contador no estado, e não uma varredura do tabuleiro? Porque
-   "jogou na via nesta rodada" e "tem carta na via agora" são perguntas
-   diferentes, e as três fontes de divergência já existem no jogo:
-     - a carta jogada pode ter MORRIDO antes do fim da rodada (Sekhmet, Dilúvio);
-     - as TREVAS atrasam a REVELAÇÃO, não a jogada — quem posicionou na rodada 2
-       jogou na rodada 2, ainda que a carta só vire na 3;
-     - cartas que CHEGAM por outro caminho (ficha invocada, Set, Escaravelho,
-       Purificação do Nilo) estão na via sem que ninguém as tenha jogado ali.
-   O contador só é tocado por `place` (+1) e pelos dois caminhos que desfazem
-   uma colocação, `pickup` e `resetPlan` (-1). É essa lista curta que define
-   "jogar uma carta na via" para todo o motor.
-
-   Defensivo com `||=`: estados serializados antes desta versão não têm o campo,
-   e o servidor pode ter partidas em curso na hora do deploy. */
-function marcarJogadaNaVia(s, side, lane, delta) {
-  s.playsLane ||= [[0, 0, 0], [0, 0, 0]];
-  s.playsLane[side] ||= [0, 0, 0];
-  s.playsLane[side][lane] = Math.max(0, (s.playsLane[side][lane] || 0) + delta);
-}
-export const jogouNaVia = (s, side, lane) => (s.playsLane?.[side]?.[lane] || 0) > 0;
 
 /* ------------------------------ FIM DE RODADA ------------------------------
    Quarta fase de efeito do jogo, ao lado de Ao Entrar, Contínuo e Ao Morrer.
