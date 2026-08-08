@@ -17,6 +17,20 @@ describe("contrato de rede", () => {
     expect(isPlanningActionType("finish")).toBe(false);
   });
 
+  /* O relógio do showcase de Praga é do SERVIDOR. Se o cliente pudesse mandar
+     `ackPlagueShowcase`, um jogador cortaria a exibição do outro no meio — e a
+     revelação simultânea voltaria a divergir entre as duas telas. */
+  it("não deixa o cliente encerrar a exibição da Praga", () => {
+    expect(isPlanningActionType("ackPlagueShowcase")).toBe(false);
+    expect(PLANNING_ACTION_TYPES).not.toContain("ackPlagueShowcase");
+  });
+
+  it("também não deixa o cliente conduzir a revelação por conta própria", () => {
+    for (const t of ["step", "startReveal", "nextRound", "aim", "skipAim", "finish"]) {
+      expect(isPlanningActionType(t)).toBe(false);
+    }
+  });
+
   it("recusa versões incompatíveis e mensagens fora de ordem", () => {
     expect(isCompatibleProtocol(PROTOCOL_VERSION)).toBe(true);
     expect(isCompatibleProtocol(PROTOCOL_VERSION - 1)).toBe(false);

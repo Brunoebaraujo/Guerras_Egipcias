@@ -49,6 +49,13 @@ import { DECK_SIZE, MAX_ROUND, OPENING_DEAL } from "../domain/rules.js";
 
 export { DECK_SIZE, MAX_ROUND, OPENING_DEAL };
 export const START_HAND = OPENING_DEAL; // compat
+
+/* Tempo de exibição da Praga revelada. Fica NO ESTADO, e não num timer de
+   componente, porque a pausa é parte da revelação: quem conduz o relógio é o
+   servidor no multiplayer e o cliente no solo, mas os dois leem o mesmo campo.
+   Antes isto vivia só em `useState` do App, então o multiplayer simplesmente
+   não tinha a pausa — a Praga passava a 850ms sem destaque. */
+export const PLAGUE_SHOWCASE_MS = 6000;
 /* Teto global de mão. Mão cheia não compra e não repõe: a compra simplesmente
    não acontece e a carta fica no deck. Regra global, não específica de Praga —
    mas é ela que regula o arquétipo do Moisés, porque acumular Praga cara custa
@@ -155,7 +162,7 @@ export function freshMatch(lists, { rng: injectedRng, seed = randomSeed(), openi
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: PHASE.PLAN, queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
-    lastPlagueRevealed: null, awaitingPlagueShowcase: false,
+    awaitingPlagueShowcase: null,
     random: ownedRng ? ownedRng.snapshot() : null,
     log: [linha], trace: [linha], finished: false,
   };
@@ -380,6 +387,7 @@ const ACTIONS = {
   step(g, _a, rng) {
     if (g.phase !== PHASE.REVEALING) return err(g, "Não há revelação em curso.");
     if (g.awaitingAim) return err(g, "Há uma mira pendente — resolva antes de avançar.");
+    if (g.awaitingPlagueShowcase) return err(g, "A Praga revelada está em exibição — aguarde.");
     const s = clone(g);
     const pipeline = runRevealPipeline({ state: s, rng, card: null }, [
       {
@@ -493,7 +501,9 @@ const ACTIONS = {
       }
       const badge = resolvePraga(s, card, rng);
       consumirCarta(s, card);
-      s.lastPlagueRevealed = { key: card.key, seq: s.effectSeq };  // Notifica UI para mostrar showcase
+      /* Abre a pausa de apresentação. O `seq` identifica ESTA revelação, para
+         a UI não reabrir o mesmo showcase ao receber o estado de novo. */
+      s.awaitingPlagueShowcase = { key: card.key, seq: s.effectSeq, ms: PLAGUE_SHOWCASE_MS };
       pushLog(s, `${def.nome} resolveu e deixou o campo.`);
       // O Sinal do Moisés é o que o olho precisa ver; o badge da própria Praga
       // só aparece quando nenhum Moisés estava em campo para registrá-la.
@@ -563,6 +573,18 @@ const ACTIONS = {
     return ok(s);
   },
 
+  /* Encerra a exibição da Praga e libera a revelação. Quem chama:
+     - solo: o cliente, quando o tempo vence ou o jogador fecha o zoom;
+     - online: o SERVIDOR, por tempo. Deixar o cliente encerrar online faria um
+       jogador cortar o showcase do outro, e um cliente travado congelaria a
+       partida — o relógio precisa estar do lado autoritativo. */
+  ackPlagueShowcase(g, _a, _rng) {
+    if (!g.awaitingPlagueShowcase) return err(g, "Não há Praga em exibição.");
+    const s = clone(g);
+    s.awaitingPlagueShowcase = null;
+    return ok(s);
+  },
+
   // ------------------------------ RODADAS --------------------------------
   nextRound(g, _a, rng) {
     if (g.phase !== PHASE.REVEALED) return err(g, "Revele as cartas antes de avançar.");
@@ -623,6 +645,15 @@ export function autoReveal(state, { rng, maxSteps = 500 } = {}) {
   for (let i = 0; i < maxSteps; i++) {
     if (s.phase !== PHASE.REVEALING) return { state: s, awaiting: false };
     if (s.awaitingAim) return { state: s, awaiting: true };
+    /* Sem tela não há o que apresentar: o fast-forward headless dispensa a
+       pausa sozinho. Sem isto, todo chamador de autoReveal travaria na primeira
+       Praga — e é este o caminho usado por testes e pelo simulador. */
+    if (s.awaitingPlagueShowcase) {
+      const ack = applyAction(s, { t: "ackPlagueShowcase" }, { rng });
+      if (ack.error) return { state: s, awaiting: false, error: ack.error };
+      s = ack.state;
+      continue;
+    }
     const r = applyAction(s, { t: "step" }, { rng });
     if (r.error) return { state: s, awaiting: !!s.awaitingAim, error: r.error };
     s = r.state;

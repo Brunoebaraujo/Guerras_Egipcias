@@ -8,6 +8,8 @@ import { fileURLToPath } from "url";
 import path from "path";
 import { CONTENT_SIG, CARD_KEYS } from "../src/engine.js";
 import { PROTOCOL_VERSION } from "../src/net/protocol.js";
+import { PRAGA_KEYS } from "../src/engine.js";
+const byKeyPraga = (k) => PRAGA_KEYS.includes(k);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8199;
@@ -64,7 +66,7 @@ function mkClient(name) {
 
 async function main() {
   const srv = spawn("node", [path.join(__dirname, "index.js")], {
-    env: { ...process.env, PORT: String(PORT), STEP_MS: "15" }, stdio: "ignore",
+    env: { ...process.env, PORT: String(PORT), STEP_MS: "15", PLAGUE_SHOWCASE_MS: "120" }, stdio: "ignore",
   });
   await sleep(1200); // espera o servidor subir (folga para sandbox sob carga)
 
@@ -230,6 +232,75 @@ async function main() {
   check(!!resumed, "sessão é retomada dentro da janela de tolerância");
   check(C2.last.seat === 0, "jogador reconectado preserva o assento");
   check(C2.last.state.round === roundBeforeReconnect, "jogador reconectado recupera o estado da partida");
+
+
+  /* ---- SHOWCASE DE PRAGA: o servidor cronometra a pausa -------------------
+     Antes, a pausa de exibição da Praga era `useState` do App — que o modo
+     online não usa. Resultado: a Praga passava a STEP_MS sem destaque, e a
+     mecânica não existia no multiplayer. Agora a pausa está no estado e é o
+     servidor que a abre, transmite e encerra.
+
+     O Moisés compra Praga na revelação, então basta jogá-lo e conduzir a
+     partida: em algum momento uma Praga entra e é revelada. */
+  {
+    const E = mkClient("Eva"), F = mkClient("Fabio");
+    await Promise.all([E.waitOpen(), F.waitOpen()]);
+    E.send({ t: "hello", name: "Eva", protocolVersion: PROTOCOL_VERSION });
+    F.send({ t: "hello", name: "Fabio", protocolVersion: PROTOCOL_VERSION });
+    E.send({ t: "createRoom" });
+    await E.waitFor((m) => m.t === "roomCreated");
+    const sala = E.msgs.find((m) => m.t === "roomCreated").roomId;
+    F.send({ t: "joinRoom", roomId: sala });
+    await Promise.all([E.waitFor((m) => m.t === "matchReady"), F.waitFor((m) => m.t === "matchReady")]);
+
+    const DECK_PRAGA = ["moises", "servo", "arqueiro", "lanceiro", "carruagem",
+      "guardareal", "general", "montu", "hathor", "escaravelho", "mumia", "sobek"];
+    E.send({ t: "deckReady", deck: DECK_PRAGA });
+    F.send({ t: "deckReady", deck: DECK_PRAGA });
+    await E.waitState((m) => m.state.round === 1 && m.state.phase === "plan");
+
+    let pausaVista = null;
+    let retomou = false;
+    const limite = Date.now() + 30000;
+    while (Date.now() < limite && !retomou) {
+      const st = E.last?.state;
+      if (st?.awaitingPlagueShowcase && !pausaVista) pausaVista = st.awaitingPlagueShowcase;
+      if (pausaVista && st && !st.awaitingPlagueShowcase) { retomou = true; break; }
+      if (st?.finished) break;
+      for (const C of [E, F]) {
+        const s2 = C.last?.state;
+        if (!s2 || s2.phase !== "plan") continue;
+        for (const h of s2.hand[C.last.seat] || []) {
+          C.send({ t: "act", action: { t: "place", hid: h.hid, lane: (s2.round + h.hid) % 3 } });
+          await sleep(15);
+        }
+        C.send({ t: "ready" });
+      }
+      await sleep(60);
+    }
+
+    check(!!pausaVista, "servidor abre a pausa de exibição quando uma Praga é revelada");
+    if (pausaVista) {
+      check(typeof pausaVista.key === "string" && !!byKeyPraga(pausaVista.key), "a pausa identifica qual Praga está em exibição");
+      check(typeof pausaVista.ms === "number" && pausaVista.ms > 0, "a pausa declara a duração");
+      check(!!F.last?.state, "o adversário também recebe estado durante a pausa");
+    }
+    check(retomou, "a revelação retoma sozinha depois da pausa — sem ack do cliente");
+
+    /* O cliente NÃO pode encerrar a exibição: cortaria o showcase do outro. Duas
+       guardas independentes barram — a de fase (act só vale em planejamento) e a
+       lista branca de ações. Qualquer uma que responda serve; o que não pode é
+       a ação passar. */
+    F.msgs.length = 0;
+    F.send({ t: "act", action: { t: "ackPlagueShowcase" } });
+    await sleep(200);
+    const recusa = F.msgs.find((m) => m.t === "error");
+    check(!!recusa, "cliente não consegue encerrar a exibição da Praga (recusado)");
+    check(!F.last?.state?.awaitingPlagueShowcase, "e o estado não foi alterado pela tentativa");
+
+    E.ws.close(); F.ws.close();
+    await sleep(80);
+  }
 
   C2.ws.close(); D.ws.close();
   srv.kill();

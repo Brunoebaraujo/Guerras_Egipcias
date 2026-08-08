@@ -66,51 +66,34 @@ export default function App() {
   const [bannerVisto, setBannerVisto] = useState(false);
   useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
   const [msg, setMsg] = useState("");
-  const [shownPlagueSeq, setShownPlagueSeq] = useState(null);  // Rastreia qual seq de praga já foi mostrada
-  const [pausedForPlague, setPausedForPlague] = useState(false);  // Pausa revelação enquanto praga é mostrada
-  const plagueTimerRef = useRef(null);  // Ref para o timeout da praga
-  
-  // Reset plague pause state on new round (but not shownPlagueSeq - it persists)
+  /* A PAUSA DA PRAGA VIVE NO ESTADO, não aqui. Antes existiam dois campos de
+     `useState` (`pausedForPlague`, `shownPlagueSeq`) e um timer de componente:
+     por isso o multiplayer não tinha a pausa — a mecânica morava no App, que o
+     modo online não usa. Agora `g.awaitingPlagueShowcase` é a fonte, o redutor
+     se recusa a avançar enquanto ela existe, e este efeito só cuida da TELA:
+     abre o zoom e devolve o ack quando o tempo vence. */
+  const showcase = g.awaitingPlagueShowcase;
   useEffect(() => {
-    setPausedForPlague(false);
-  }, [g.round]);
-  
-  // Quando uma praga é revelada, mostra o zoom por 6 segundos (apenas uma vez por praga)
+    if (!showcase) return;
+    const def = byKey[showcase.key];
+    if (!def) { dispatch({ t: "ackPlagueShowcase" }); return; }   // praga desconhecida não trava a partida
+    setZoom({
+      def, custo: def.custo, printed: def.poder, baked: 0,
+      current: null, partes: null, sub: "Praga revelada",
+      onReturn: null, isPlagueShowcase: true,
+    });
+    const t = setTimeout(() => dispatch({ t: "ackPlagueShowcase" }), showcase.ms);
+    return () => clearTimeout(t);
+    // `showcase.seq` na dependência: cada revelação é um showcase novo, e é o
+    // que impede reabrir o mesmo zoom a cada re-render.
+  }, [showcase?.seq]);
+
+  /* O zoom fecha quando a pausa fecha, seja por tempo ou por clique. Manter isto
+     separado evita o zoom órfão que sobrava na tela se o estado avançasse por
+     outro caminho. */
   useEffect(() => {
-    if (g.lastPlagueRevealed && g.lastPlagueRevealed.seq !== shownPlagueSeq) {
-      const plagueKey = g.lastPlagueRevealed.key;
-      const plagueCard = byKey[plagueKey];
-      if (plagueCard) {
-        setPausedForPlague(true);  // Pausa a revelação automática
-        setZoom({
-          def: plagueCard,
-          custo: plagueCard.custo,
-          printed: plagueCard.poder,
-          baked: 0,
-          current: null,
-          partes: null,
-          sub: "Praga revelada",
-          onReturn: null,
-          isPlagueShowcase: true,  // Flag para identificar que é showcase de praga
-        });
-        setShownPlagueSeq(g.lastPlagueRevealed.seq);  // Marca que já mostrou essa praga
-        
-        // Auto-close after 6 seconds
-        plagueTimerRef.current = setTimeout(() => {
-          setZoom(null);
-          setPausedForPlague(false);  // Despausa revelação
-          plagueTimerRef.current = null;
-        }, 6000);
-        
-        return () => {
-          if (plagueTimerRef.current) {
-            clearTimeout(plagueTimerRef.current);
-            plagueTimerRef.current = null;
-          }
-        };
-      }
-    }
-  }, [g.lastPlagueRevealed, shownPlagueSeq]);
+    if (!showcase) setZoom((z) => (z?.isPlagueShowcase ? null : z));
+  }, [showcase]);
   const [fast, setFast] = useState(false);
   const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
@@ -132,7 +115,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (aim || pausedForPlague) return;  // Pausa se em mira ou mostrando praga
+    if (aim || showcase) return;   // mira pendente ou Praga em exibição: a revelação espera
     /* A revelação se conduz sozinha: um passo por vez até a fila esvaziar. */
     if (g.phase === "revealing") {
       const t = setTimeout(() => dispatch({ t: "step" }), esperaRevelacao());
@@ -149,7 +132,7 @@ export default function App() {
       const t = setTimeout(() => nextRound(), fast ? 700 : 1800);
       return () => clearTimeout(t);
     }
-  }, [aim, pausedForPlague, g.phase, g.finished, fast, g.blessings, g.round]);
+  }, [aim, showcase, g.phase, g.finished, fast, g.blessings, g.round]);
 
   const commit = (s) => setG(s);
   function flash(t) { setMsg(t); clearTimeout(flashRef.current); flashRef.current = setTimeout(() => setMsg(""), 2600); }
@@ -205,17 +188,11 @@ export default function App() {
     if (dispatch({ t: "pickup", side: c.owner, uid: cardUid })) setSel(null);
   }
 
-  // Handler para fechar zoom e despausa se for praga
+  /* Fechar o showcase é encerrar a pausa: no solo o jogador pode adiantar, e
+     quem manda a revelação seguir é o redutor, não este componente. */
   function handleZoomClose() {
+    if (zoom?.isPlagueShowcase && g.awaitingPlagueShowcase) dispatch({ t: "ackPlagueShowcase" });
     setZoom(null);
-    // Se for praga showcase, limpa o timeout e despausa
-    if (zoom?.isPlagueShowcase && pausedForPlague) {
-      if (plagueTimerRef.current) {
-        clearTimeout(plagueTimerRef.current);
-        plagueTimerRef.current = null;
-      }
-      setPausedForPlague(false);
-    }
   }
 
   function toggleActivateHu(cardUid, side) {

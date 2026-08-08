@@ -33,7 +33,7 @@
 import http from "http";
 import { WebSocketServer } from "ws";
 import { randomUUID } from "crypto";
-import { freshMatch, applyAction } from "../src/match.js";
+import { freshMatch, applyAction, PLAGUE_SHOWCASE_MS } from "../src/match.js";
 import { CARD_KEYS, CONTENT_SIG } from "../src/engine.js";
 import { deckValido } from "../src/deckLibrary.js";
 import { filterStateForSeat } from "../src/net/filterState.js";
@@ -45,6 +45,10 @@ const STEP_MS = Number(process.env.STEP_MS) || 850;
    um passo de revelação de propósito: é o único momento em que os dois jogadores
    leem o tabuleiro resolvido antes de ele voltar a mudar. */
 const ROUND_PAUSE_MS = Number(process.env.ROUND_PAUSE_MS) || 2200;
+/* Duração da exibição da Praga. O padrão vem do motor, para solo e online
+   pausarem igual; o override por env existe só para o teste de integração não
+   gastar 6s por Praga. */
+const SHOWCASE_MS = Number(process.env.PLAGUE_SHOWCASE_MS) || 0;
 const MAX_PAYLOAD = 64 * 1024;
 const MAX_CLIENTS = Number(process.env.MAX_CLIENTS) || 200;
 const MAX_ROOMS = Number(process.env.MAX_ROOMS) || 100;
@@ -164,6 +168,27 @@ function pumpReveal(room) {
     M.state = r.state;
     broadcastState(room);
     if (M.state.awaitingAim) return;
+    /* Praga revelada: o estado pediu uma pausa de apresentação e é o SERVIDOR
+       que a cronometra. Deixar o cliente encerrar faria um jogador cortar o
+       showcase do outro, e um cliente travado congelaria a partida — por isso o
+       relógio fica do lado autoritativo, e o ack vem daqui.
+
+       O estado já foi transmitido acima, então os dois clientes veem a Praga
+       durante o mesmo intervalo. Antes desta pausa a Praga passava a STEP_MS
+       (850ms) sem destaque nenhum no multiplayer: a mecânica existia só no
+       modo solo. */
+    if (M.state.awaitingPlagueShowcase) {
+      const espera = SHOWCASE_MS || M.state.awaitingPlagueShowcase.ms || PLAGUE_SHOWCASE_MS;
+      clearTimeout(M.revealTimer);
+      M.revealTimer = setTimeout(() => guard("ackPraga", () => {
+        if (!room.match || room.match !== M || M.broken) return;
+        const ack = applyAction(M.state, { t: "ackPlagueShowcase" });
+        if (ack.error) return;
+        M.state = ack.state;
+        pumpReveal(room);
+      }, () => abortMatch(room, "Erro ao encerrar a exibição da Praga. Saia da sala e tente de novo.")), espera);
+      return;
+    }
     if (M.state.phase === "revealing") {
       clearTimeout(M.revealTimer);
       M.revealTimer = setTimeout(() => pumpReveal(room), STEP_MS);

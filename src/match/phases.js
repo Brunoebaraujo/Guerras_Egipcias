@@ -27,5 +27,9 @@ export function phaseInvariantErrors(state) {
   if (!Object.values(PHASE).includes(state.phase)) errors.push(`fase desconhecida: ${state.phase}`);
   if (state.phase === PHASE.PLAN && state.queue?.length) errors.push("planejamento não pode ter fila de revelação");
   if (state.phase !== PHASE.REVEALING && state.awaitingAim) errors.push("mira pendente fora da revelação");
+  /* A pausa de apresentação da Praga só existe DENTRO da revelação. Se ela
+     sobreviver à virada de fase, o `step` da rodada seguinte fica bloqueado por
+     um showcase que ninguém vai fechar — trava silenciosa de partida. */
+  if (state.phase !== PHASE.REVEALING && state.awaitingPlagueShowcase) errors.push("Praga em exibição fora da revelação");
   return errors;
 }

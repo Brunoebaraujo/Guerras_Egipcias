@@ -20,6 +20,27 @@ function OnlineGame({ send, data, note, onLeave }) {
   const [bannerVisto, setBannerVisto] = useState(false);
   useEffect(() => { if (!g.finished) setBannerVisto(false); }, [g.finished]);
 
+  /* SHOWCASE DE PRAGA — antes não existia aqui. A pausa vivia em `useState` do
+     App, que o modo online não usa, então a Praga passava a 850ms sem destaque:
+     uma mecânica inteira invisível no multiplayer.
+
+     Agora a pausa está no estado e vem do servidor, que a cronometra. Este
+     componente só REFLETE: abre o zoom enquanto `awaitingPlagueShowcase` durar
+     e o fecha quando o servidor der o ack. Não há ack a partir daqui de
+     propósito — um jogador fechando o zoom cortaria o showcase do outro, e um
+     cliente travado congelaria a partida. Fechar é local, e o relógio é de lá. */
+  const showcase = g.awaitingPlagueShowcase;
+  useEffect(() => {
+    if (!showcase) { setZoom((z) => (z?.isPlagueShowcase ? null : z)); return; }
+    const def = byKey[showcase.key];
+    if (!def) return;
+    setZoom({
+      def, custo: def.custo, printed: def.poder, baked: 0,
+      current: null, partes: null, sub: "Praga revelada",
+      onReturn: null, isPlagueShowcase: true,
+    });
+  }, [showcase?.seq, showcase]);
+
   const myReady = !!readyArr[seat];
   const oppReady = !!readyArr[1 - seat];
   const planning = g.phase === "plan" && !g.finished;

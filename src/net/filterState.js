@@ -28,7 +28,6 @@ export function filterStateForSeat(state, seat) {
     effectSeq: state.effectSeq,
     awaitingAim: structuredClone(state.awaitingAim),
     trevas: structuredClone(state.trevas),
-    lastPlagueRevealed: state.lastPlagueRevealed,
     awaitingPlagueShowcase: state.awaitingPlagueShowcase,
     log: structuredClone((state.log || []).filter((line) => !/posicionou|recolheu/.test(line))),
     finished: state.finished,
