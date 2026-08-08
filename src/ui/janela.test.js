@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { calcularJanela, fatiar, mesmaJanela } from "./janela.js";
-import { ESPACO_ARTE, arteProps, arteUrl } from "../arte.js";
+import { ESPACO_ARTE, arteProps, arteUrl } from "./arte.js";
 
 /* Coleção sintética grande de propósito: o ponto da virtualização não é o
    catálogo de hoje (66 cartas), é o de amanhã. Com 66 não daria para
@@ -77,6 +77,39 @@ describe("fatiar", () => {
 
   it("no fim da lista não sobra espaço reservado abaixo", () => {
     expect(fatiar(itens, { primeira: 95, ultima: 100 }, 3, LINHA).abaixo).toBe(0);
+  });
+});
+
+/* A grade de deck é o segundo consumidor da janela — o primeiro foi a Galeria.
+   O que muda é a altura de linha (botão de ~56px em vez de carta de ~140px) e a
+   contagem de colunas, que ali vem medida. Estes casos fixam que a mesma conta
+   serve aos dois. */
+describe("calcularJanela — grade de deck", () => {
+  const LINHA_BOTAO = 64;   // botão ~56px + gap 8
+
+  it("o custo de montar deixa de crescer com a coleção", () => {
+    const montadas = (n, cols) => {
+      const j = calcularJanela({ topo: 0, alturaViewport: 700, alturaLinha: LINHA_BOTAO,
+        totalLinhas: Math.ceil(n / cols) });
+      return Math.min(n, (j.ultima - j.primeira) * cols);
+    };
+    const a51 = montadas(51, 2);
+    const a1000 = montadas(1000, 2);
+    expect(a1000).toBe(a51);                 // mesma janela, coleção 20x maior
+    expect(a1000).toBeLessThan(60);
+  });
+
+  it("com mais colunas, a janela cobre mais cartas na mesma altura", () => {
+    const duas = calcularJanela({ topo: 0, alturaViewport: 700, alturaLinha: LINHA_BOTAO, totalLinhas: 500 });
+    const quatro = calcularJanela({ topo: 0, alturaViewport: 700, alturaLinha: LINHA_BOTAO, totalLinhas: 250 });
+    // mesmas linhas visíveis; o que muda é quantas cartas cabem em cada linha
+    expect(duas.ultima - duas.primeira).toBe(quatro.ultima - quatro.primeira);
+  });
+
+  it("coleção de hoje cabe quase inteira — a virtualização não atrapalha o caso pequeno", () => {
+    const j = calcularJanela({ topo: 0, alturaViewport: 700, alturaLinha: LINHA_BOTAO, totalLinhas: Math.ceil(51 / 2) });
+    expect(j.primeira).toBe(0);
+    expect(j.ultima).toBeGreaterThanOrEqual(Math.ceil(51 / 2) - 4);
   });
 });
 

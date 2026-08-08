@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Carta from "../../Carta.jsx";
 import { ARCH_COLOR, GLYPH } from "../../engine.js";
-import { calcularJanela, fatiar, mesmaJanela } from "./janela.js";
+import { calcularJanela, fatiar, mesmaJanela } from "../janela.js";
 
 const ARCH_NOME = {
   base: "Base", buff: "Bênção", debuff: "Maldição", sacrificio: "Sacrifício", reset: "Equilíbrio",

@@ -29,8 +29,20 @@ describe("grade de seleção das telas mobile", () => {
     expect(marcas(cheio)).toBe(DOZE.length);
   });
 
+  /* A divergência de colunas continua, agora declarada em vez de string de CSS
+     solta: solo tem duas fixas, online encaixa por largura mínima. Na primeira
+     pintura o template é o original — inclusive `auto-fill` — para a grade não
+     dar um salto de layout antes de a medição chegar. */
   it("as duas usam colunas diferentes — é a única divergência que sobrou", () => {
-    expect(renderToString(<DeckMobile {...props([])} />)).toContain("1fr 1fr");
+    expect(renderToString(<DeckMobile {...props([])} />)).toContain("repeat(2, minmax(0, 1fr))");
     expect(renderToString(<MpDeck {...props([])} />)).toContain("minmax(150px, 1fr)");
+  });
+
+  /* Sem medição (SSR e primeiro quadro) a grade monta a coleção inteira: é o
+     comportamento anterior, e é o que garante que nada desapareça se o ambiente
+     não tiver ResizeObserver/IntersectionObserver. */
+  it("sem medição, monta a coleção inteira — a virtualização só melhora, nunca esconde", () => {
+    const html = renderToString(<MpDeck {...props([])} />);
+    for (const nome of ["Servo", "Colosso", "Amon", "Maat", "Osíris"]) expect(html).toContain(nome);
   });
 });

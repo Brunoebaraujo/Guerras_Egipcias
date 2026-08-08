@@ -1,8 +1,9 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { memo, useEffect, useRef, useState } from "react";
 import Carta from "../../Carta.jsx";
 import { ARCH_COLOR, CARDS, GLYPH, OUTORGAS, PRAGAS, SIDE_NAME, byKey, shuffled } from "../../engine.js";
 import { MAX_DECKS, NAME_MAX, deckIntegro } from "../../deckLibrary.js";
 import { DECK_SIZE } from "../../rules.js";
+import { calcularJanela, fatiar, mesmaJanela } from "../janela.js";
 
 export const LIB_API_STUB = {
   decks: [], loadedId: [null, null], max: MAX_DECKS, nameMax: NAME_MAX,
@@ -50,32 +51,139 @@ const contarOutorgadas = (deck) =>
  * seria impor um sistema de estilo ao outro, com risco de reescrita e nenhum
  * ganho de correção.
  */
-function GradeSelecaoCartas({ cartas = COLLECTION, selecionadas, accent, colunas, onEscolher }) {
+/* Uma carta da grade. Isolada e memoizada porque a grade re-renderiza a cada
+   seleção: sem isto, escolher UMA carta reconstrói o botão de todas as outras. */
+const CartaDaGrade = memo(function CartaDaGrade({ def, on, accent, onEscolher }) {
   return (
-    <div style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
-      <div style={{ display: "grid", gridTemplateColumns: colunas, gap: 8 }}>
-        {cartas.map((def) => {
-          const on = selecionadas.includes(def.key);
-          return (
-            <button key={def.key} onClick={() => onEscolher(def)} style={{
-              textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
-              background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
-            }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
-                <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
-                {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
-              </div>
-              <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
-            </button>
-          );
-        })}
+    <button onClick={() => onEscolher(def)} style={{
+      textAlign: "left", padding: "8px 9px", borderRadius: 9, cursor: "pointer",
+      background: "#1c1917", border: on ? `1.5px solid ${accent}` : "1px solid #44403c",
+    }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 4 }}>
+        <span className={ARCH_COLOR[def.arch]} style={{ fontSize: 12.5, lineHeight: 1.2, flex: 1 }}>{GLYPH[def.arch]} {def.nome}</span>
+        {on && <span style={{ color: accent, fontSize: 13, fontWeight: 800 }}>✓</span>}
+      </div>
+      <div style={{ fontSize: 11, color: "#a8a29e", marginTop: 3 }}>{def.custo}⚡ · P{def.poder} · {def.tipo}</div>
+    </button>
+  );
+});
+
+/* Layout DECLARATIVO, não string de CSS. A virtualização precisa saber quantas
+   COLUNAS existem para fatiar por linha, e `repeat(auto-fill, ...)` não conta:
+   quem resolve o encaixe é o navegador. Declarando a largura mínima, a contagem
+   sai da largura medida — e o template CSS sai da contagem, então layout e
+   fatiamento nunca discordam. */
+const COLUNAS = {
+  solo: { fixas: 2 },
+  online: { minPx: 150 },
+};
+const GAP = 8;
+/* Altura de uma linha, medida do botão real na primeira pintura. O palpite só
+   vale até a medição chegar; errar para BAIXO é o lado seguro, porque monta
+   linhas a mais e não deixa buraco branco. */
+const ALTURA_LINHA_PALPITE = 56;
+
+/**
+ * Grade de seleção de cartas das telas mobile de deck.
+ *
+ * `DeckMobile` (solo) e `MpDeck` (online) tinham esta grade duplicada linha por
+ * linha — a única diferença real eram as colunas.
+ *
+ * A grade do desktop (App.jsx) NÃO entrou aqui de propósito: ela usa Tailwind e
+ * alterna a carta no clique, enquanto estas usam estilo inline e abrem um modal
+ * de detalhe. São interações diferentes, não a mesma tela duas vezes.
+ *
+ * VIRTUALIZADA porque o custo de montar era linear na coleção: medido a 4,0ms
+ * por render com 51 cartas, o que projeta ~24ms a 300 e ~79ms a 1000 — e a
+ * grade re-renderiza a cada carta escolhida, então isso vira atraso no clique.
+ * Reaproveita a mesma conta de janela da Galeria (`../janela.js`).
+ */
+function GradeSelecaoCartas({ cartas = COLLECTION, selecionadas, accent, colunas, onEscolher }) {
+  const ref = useRef(null);
+  const primeiroRef = useRef(null);
+  const [medida, setMedida] = useState(null);   // { colunas, alturaLinha }
+  const [janela, setJanela] = useState(null);   // null = monta tudo
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const medir = () => {
+      const w = el.clientWidth || 0;
+      if (!w) return;
+      const cols = colunas.fixas || Math.max(1, Math.floor((w + GAP) / (colunas.minPx + GAP)));
+      const alt = (primeiroRef.current?.offsetHeight || 0) + GAP;
+      setMedida((atual) => {
+        const proxima = { colunas: cols, alturaLinha: alt > GAP ? alt : ALTURA_LINHA_PALPITE };
+        return atual && atual.colunas === proxima.colunas && atual.alturaLinha === proxima.alturaLinha
+          ? atual : proxima;
+      });
+    };
+    medir();
+    if (typeof ResizeObserver === "undefined") {
+      window.addEventListener("resize", medir);
+      return () => window.removeEventListener("resize", medir);
+    }
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [colunas]);
+
+  const cols = medida?.colunas || colunas.fixas || 2;
+  const alturaLinha = medida?.alturaLinha || ALTURA_LINHA_PALPITE;
+  const totalLinhas = Math.ceil(cartas.length / cols);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || !medida || typeof IntersectionObserver === "undefined") return;
+    let pendente = false;
+    const recalcular = () => {
+      pendente = false;
+      const proxima = calcularJanela({
+        topo: el.getBoundingClientRect().top,
+        alturaViewport: window.innerHeight || 800,
+        alturaLinha, totalLinhas,
+      });
+      setJanela((atual) => (mesmaJanela(atual, proxima) ? atual : proxima));
+    };
+    const agendar = () => { if (pendente) return; pendente = true; requestAnimationFrame(recalcular); };
+    recalcular();
+    /* Captura: quem rola aqui é o contêiner da grade, e scroll não borbulha. */
+    window.addEventListener("scroll", agendar, { capture: true, passive: true });
+    window.addEventListener("resize", agendar, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", agendar, { capture: true });
+      window.removeEventListener("resize", agendar);
+    };
+  }, [medida, alturaLinha, totalLinhas]);
+
+  const { visiveis, acima, abaixo } = janela
+    ? fatiar(cartas, janela, cols, alturaLinha)
+    : { visiveis: cartas, acima: 0, abaixo: 0 };
+
+  /* Até a medição chegar, o template é o ORIGINAL — inclusive `auto-fill`, que o
+     navegador resolve sozinho. Assim a primeira pintura não muda de aparência:
+     antes desta virtualização a grade online encaixava por largura mínima, e
+     cair para um número fixo por um quadro seria um salto visível de layout. */
+  const template = medida
+    ? `repeat(${cols}, minmax(0, 1fr))`
+    : colunas.fixas
+      ? `repeat(${colunas.fixas}, minmax(0, 1fr))`
+      : `repeat(auto-fill, minmax(${colunas.minPx}px, 1fr))`;
+
+  return (
+    <div ref={ref} style={{ flex: "1 1 auto", overflowY: "auto", padding: "2px 10px 8px" }}>
+      <div style={{ display: "grid", gridTemplateColumns: template, gap: GAP }}>
+        {acima > 0 && <div aria-hidden="true" style={{ gridColumn: "1 / -1", height: acima }} />}
+        {visiveis.map((def, i) => (
+          <div key={def.key} ref={i === 0 ? primeiroRef : null} style={{ display: "grid" }}>
+            <CartaDaGrade def={def} on={selecionadas.includes(def.key)} accent={accent} onEscolher={onEscolher} />
+          </div>
+        ))}
+        {abaixo > 0 && <div aria-hidden="true" style={{ gridColumn: "1 / -1", height: abaixo }} />}
       </div>
     </div>
   );
 }
-
-/* Colunas de cada tela, nomeadas para não virarem string mágica repetida. */
-const COLUNAS = { solo: "1fr 1fr", online: "repeat(auto-fill, minmax(150px, 1fr))" };
 
 export function AvisoOutorga({ deck, estilo = "web" }) {
   const extras = contarOutorgadas(deck);
