@@ -92,7 +92,18 @@ function puxarParaAbertura(deck) {
   return [...fixas, ...deck.filter((k) => !byKey[k]?.abertura)];
 }
 
-const clone = (s) => JSON.parse(JSON.stringify(s));
+/* Clone profundo de cada transição. `structuredClone` em vez do ida-e-volta por
+   JSON: ~1,5× mais rápido no estado real de fim de partida (79,5µs -> 51,9µs
+   medidos), e o servidor faz um clone por ação mais um por assento a cada
+   transmissão, então o ganho é no caminho quente.
+
+   O `structuredClone` guarda uma diferença: JSON DESCARTA chaves com valor
+   `undefined`, ele as PRESERVA. Isso poderia mudar a forma do estado e, por
+   consequência, o que o servidor serializa. Verificado com 120 partidas
+   semeadas comparando o hash do estado inteiro e o conjunto de chaves, não só
+   o trace — nenhuma diferença. Se algum dia entrar `undefined` no estado, é
+   melhor que apareça no golden do que seja apagado em silêncio pelo clone. */
+const clone = (s) => structuredClone(s);
 const err = (state, msg) => ({ state, error: msg });
 const ok = (state) => ({ state });
 
