@@ -5,7 +5,7 @@ import { normalizeWs } from "../../net/wsUrl.js";
 import { PROTOCOL_VERSION, createSequenceGuard, isCompatibleProtocol } from "../../net/protocol.js";
 import { GameMobile } from "../game/MobileGame.jsx";
 import { BannerVitoria } from "../game/BannerVitoria.jsx";
-import { BOARD, Tabuleiro, ZoomModal } from "../game/DesktopGameComponents.jsx";
+import { BOARD, Chip, Hand, Tabuleiro, ZoomModal } from "../game/DesktopGameComponents.jsx";
 import { resultLabel } from "../matchPresentation.js";
 
 /* Servidor multiplayer (Render). Pode ser sobrescrito no campo do lobby. */
