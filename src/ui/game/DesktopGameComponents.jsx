@@ -15,7 +15,27 @@ export const BOARD = {
   circle: { d: 5.4, topCy: 39.1, botCy: 62.0 },     // discos de placar
 };
 
-export function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveTo, applyAim, isAimable, startMove, isMovable, pickUp, zoomBoard }) {
+/**
+ * Tabuleiro. Um só componente para os três modos.
+ *
+ * `viewSeat` diz de QUEM é a perspectiva:
+ *   null  — mesa compartilhada (solo/hotseat): Lado A em cima, Lado B embaixo
+ *   0 | 1 — online: o assento indicado fica SEMPRE embaixo, e o adversário em cima
+ *
+ * Antes existiam dois componentes, `Tabuleiro` e `TabuleiroMultiplayer`, com
+ * ~85% de código idêntico. A diferença real era só qual lado desenhar embaixo —
+ * e a duplicação escondia um bug: a versão de multiplayer rotacionava as ZONAS
+ * das cartas por `viewSeat` mas calculava a posição dos DISCOS de placar por uma
+ * regra própria, que dava o resultado oposto nas duas orientações. Online, o
+ * disco ao lado das suas cartas mostrava o total do adversário.
+ *
+ * Aqui as duas coisas derivam do MESMO valor, `ladoInferior`, então não há como
+ * discordarem de novo.
+ */
+export function Tabuleiro({
+  g, ctx, aim, moving, sel, planning, placeCard, moveTo, applyAim, isAimable,
+  startMove, isMovable, pickUp, zoomBoard, viewSeat = null,
+}) {
   const base = import.meta.env.BASE_URL;
   const ref = useRef(null);
   const [bw, setBw] = useState(900);
@@ -26,10 +46,17 @@ export function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveT
   }, []);
   const px = (pct) => (bw * pct) / 100;
 
+  /* Fonte única da orientação. Sem perspectiva definida, a mesa compartilhada
+     mantém a convenção histórica: Lado B embaixo, mais perto de quem começa. */
+  const ladoInferior = viewSeat == null ? 1 : viewSeat;
+  const naParteDeBaixo = (side) => side === ladoInferior;
+
   const zoneStyle = (lane, side) => {
-    const z = BOARD.zone; const v = side === 0 ? z.top : z.bot;
+    const z = BOARD.zone; const v = naParteDeBaixo(side) ? z.bot : z.top;
     return { position: "absolute", left: `${BOARD.laneCx[lane] - z.w / 2}%`, top: `${v.y}%`, width: `${z.w}%`, height: `${v.h}%` };
   };
+  /* O disco acompanha as cartas do mesmo lado — é o que estava quebrado. */
+  const discCy = (side) => (naParteDeBaixo(side) ? BOARD.circle.botCy : BOARD.circle.topCy);
 
   return (
     <div ref={ref} className="relative select-none" style={{
@@ -38,8 +65,8 @@ export function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveT
       borderRadius: 12, boxShadow: "0 0 0 1px #44403c, 0 8px 30px rgba(0,0,0,.5)",
     }}>
       {[0, 1, 2].map((lane) => {
-        const sA = laneScore(ctx, lane, 0), sB = laneScore(ctx, lane, 1);
-        const winner = sA > sB ? 0 : sB > sA ? 1 : -1;
+        const placar = [laneScore(ctx, lane, 0), laneScore(ctx, lane, 1)];
+        const winner = placar[0] > placar[1] ? 0 : placar[1] > placar[0] ? 1 : -1;
         const maat = laneHasMaat(g.board, lane);
         return (
           <React.Fragment key={lane}>
@@ -53,84 +80,12 @@ export function Tabuleiro({ g, ctx, aim, moving, sel, planning, placeCard, moveT
                 onRemove={planning ? pickUp : null} aimable={isAimable} onZoom={zoomBoard}
                 tone={side === 0 ? "amber" : "sky"} />
             ))}
-            {/* Discos de placar (soma de poder da via, por lado) */}
-            <ScoreDisc cx={BOARD.laneCx[lane]} cy={BOARD.circle.topCy} d={BOARD.circle.d} px={px} v={sA} tone="amber" lead={winner === 0} />
-            <ScoreDisc cx={BOARD.laneCx[lane]} cy={BOARD.circle.botCy} d={BOARD.circle.d} px={px} v={sB} tone="sky" lead={winner === 1} />
+            {/* Discos de placar: soma de poder da via, do lado a que pertencem */}
+            {[0, 1].map((side) => (
+              <ScoreDisc key={side} cx={BOARD.laneCx[lane]} cy={discCy(side)} d={BOARD.circle.d}
+                px={px} v={placar[side]} tone={side === 0 ? "amber" : "sky"} lead={winner === side} />
+            ))}
             {/* Faixa do rio: identificação da via + estado */}
-            <div style={{ position: "absolute", left: `${BOARD.laneCx[lane]}%`, top: "50.5%", transform: "translate(-50%,-50%)", zIndex: 4, pointerEvents: "none", textAlign: "center" }}>
-              <div style={{
-                background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.35)", borderRadius: 999,
-                padding: `${px(0.25)}px ${px(0.9)}px`, color: "#f7e9c0", fontFamily: "Georgia, serif",
-                fontSize: Math.max(10, px(1.05)), letterSpacing: 1, whiteSpace: "nowrap",
-              }}>
-                VIA {lane + 1}{maat ? " · ⚖" : winner >= 0 ? ` · ♛ ${winner === 0 ? "A" : "B"}` : ""}
-              </div>
-            </div>
-          </React.Fragment>
-        );
-      })}
-    </div>
-  );
-}
-
-/* Tabuleiro com rotação para multiplayer: ajusta as zones baseado na perspectiva do jogador */
-export function TabuleiroMultiplayer({ g, ctx, aim, moving, sel, planning, placeCard, moveTo, applyAim, isAimable, startMove, isMovable, pickUp, zoomBoard, viewSeat = 0 }) {
-  const base = import.meta.env.BASE_URL;
-  const ref = useRef(null);
-  const [bw, setBw] = useState(900);
-  useEffect(() => {
-    const el = ref.current; if (!el) return;
-    const ro = new ResizeObserver((e) => setBw(e[0].contentRect.width));
-    ro.observe(el); return () => ro.disconnect();
-  }, []);
-  const px = (pct) => (bw * pct) / 100;
-
-  /* Em multiplayer, rotaciona as zones:
-     - Se side === viewSeat (é você): coloca EMBAIXO (z.bot)
-     - Se side !== viewSeat (é adversário): coloca EM CIMA (z.top)
-     Isso garante que você sempre vê sua área embaixo, independente de qual lado você é. */
-
-  const zoneStyle = (lane, side) => {
-    const z = BOARD.zone;
-    const v = side === viewSeat ? z.bot : z.top;
-    return { position: "absolute", left: `${BOARD.laneCx[lane] - z.w / 2}%`, top: `${v.y}%`, width: `${z.w}%`, height: `${v.h}%` };
-  };
-
-  return (
-    <div ref={ref} className="relative select-none" style={{
-      width: "100%", height: "100%",
-      backgroundImage: `url(${base}tabuleiro.webp)`, backgroundSize: "100% 100%", backgroundRepeat: "no-repeat",
-      borderRadius: 12, boxShadow: "0 0 0 1px #44403c, 0 8px 30px rgba(0,0,0,.5)",
-    }}>
-      {[0, 1, 2].map((lane) => {
-        const sA = laneScore(ctx, lane, 0), sB = laneScore(ctx, lane, 1);
-        const winner = sA > sB ? 0 : sB > sA ? 1 : -1;
-        const maat = laneHasMaat(g.board, lane);
-        return (
-          <React.Fragment key={lane}>
-            {[0, 1].map((side) => (
-              <LaneZone key={side} side={side} lane={lane} g={g} ctx={ctx} bw={bw} px={px}
-                style={zoneStyle(lane, side)} aim={aim} moving={moving}
-                canDrop={planning && sel && sel.side === side && !moving}
-                onDrop={() => placeCard(side, lane)} onMoveHere={() => moveTo(side, lane)}
-                onTarget={(c) => aim && isAimable(c) && applyAim(c)}
-                onStartMove={startMove} isMovable={isMovable}
-                onRemove={planning ? pickUp : null} aimable={isAimable} onZoom={zoomBoard}
-                tone={side === 0 ? "amber" : "sky"} />
-            ))}
-            {/* Discos de placar — rotacionam com a perspectiva quando viewSeat=1 */}
-            {(() => {
-              const topCy = BOARD.circle.topCy;
-              const botCy = BOARD.circle.botCy;
-              // Quando viewSeat=1, inverte: Lado 0 embaixo (botCy), Lado 1 em cima (topCy)
-              const cyForSide = (side) => viewSeat === 1 ? (side === 0 ? botCy : topCy) : (side === 0 ? topCy : botCy);
-              return (
-                <>
-                  <ScoreDisc cx={BOARD.laneCx[lane]} cy={cyForSide(0)} d={BOARD.circle.d} px={px} v={sA} tone="amber" lead={winner === 0} />
-                  <ScoreDisc cx={BOARD.laneCx[lane]} cy={cyForSide(1)} d={BOARD.circle.d} px={px} v={sB} tone="sky" lead={winner === 1} />
-                </>
-              );
-            })()}
             <div style={{ position: "absolute", left: `${BOARD.laneCx[lane]}%`, top: "50.5%", transform: "translate(-50%,-50%)", zIndex: 4, pointerEvents: "none", textAlign: "center" }}>
               <div style={{
                 background: "rgba(15,12,8,.62)", border: "1px solid rgba(247,233,192,.35)", borderRadius: 999,

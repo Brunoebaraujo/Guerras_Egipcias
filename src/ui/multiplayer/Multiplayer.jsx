@@ -5,7 +5,7 @@ import { normalizeWs } from "../../net/wsUrl.js";
 import { PROTOCOL_VERSION, createSequenceGuard, isCompatibleProtocol } from "../../net/protocol.js";
 import { GameMobile } from "../game/MobileGame.jsx";
 import { BannerVitoria } from "../game/BannerVitoria.jsx";
-import { BOARD, TabuleiroMultiplayer, ZoomModal } from "../game/DesktopGameComponents.jsx";
+import { BOARD, Tabuleiro, ZoomModal } from "../game/DesktopGameComponents.jsx";
 import { resultLabel } from "../matchPresentation.js";
 
 /* Servidor multiplayer (Render). Pode ser sobrescrito no campo do lobby. */
@@ -216,7 +216,7 @@ function OnlineGame({ send, data, note, onLeave }) {
           <div className="rounded-xl" style={{ width: "100%", height: "100%", minHeight: 0, minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
             <div style={{ height: "100%", aspectRatio: BOARD.ratio, maxWidth: "100%" }}>
               {/* Tabuleiro com rotação: jogador sempre vê suas vias embaixo */}
-              <TabuleiroMultiplayer g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
+              <Tabuleiro g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
                 placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
                 startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard}
                 viewSeat={seat} />
