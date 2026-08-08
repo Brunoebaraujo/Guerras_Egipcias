@@ -130,6 +130,42 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
   );
 }
 
+/* Faixa de aviso do tabuleiro mobile.
+
+   ESTE COMPONENTE ESTAVA FALTANDO. Era usado em quatro pontos abaixo e nunca
+   foi declarado nem importado, o que fazia `MBanner is not defined` derrubar a
+   tela inteira pela barreira de erro. As três condições que o disparam são
+   todas exclusivas do mobile e nenhuma acontece na primeira pintura — mira
+   pendente, Trevas na rodada, e `msg`, que no online aparece quando o
+   adversário está mirando ou cai a conexão. Por isso o defeito sobreviveu:
+   quem joga no desktop nunca passa por aqui.
+
+   Fica no nível do módulo, e não dentro de `GameMobile`, porque componente
+   declarado dentro de outro ganha identidade nova a cada render e faz o React
+   desmontar e remontar a subárvore (é a regra que `render.test.js` guarda).
+
+   As cores acompanham o equivalente do desktop: índigo para estado de regra
+   (Trevas, mira) e rosa para o que exige atenção (conexão). O `flex` com `gap`
+   é o que faz o botão "Pular" da mira encostar à direita com `marginLeft:auto`,
+   como o chamador espera. */
+const TOM_FAIXA = {
+  indigo: { background: "#1e1b4b", border: "#4338ca", color: "#c7d2fe" },
+  rose:   { background: "#4c0519", border: "#9f1239", color: "#fecdd3" },
+};
+
+function MBanner({ tone = "indigo", children }) {
+  const cor = TOM_FAIXA[tone] || TOM_FAIXA.indigo;
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 6, margin: "0 8px 4px",
+      padding: "4px 8px", borderRadius: 6, fontSize: 11, lineHeight: 1.25,
+      background: cor.background, border: `1px solid ${cor.border}`, color: cor.color,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   const def = byKey[h.key];
   const isSel = sel && sel.side === side && sel.hid === h.hid;
