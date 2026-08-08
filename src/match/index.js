@@ -39,15 +39,16 @@ import {
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked, aplicarBencao,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
-  power, ctxOf, cartaTemEfeito,
+  power, ctxOf, cartaTemEfeito, marcarJogadaNaVia, jogouNaVia,
 } from "../domain/engine.js";
 import { createRng, defaultRng, randomSeed, shuffleWithRng } from "../domain/rng.js";
-import { resolveEffectPhase } from "../domain/effects/index.js";
+import { resolveEffectPhase, temEfeitoDeFase } from "../domain/effects/index.js";
 import { PHASE, phaseInvariantErrors, transitionPhase } from "./phases.js";
 import { PIPELINE_STOP, runRevealPipeline } from "./revealPipeline.js";
 import { DECK_SIZE, MAX_ROUND, OPENING_DEAL } from "../domain/rules.js";
 
 export { DECK_SIZE, MAX_ROUND, OPENING_DEAL };
+export { jogouNaVia };
 export const START_HAND = OPENING_DEAL; // compat
 
 /* Tempo de exibição da Praga revelada. Fica NO ESTADO, e não num timer de
@@ -159,6 +160,39 @@ function drawForRound(s) {
   }
 }
 
+/* ------------------------------ FIM DE RODADA ------------------------------
+   Quarta fase de efeito do jogo, ao lado de Ao Entrar, Contínuo e Ao Morrer.
+   Roda no `nextRound`, ANTES de a rodada virar — inclusive na rodada 6, onde
+   resolve logo antes da apuração e portanto CONTA no placar final.
+
+   Duas decisões que valem a leitura:
+
+   1. A lista de fontes é uma FOTOGRAFIA tirada antes de resolver qualquer uma.
+      É isso que impede que uma Mosca criada pelo Servo Coberto de Mel neste
+      mesmo Fim de Rodada já saia aplicando -1: ela não estava na fotografia.
+      Cada fonte é revalidada na hora de agir, porque a fase pode matá-la no
+      meio do caminho.
+
+   2. O Selo do Silêncio NÃO bloqueia. O Selo é explícito no que impede —
+      "cartas inimigas que revelarem nesta via não disparam Ao Entrar" — e Fim
+      de Rodada não é entrada: a carta já está em jogo há uma rodada inteira.
+
+   A ordem é a do tabuleiro, que é a ordem de colocação: determinística, e a
+   mesma que a fila de revelação já usa. */
+function resolverFimDeRodada(s, rng) {
+  const fontes = s.board
+    .filter((c) => emJogo(c) && temEfeitoDeFase(byKey[c.key], "endRound"))
+    .map((c) => c.uid);
+  for (const uid of fontes) {
+    const card = s.board.find((c) => c.uid === uid);
+    if (!card || !emJogo(card)) continue;
+    s.effectSeq = (s.effectSeq || 0) + 1;
+    s.blessings = [];
+    resolveEffectPhase({ state: s, source: card, definition: byKey[card.key], phase: "endRound", rng });
+  }
+  return fontes.length;
+}
+
 /* ============================ ESTADO INICIAL ============================== */
 export function freshMatch(lists, { rng: injectedRng, seed = randomSeed(), openingDeal = OPENING_DEAL } = {}) {
   const ownedRng = injectedRng ? null : createRng(seed);
@@ -170,6 +204,7 @@ export function freshMatch(lists, { rng: injectedRng, seed = randomSeed(), openi
   const s = {
     nextUid: 1, eventSeq: 0, round: 1, energy: [1, 1], board: [], deaths: [0, 0], plays: [0, 0],
     pendingEnergy: [0, 0], pendingReturn: [], pendingBuff: [null, null], drawBuffReserve: [0, 0], blessings: [],
+    playsLane: [[0, 0, 0], [0, 0, 0]],
     deck: decks, hand: [[], []], seen: [0, 0], justDrew: [[], []], destroyedPower: [0, 0],
     priority: pr, priorityReason: "sorteio inicial", phase: PHASE.PLAN, queue: [],
     lastReveal: null, effect: null, effectSeq: 0, awaitingAim: null, trevas: null,
@@ -263,6 +298,7 @@ const ACTIONS = {
     if (viaCheia(g.board, side, lane)) return err(g, `Via ${lane + 1} cheia (4/4).`);
     const s = clone(g);
     s.plays[side] += 1;
+    marcarJogadaNaVia(s, side, lane, +1);
     s.board.push({
       uid: nextUid(s), key: h.key, owner: side, lane,
       printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
@@ -290,6 +326,7 @@ const ACTIONS = {
     const def = byKey[c.key];
     s.energy[c.owner] += custoDe(c);   // devolve o que foi realmente pago
     s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
+    marcarJogadaNaVia(s, c.owner, c.lane, -1);
     s.hand[c.owner].push({ hid: nextUid(s), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
     s.board.splice(idx, 1);
     pushLog(s, `${SIDE_NAME[c.owner]} recolheu ${def.nome} para a mão.`);
@@ -313,6 +350,7 @@ const ACTIONS = {
     for (const c of voltando) {
       s.energy[c.owner] += custoDe(c);
       s.plays[c.owner] = Math.max(0, s.plays[c.owner] - 1);
+      marcarJogadaNaVia(s, c.owner, c.lane, -1);
       s.hand[c.owner].push({ hid: nextUid(s), key: c.key, printed: c.printed, baked: c.baked, custoMod: c.custoMod || 0, venenos: c.venenos ? [...c.venenos] : [] });
       s.board.splice(s.board.findIndex((x) => x.uid === c.uid), 1);
     }
@@ -539,12 +577,28 @@ const ACTIONS = {
     if (def.trigger === "entrar") {
       if (onEnterBlocked(card, s.board)) {
         card.pendentes = 0; // Selo: gatilhos acumulados são perdidos, não adiados.
+        /* Efêmera bloqueada é efêmera que não aconteceu: sai do campo mesmo
+           assim, gasta sem efeito. Mesma regra das Pragas, e pela mesma razão —
+           uma carta que não ocupa espaço não pode ficar parada na via porque o
+           efeito dela foi calado. */
+        if (def.efemera) consumirCarta(s, card);
         s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`);
         return ok(s);
       }
       if (cartaTemEfeito(card, "echoLastEntry")) { resolverEco(s, card, rng); return ok(s); }
       resolverEntrada(s, card, def, rng);
+      /* CARTA EFÊMERA: resolve e deixa o campo sem ocupar espaço e sem morrer.
+         `consumirCarta` (e não `destroyList`) é o que garante, por construção,
+         que nada de morte dispare — Osíris, Am-heh, Múmia e Bennu ficam
+         intocados. Era um caminho exclusivo das Pragas; agora é a mecânica
+         genérica que `efemera: true` declara, e as Pragas seguem por um ramo
+         próprio acima só porque arrastam junto o Sinal do Moisés, a corrente de
+         compra e a pausa de apresentação. */
+      if (def.efemera) {
+        consumirCarta(s, card);
+        pushLog(s, `${def.nome} resolveu e deixou o campo.`);
+      }
       return ok(s);
     }
     return ok(s);
@@ -599,10 +653,15 @@ const ACTIONS = {
   // ------------------------------ RODADAS --------------------------------
   nextRound(g, _a, rng) {
     if (g.phase !== PHASE.REVEALED) return err(g, "Revele as cartas antes de avançar.");
-    if (g.round >= MAX_ROUND) return ACTIONS.finish(g, _a, rng);
     const s = clone(g);
+    /* Fim de Rodada vem ANTES da bifurcação da rodada 6, de propósito: na última
+       rodada ele é a última coisa que acontece antes da apuração, e o -1 da
+       Mosca entra na conta das vias. */
+    resolverFimDeRodada(s, rng);
+    if (s.round >= MAX_ROUND) return ACTIONS.finish(s, _a, rng);
     s.trace = [...(s.trace || []), snapshotTabuleiro(s, `--- fim da rodada ${s.round} ---`)];
     s.round += 1;
+    s.playsLane = [[0, 0, 0], [0, 0, 0]];   // rodada nova, contagem nova
     s.energy = [s.round + s.pendingEnergy[0], s.round + s.pendingEnergy[1]];
     const eBonus = [s.pendingEnergy[0], s.pendingEnergy[1]];
     s.pendingEnergy = [0, 0];

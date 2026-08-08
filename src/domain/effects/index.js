@@ -1,11 +1,11 @@
-import { getEffect, registerEffect, resolveEffectPhase, listEffects } from "./registry.js";
+import { getEffect, registerEffect, resolveEffectPhase, listEffects, temEfeitoDeFase } from "./registry.js";
 import {
   aplicarBencao, byKey, descarregarPendentes, pushLog,
   resolveAnubis, resolveArmadura, resolveAssassino, resolveConselheiro,
   resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveEscriba,
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
   resolveSeqerMau, resolveSekhmet, resolveSet, resolveSobek, resolveAfogamento,
-  resolveCabraDoNilo, resolveApis,
+  resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao,
 } from "../engine.js";
 
 registerEffect("buffRandomAlly", {
@@ -136,6 +136,21 @@ registerEffect("growPerLaneAnimal", {
   resolver: ({ state, source, definition }) => resolveCabraDoNilo(state, source, definition),
 });
 
+registerEffect("banishNonPositiveToEnemy", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition, rng }) => resolvePurificacao(state, source, definition, rng),
+});
+
+registerEffect("endRoundCurseLane", {
+  phase: "endRound", priority: 100,
+  resolver: ({ state, source, definition, rng }) => resolveMosca(state, source, definition, rng),
+});
+
+registerEffect("endRoundSummonPerIdleSide", {
+  phase: "endRound", priority: 100,
+  resolver: ({ state, source, definition, rng }) => resolveServoDoMel(state, source, definition, rng),
+});
+
 registerEffect("growPerBoardAnimal", {
   phase: "enter", priority: 100,
   resolver: ({ state, source, definition }) => resolveApis(state, source, definition),
@@ -163,4 +178,4 @@ for (const [id, phase] of [
   registerEffect(id, { phase, resolver: () => null });
 }
 
-export { getEffect, resolveEffectPhase, listEffects };
+export { getEffect, resolveEffectPhase, listEffects, temEfeitoDeFase };
