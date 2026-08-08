@@ -110,6 +110,13 @@ export const CARDS = [
     trigger: "entrar", efeitos: [{ id: "destroyLaneCosts", costs: [1, 2] }], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
     texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas. Não alcança quem estiver sob um Gato Egípcio." },
+  /* PURIFICAÇÃO DO NILO — primeira carta EFÊMERA fora das Pragas: resolve e
+     deixa o campo sem ocupar espaço e sem morrer. Devolve ao adversário tudo o
+     que apodreceu no seu lado; o que não couber lá, o Nilo leva. */
+  { key: "purificacao", nome: "Purificação do Nilo", tipo: "Encantamento", custo: 4, poder: 0, arch: "movimento",
+    trigger: "entrar", efemera: true, efeitos: [{ id: "banishNonPositiveToEnemy" }],
+    texto: "Ao Entrar: todas as suas cartas com Poder atual 0 ou menor passam ao controle do adversário, em vias aleatórias. As que não couberem são destruídas.",
+    lore: "Uma vez por ano a cheia levava embora o que a estiagem havia deixado apodrecer nas margens. Os sacerdotes não chamavam aquilo de destruição: chamavam de devolução, porque o rio nunca ficava com nada." },
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",
     trigger: "morrer", efeitos: [{ id: "rebirthOnDeath", value: 1, nextEnergy: 1 }], arte: "bennu",
     lore: "Os antigos egípcios viam Bennu como a ave da criação e da renovação. Sua lenda inspirou, séculos depois, o mito da Fênix.",
@@ -391,6 +398,7 @@ const NOME_CURTO = {
   cao: "Cão", "cabra-nilo": "Cabra", ganso: "Ganso", gato: "Gato",
   macaco: "Macaco", hiena: "Hiena", garca: "Garça", rebanho: "Rebanho",
   domador: "Domador", apis: "Ápis",
+  purificacao: "Purificação",
   // Humanos de nome composto — "Servo" já é o Servo do Templo
   "servo-mel": "Mel",
   // Pragas — o número da praga já aparece na plaqueta, então o nome pode ser curto
@@ -1658,6 +1666,69 @@ export function resolveInvocar(s, card, def = byKey[card.key]) {
   }
   pushLog(s, `${def.nome} invocou ${criadas.length}× ${nome} na(s) Via(s) ${criadas.map((c) => c.lane + 1).join(", ")}.${recado}`);
   return { uid: card.uid, text: `＋${criadas.length} ${nome}`, kind: "buff", seq: s.effectSeq };
+}
+
+/* --------------------------- Purificação do Nilo ---------------------------
+   Ao Entrar: todas as SUAS cartas com Poder ATUAL <= 0 passam ao controle do
+   adversário, em vias aleatórias do campo dele. O que não couber é destruído.
+
+   Três decisões que valem a leitura:
+
+   1. O Poder é lido UMA VEZ, antes de mover qualquer coisa. Transferir uma
+      carta muda as auras dos dois lados (um Amon inimigo pode empurrar a
+      seguinte para +1 e tirá-la da lista no meio da resolução), então a lista
+      de elegíveis é uma fotografia, não uma reavaliação carta a carta.
+
+   2. A lista é EMBARALHADA antes da transferência. Quando faltam espaços, quem
+      vai e quem morre não pode ser decidido pela ordem física do tabuleiro —
+      que é a ordem de colocação, e portanto informação que o jogador controla.
+
+   3. A carta chega INTEIRA: mods, faixa, venenos, julgamento do Anúbis, tudo
+      preservado. Ela não volta ao Poder impresso, e é por isso que a devolução
+      dói — o adversário recebe o passivo junto.
+
+   A ÚNICA coisa reancorada é `entryPlays`, o carimbo que a Ammit usa para
+   contar "cartas jogadas depois de mim". Ele aponta para o contador de jogadas
+   do dono ANTIGO; mantê-lo faria a conta ser lida contra o contador do dono
+   NOVO, e o número sairia arbitrário. Reancorar reinicia a contagem no lado que
+   recebeu, que é a leitura fiel de "a partir de agora ela é dele".
+
+   Transferência NÃO é jogada: não paga custo, não incrementa `plays`, não toca
+   `playsLane`, não redispara Ao Entrar. É isso que mantém o Servo Coberto de
+   Mel intacto — receber uma carta na via não salva o lado da Mosca. */
+export function resolvePurificacao(s, card, def = byKey[card.key], rng = defaultRng) {
+  const ctx = ctxOf(s);
+  const oponente = 1 - card.owner;
+  const eleitas = shuffled(
+    s.board.filter((c) => c.owner === card.owner && c.uid !== card.uid && emJogo(c) && power(c, ctx) <= 0),
+    rng,
+  );
+  if (eleitas.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta sua com Poder 0 ou menor — as águas descem limpas.`);
+    return { uid: card.uid, text: "⇄ —", kind: "block", seq: s.effectSeq };
+  }
+  const transferidas = [], afogadas = [];
+  for (const c of eleitas) {
+    const livres = viasComEspaco(s.board, oponente);
+    if (livres.length === 0) { afogadas.push(c); continue; }
+    const origem = c.lane;
+    c.lane = livres[Math.floor(rng() * livres.length)];
+    c.owner = oponente;
+    c.entryPlays = s.plays[oponente];
+    transferidas.push(c);
+    pushLog(s, `⇄ ${def.nome}: ${byKey[c.key].nome} passou da Via ${origem + 1} do ${SIDE_NAME[card.owner]} para a Via ${c.lane + 1} do ${SIDE_NAME[oponente]}.`);
+  }
+  /* Uma leva só, e pelo pipeline normal: Osíris cresce, Am-heh absorve, a Múmia
+     volta, a Hiena come. Afogar não é um caminho de saída especial. */
+  if (afogadas.length) {
+    destroyList(s, afogadas);
+    pushLog(s, `☥ ${def.nome}: sem espaço no campo do ${SIDE_NAME[oponente]} — ${afogadas.length} carta(s) levada(s) pelas águas.`);
+  }
+  return {
+    uid: card.uid,
+    text: `⇄ ${transferidas.length}${afogadas.length ? ` ☥${afogadas.length}` : ""}`,
+    kind: "debuff", seq: s.effectSeq,
+  };
 }
 
 /* -------------------------- Servo Coberto de Mel ---------------------------

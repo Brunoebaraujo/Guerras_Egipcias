@@ -16,7 +16,7 @@ const META_FIELDS = new Set([
    META_FIELDS é erro de validação, o que impede que uma flag legada volte a
    nascer sem que ninguém a leia. */
 const EFFECT_FIELDS = new Set([
-  "trigger", "token", "praga", "outorga",
+  "trigger", "token", "praga", "outorga", "efemera",
 ]);
 
 export const KNOWN_CARD_FIELDS = new Set([...META_FIELDS, ...EFFECT_FIELDS]);

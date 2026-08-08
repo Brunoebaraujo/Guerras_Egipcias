@@ -577,12 +577,28 @@ const ACTIONS = {
     if (def.trigger === "entrar") {
       if (onEnterBlocked(card, s.board)) {
         card.pendentes = 0; // Selo: gatilhos acumulados são perdidos, não adiados.
+        /* Efêmera bloqueada é efêmera que não aconteceu: sai do campo mesmo
+           assim, gasta sem efeito. Mesma regra das Pragas, e pela mesma razão —
+           uma carta que não ocupa espaço não pode ficar parada na via porque o
+           efeito dela foi calado. */
+        if (def.efemera) consumirCarta(s, card);
         s.effect = { uid: card.uid, text: "⊘ bloqueado", kind: "block", seq: s.effectSeq };
         pushLog(s, `⊘ ${def.nome}: Ao Entrar bloqueado na Via ${card.lane + 1}.`);
         return ok(s);
       }
       if (cartaTemEfeito(card, "echoLastEntry")) { resolverEco(s, card, rng); return ok(s); }
       resolverEntrada(s, card, def, rng);
+      /* CARTA EFÊMERA: resolve e deixa o campo sem ocupar espaço e sem morrer.
+         `consumirCarta` (e não `destroyList`) é o que garante, por construção,
+         que nada de morte dispare — Osíris, Am-heh, Múmia e Bennu ficam
+         intocados. Era um caminho exclusivo das Pragas; agora é a mecânica
+         genérica que `efemera: true` declara, e as Pragas seguem por um ramo
+         próprio acima só porque arrastam junto o Sinal do Moisés, a corrente de
+         compra e a pausa de apresentação. */
+      if (def.efemera) {
+        consumirCarta(s, card);
+        pushLog(s, `${def.nome} resolveu e deixou o campo.`);
+      }
       return ok(s);
     }
     return ok(s);

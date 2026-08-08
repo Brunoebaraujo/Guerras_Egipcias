@@ -5,7 +5,7 @@ import {
   resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveEscriba,
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
   resolveSeqerMau, resolveSekhmet, resolveSet, resolveSobek, resolveAfogamento,
-  resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel,
+  resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao,
 } from "../engine.js";
 
 registerEffect("buffRandomAlly", {
@@ -134,6 +134,11 @@ registerEffect("echoLastEntry", {
 registerEffect("growPerLaneAnimal", {
   phase: "enter", priority: 100,
   resolver: ({ state, source, definition }) => resolveCabraDoNilo(state, source, definition),
+});
+
+registerEffect("banishNonPositiveToEnemy", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition, rng }) => resolvePurificacao(state, source, definition, rng),
 });
 
 registerEffect("endRoundCurseLane", {
