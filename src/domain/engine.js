@@ -113,7 +113,7 @@ export const CARDS = [
   /* PURIFICAÇÃO DO NILO — primeira carta EFÊMERA fora das Pragas: resolve e
      deixa o campo sem ocupar espaço e sem morrer. Devolve ao adversário tudo o
      que apodreceu no seu lado; o que não couber lá, o Nilo leva. */
-  { key: "purificacao", nome: "Purificação do Nilo", tipo: "Encantamento", custo: 4, poder: 0, arch: "movimento",
+  { key: "purificacao", nome: "Purificação do Nilo", tipo: "Encantamento", custo: 4, poder: 0, arch: "movimento", arte: "purificacao", arteFoco: "center 25%", nomeCurto: "Purificação",
     trigger: "entrar", efemera: true, efeitos: [{ id: "banishNonPositiveToEnemy" }],
     texto: "Ao Entrar: todas as suas cartas com Poder atual 0 ou menor passam ao controle do adversário, em vias aleatórias. As que não couberem são destruídas.",
     lore: "Uma vez por ano a cheia levava embora o que a estiagem havia deixado apodrecer nas margens. Os sacerdotes não chamavam aquilo de destruição: chamavam de devolução, porque o rio nunca ficava com nada." },
@@ -234,7 +234,7 @@ export const CARDS = [
      nesta rodada ganha uma Mosca em via aleatória do próprio campo. Quem o
      joga também está sob a regra — abandonar a via depois de plantá-lo custa
      Mosca própria. */
-  { key: "servo-mel", nome: "Servo Coberto de Mel", tipo: "Humano", custo: 1, poder: 1, arch: "debuff",
+  { key: "servo-mel", nome: "Servo Coberto de Mel", tipo: "Humano", custo: 1, poder: 1, arch: "debuff", arte: "servo-mel", arteFoco: "center 25%", nomeCurto: "Servo Mel",
     trigger: "fim", efeitos: [{ id: "endRoundSummonPerIdleSide", token: "token-mosca" }],
     texto: "Fim da Rodada: para cada lado desta via em que nenhuma carta foi jogada nesta rodada, invoque 1 Mosca para aquele jogador em uma via aleatória do campo dele.",
     lore: "Heródoto conta que os egípcios untavam de mel os servos postos à porta, para que as moscas fossem a eles e deixassem o senhor em paz. O cargo não tinha nome, e ninguém o pedia duas vezes." },
