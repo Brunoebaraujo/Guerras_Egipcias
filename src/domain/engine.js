@@ -106,6 +106,10 @@ export const CARDS = [
     trigger: "entrar", efeitos: [{ id: "sacrificeLane", absorb: true }],
     lore: "Serpente do caos primordial, Apófis se enrosca nas trevas para engolir o sol a cada noite. Devora tudo o que encontra — até os seus — e de cada presa retira a força para o próximo bote.",
     texto: "Ao Entrar: destrói suas outras cartas nesta via e ganha o Poder total delas." },
+  { key: "isfet", nome: "Isfet, Encarnação do Caos", tipo: "Divindade", custo: 6, poder: 0, arch: "sacrificio", arte: "isfet",
+    trigger: "entrar", efeitos: [{ id: "sacrificeAllLanes", absorb: true }],
+    lore: "Isfet é a desordem primordial que Ma'at constantemente refuta. Onde ela passa, a harmonia desintegra-se — e dela mesma, que cresce alimentada pela aniquilação que provoca.",
+    texto: "Ao Entrar: destrói todas as suas outras cartas em jogo (todas as vias) e ganha o Poder total delas." },
   { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 5, arch: "sacrificio",
     trigger: "entrar", efeitos: [{ id: "destroyLaneCosts", costs: [1, 2] }], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
@@ -388,7 +392,7 @@ const NOME_CURTO = {
   // Assassinos
   sicario: "Sicário", senti: "Senti", hemsu: "Hemsu", semerj: "Semerj", akhu: "Akhu", "seqer-mau": "Seqer-Mau",
   // Divindades de nome composto
-  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum", hu: "Hu",
+  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum", hu: "Hu", isfet: "Isfet",
   // Criaturas e demais
   escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
   selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",
@@ -1379,6 +1383,18 @@ export function resolveDestroyOwnLane(s, card, absorb, def = byKey[card.key]) {
   const returns = destroyList(s, victims);
   if (absorb && absorbed > 0) { const self = s.board.find((c) => c.uid === card.uid); if (self) self.mods.push({ src: "Absorção", val: absorbed }); }
   pushLog(s, `${def.nome} destruiu ${victims.length} carta(s)` + (absorb ? ` e absorveu ${absorbed} de Poder.` : ".") + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
+  return { uid: card.uid, text: absorb ? `＋${absorbed}` : `☥ ${victims.length}✕`, kind: "sac", seq: s.effectSeq };
+}
+
+export function resolveDestroyAllOwnLanes(s, card, absorb, def = byKey[card.key]) {
+  // Destrói TODAS as outras cartas do jogador em TODAS as vias, absorvendo o poder total delas
+  const victims = s.board.filter((c) => c.owner === card.owner && c.uid !== card.uid && emJogo(c));
+  if (victims.length === 0) { pushLog(s, `${def.nome}: nada para destruir no tabuleiro.`); return { uid: card.uid, text: "vazio", kind: "block", seq: s.effectSeq }; }
+  let absorbed = 0;
+  if (absorb) for (const v of victims) absorbed += power(v, ctxOf(s));
+  const returns = destroyList(s, victims);
+  if (absorb && absorbed > 0) { const self = s.board.find((c) => c.uid === card.uid); if (self) self.mods.push({ src: "Absorção", val: absorbed }); }
+  pushLog(s, `${def.nome} destruiu ${victims.length} carta(s) em todo o tabuleiro` + (absorb ? ` e absorveu ${absorbed} de Poder.` : ".") + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
   return { uid: card.uid, text: absorb ? `＋${absorbed}` : `☥ ${victims.length}✕`, kind: "sac", seq: s.effectSeq };
 }
 

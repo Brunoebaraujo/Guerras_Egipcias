@@ -2,7 +2,7 @@ import { getEffect, registerEffect, resolveEffectPhase, listEffects, temEfeitoDe
 import {
   aplicarBencao, byKey, descarregarPendentes, pushLog,
   resolveAnubis, resolveArmadura, resolveAssassino, resolveConselheiro,
-  resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveEscriba,
+  resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveDestroyAllOwnLanes, resolveEscriba,
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
   resolveSeqerMau, resolveSekhmet, resolveSet, resolveSobek, resolveAfogamento,
   resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao,
@@ -63,6 +63,12 @@ registerEffect("sacrificeLane", {
   resolver: ({ state, source, definition, params }) => params.absorb
     ? resolveDestroyOwnLane(state, source, true, definition)
     : resolveSobek(state, source),
+});
+
+registerEffect("sacrificeAllLanes", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition, params }) => 
+    resolveDestroyAllOwnLanes(state, source, params.absorb, definition),
 });
 
 registerEffect("summonSwarm", {
