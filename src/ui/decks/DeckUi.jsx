@@ -425,12 +425,12 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
             </div>
 
             <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: cardW, display: "flex", gap: 8, marginTop: 12 }}>
-              <button onClick={() => addCard(detail.key)} disabled={on || full} style={{
+              <button onClick={() => { addCard(detail.key); setDetail(null); }} disabled={on || full} style={{
                 flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
                 background: on || full ? "#292524" : "#059669", color: on || full ? "#78716c" : "#0c0a09",
                 cursor: on || full ? "not-allowed" : "pointer",
               }}>Adicionar ao deck</button>
-              <button onClick={() => removeCard(detail.key)} disabled={!on} style={{
+              <button onClick={() => { removeCard(detail.key); setDetail(null); }} disabled={!on} style={{
                 flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
                 background: !on ? "#292524" : "#9f1239", color: !on ? "#78716c" : "#fecdd3",
                 cursor: !on ? "not-allowed" : "pointer",
@@ -529,12 +529,12 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
                 efeito={detail.texto} lore={detail.lore} arch={detail.arch} arte={detail.arte} arteFoco={detail.arteFoco} ordem={detail.ordem} width={cardW} />
             </div>
             <div onClick={(e) => e.stopPropagation()} style={{ width: "100%", maxWidth: cardW, display: "flex", gap: 8, marginTop: 12 }}>
-              <button onClick={() => addCard(detail.key)} disabled={on || cheio} style={{
+              <button onClick={() => { addCard(detail.key); setDetail(null); }} disabled={on || cheio} style={{
                 flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
                 background: on || cheio ? "#292524" : "#059669", color: on || cheio ? "#78716c" : "#0c0a09",
                 cursor: on || cheio ? "not-allowed" : "pointer",
               }}>Adicionar ao deck</button>
-              <button onClick={() => removeCard(detail.key)} disabled={!on} style={{
+              <button onClick={() => { removeCard(detail.key); setDetail(null); }} disabled={!on} style={{
                 flex: 1, padding: "12px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
                 background: !on ? "#292524" : "#9f1239", color: !on ? "#78716c" : "#fecdd3",
                 cursor: !on ? "not-allowed" : "pointer",

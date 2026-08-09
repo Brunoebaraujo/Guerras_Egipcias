@@ -110,7 +110,7 @@ export const CARDS = [
     trigger: "entrar", efeitos: [{ id: "sacrificeAllLanes", absorb: true }],
     lore: "Isfet é a desordem primordial que Ma'at constantemente refuta. Onde ela passa, a harmonia desintegra-se — e dela mesma, que cresce alimentada pela aniquilação que provoca.",
     texto: "Ao Entrar: destrói todas as suas outras cartas em jogo (todas as vias) e ganha o Poder total delas." },
-  { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 5, poder: 3, arch: "sacrificio",
+  { key: "diluvio", nome: "Dilúvio de Hápi", tipo: "Fenômeno", custo: 3, poder: 5, arch: "sacrificio",
     trigger: "entrar", efeitos: [{ id: "destroyLaneCosts", costs: [1, 2] }], arte: "diluvio", arteFoco: "center 0%",
     lore: "Todo ano a cheia de Hápi engolia os campos, e nesse afogamento morava a promessa: o limo que a água deixava fazia o Egito florescer. O deus não distinguia amigo de plantação — arrastava tudo o que encontrava, para que da ruína nascesse a fartura.",
     texto: "Ao Entrar: destrói todas as cartas de custo 1 ou 2 nesta via, dos dois lados — inclusive as suas. Não alcança quem estiver sob um Gato Egípcio." },

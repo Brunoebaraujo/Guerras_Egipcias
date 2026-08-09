@@ -17,12 +17,12 @@ const mortas = (s) => s.board.filter((c) => c.dying).map((c) => c.key).sort();
 beforeEach(resetUid);
 
 /* ==========================================================================
-   DILÚVIO DE HÁPI — 5/3, afoga custo 1 e 2 na via, dos dois lados
+   DILÚVIO DE HÁPI — 3/5, afoga custo 1 e 2 na via, dos dois lados
    ========================================================================== */
 describe("Dilúvio de Hápi — estatística", () => {
-  it("é 5 de custo e 3 de Poder", () => {
-    expect(byKey["diluvio"].custo).toBe(5);
-    expect(byKey["diluvio"].poder).toBe(3);
+  it("é 3 de custo e 5 de Poder", () => {
+    expect(byKey["diluvio"].custo).toBe(3);
+    expect(byKey["diluvio"].poder).toBe(5);
   });
 
   it("declara a faixa de custo que afoga", () => {
@@ -113,7 +113,7 @@ describe("Dilúvio de Hápi — custo modificado", () => {
   });
 
   it("AFUNDA A SI MESMO se o próprio custo cair para a faixa", () => {
-    const dil = mk("diluvio", { custoMod: -3 });             // 5 - 3 = 2
+    const dil = mk("diluvio", { custoMod: -2 });             // 3 - 2 = 1
     const s = mkState([dil, mk("gato", { owner: 1 })]);
     const fx = resolveAfogamento(s, dil);
     expect(dil.dying).toBeTruthy();
