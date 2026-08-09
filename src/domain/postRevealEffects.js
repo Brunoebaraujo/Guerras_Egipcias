@@ -44,7 +44,7 @@ export function resolvePostRevealEffects({ state, card, rng = defaultRng }) {
   const pool = state.board.filter((alvo) =>
     alvo.owner === fonte.owner && alvo.uid !== fonte.uid && emJogo(alvo)
   );
-  const quantity = effect.quantity ?? 2;
+  const quantity = effect.quantity ?? 1;
   const value = effect.value ?? 1;
   const alvos = [];
   while (alvos.length < quantity && pool.length > 0) {
@@ -56,11 +56,11 @@ export function resolvePostRevealEffects({ state, card, rng = defaultRng }) {
   if (alvos.length === 0) {
     pushLog(state, `☥ ${def.nome} sacrificou ${nomeVitima}; não havia outras cartas válidas para receber Poder.`);
   } else {
-    pushLog(state, `☥ ${def.nome} sacrificou ${nomeVitima} e concedeu +${value} a ${alvos.map((a) => byKey[a.key]?.nome || a.key).join(" e ")}.`);
+    pushLog(state, `☥ ${def.nome} sacrificou ${nomeVitima} e concedeu +${value} para ${alvos[0] && byKey[alvos[0].key]?.nome || alvos[0]?.key}.`);
   }
   return {
     uid: fonte.uid,
-    text: alvos.length ? `☥ +${value}×${alvos.length}` : "☥",
+    text: alvos.length ? `☥ +${value}` : "☥",
     kind: "sac",
     seq: state.effectSeq,
     destroyedUid: card.uid,

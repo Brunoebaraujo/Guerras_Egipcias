@@ -10,8 +10,8 @@ export const LAMINA_OFERENDA = {
   poder: 2,
   arch: "sacrificio",
   trigger: "entrar",
-  efeitos: [{ id: "armNextOwnSacrifice", value: 1, quantity: 2 }],
-  texto: "Ao Entrar: a próxima carta que você jogar é destruída. Depois, dê +1 de Poder a outras 2 cartas aleatórias do seu lado.",
+  efeitos: [{ id: "armNextOwnSacrifice", value: 1, quantity: 1 }],
+  texto: "Ao Entrar: a próxima carta que você jogar é destruída. Depois, dê +1 de Poder a outra carta aleatória do seu lado.",
   lore: "Usada nos ritos dos grandes templos, a lâmina não tomava uma vida sem propósito. Aquilo que era oferecido aos deuses retornava como força aos que permaneciam.",
 };
 

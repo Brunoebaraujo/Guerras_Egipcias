@@ -58,7 +58,7 @@ describe("Lâmina de Oferenda — definição", () => {
     expect(def.poder).toBe(2);
     expect(def.arch).toBe("sacrificio");
     expect(def.nomeCurto).toBe("Lâmina");
-    expect(def.efeitos).toEqual([{ id: "armNextOwnSacrifice", value: 1, quantity: 2 }]);
+    expect(def.efeitos).toEqual([{ id: "armNextOwnSacrifice", value: 1, quantity: 1 }]);
   });
 
   it("passa pela validação declarativa da coleção", () => {
@@ -67,7 +67,7 @@ describe("Lâmina de Oferenda — definição", () => {
 });
 
 describe("Lâmina de Oferenda — resolução", () => {
-  it("deixa o Ao Entrar da vítima resolver, depois a destrói e dá +1 a dois aliados distintos", () => {
+  it("deixa o Ao Entrar da vítima resolver, depois a destrói e dá +1 a apenas uma carta aleatória", () => {
     const lamina = mk("lamina-oferenda", { uid: 1, entryPlays: 1 });
     const vitima = mk("arqueiro", { uid: 2, entryPlays: 2 });
     const aliado1 = mk("servo", { uid: 3, lane: 0, entryPlays: 3 });
@@ -86,10 +86,10 @@ describe("Lâmina de Oferenda — resolução", () => {
     expect(vitima.dying).toBeTruthy();
     expect(state.deaths[0]).toBe(1);
 
-    // rng=0 pega os dois primeiros candidatos, sem repetição.
-    expect(power(aliado1, ctxOf(state))).toBe(2);
-    expect(power(aliado2, ctxOf(state))).toBe(5);
-    expect(power(aliado3, ctxOf(state))).toBe(8);
+    // rng=0 pega apenas o primeiro candidato do pool.
+    expect(power(aliado1, ctxOf(state))).toBe(2); // servo (1) + 1
+    expect(power(aliado2, ctxOf(state))).toBe(4); // lanceiro (4) sem buff
+    expect(power(aliado3, ctxOf(state))).toBe(8); // guardareal (8) sem buff
     expect(lamina.mods).toHaveLength(0);
     expect(lamina.aguardaSacrificio).toBe(false);
   });
@@ -140,5 +140,28 @@ describe("Lâmina de Oferenda — resolução", () => {
     expect(vitima.dying).toBeTruthy();
     expect(aliado.mods.filter((m) => m.src === "Lâmina de Oferenda" && m.val === 1)).toHaveLength(1);
     expect(lamina.mods).toHaveLength(0);
+  });
+
+  it("com três candidatos válidos, apenas um recebe +1", () => {
+    const lamina = mk("lamina-oferenda", { uid: 1, entryPlays: 1 });
+    const vitima = mk("arqueiro", { uid: 2, entryPlays: 2 });
+    const aliado1 = mk("servo", { uid: 3, lane: 0, entryPlays: 3 });
+    const aliado2 = mk("lanceiro", { uid: 4, lane: 1, entryPlays: 4 });
+    const aliado3 = mk("guardareal", { uid: 5, lane: 2, entryPlays: 5 });
+    const state = stateCom([lamina, vitima, aliado1, aliado2, aliado3]);
+    armar(state, lamina);
+
+    runRevealPipeline({ state, card: vitima, rng: primeiro }, [{
+      name: "resolver-efeito-da-carta", run: () => undefined,
+    }]);
+
+    // Exatamente um deve receber +1
+    const totalBufados = [aliado1, aliado2, aliado3].filter((a) =>
+      a.mods.some((m) => m.src === "Lâmina de Oferenda" && m.val === 1)
+    ).length;
+    expect(totalBufados).toBe(1);
+
+    // A Lâmina nunca recebe buff
+    expect(lamina.mods.filter((m) => m.src === "Lâmina de Oferenda")).toHaveLength(0);
   });
 });
