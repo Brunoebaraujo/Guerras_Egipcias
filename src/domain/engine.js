@@ -114,7 +114,7 @@ export const CARDS = [
      deixa o campo sem ocupar espaço e sem morrer. Devolve ao adversário tudo o
      que apodreceu no seu lado; o que não couber lá, o Nilo leva. */
   { key: "purificacao", nome: "Purificação do Nilo", tipo: "Encantamento", custo: 4, poder: 0, arch: "movimento", arte: "purificacao", arteFoco: "center 25%", nomeCurto: "Purificação",
-    trigger: "entrar", efemera: true, efeitos: [{ id: "banishNonPositiveToEnemy" }],
+    trigger: "entrar", efemera: true, showcaseOnEntry: true, efeitos: [{ id: "banishNonPositiveToEnemy" }],
     texto: "Ao Entrar: todas as suas cartas com Poder atual 0 ou menor passam ao controle do adversário, em vias aleatórias. As que não couberem são destruídas.",
     lore: "Uma vez por ano a cheia levava embora o que a estiagem havia deixado apodrecer nas margens. Os sacerdotes não chamavam aquilo de destruição: chamavam de devolução, porque o rio nunca ficava com nada." },
   { key: "bennu", nome: "Bennu", tipo: "Criatura", custo: 1, poder: 0, arch: "renascimento",

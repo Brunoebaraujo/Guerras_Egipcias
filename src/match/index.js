@@ -598,6 +598,11 @@ const ACTIONS = {
       if (def.efemera) {
         consumirCarta(s, card);
         pushLog(s, `${def.nome} resolveu e deixou o campo.`);
+        /* Se a carta efêmera tem showcaseOnEntry, abre a pausa de apresentação
+           com o zoom (mesma mecânica das Pragas, mas para efêmeras). */
+        if (def.showcaseOnEntry) {
+          s.awaitingPlagueShowcase = { key: card.key, seq: s.effectSeq, ms: PLAGUE_SHOWCASE_MS };
+        }
       }
       return ok(s);
     }
