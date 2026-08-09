@@ -1,12 +1,19 @@
 import { getEffect, registerEffect, resolveEffectPhase, listEffects, temEfeitoDeFase } from "./registry.js";
 import {
-  aplicarBencao, byKey, descarregarPendentes, pushLog,
+  aplicarBencao, byKey, CARDS, descarregarPendentes, pushLog,
   resolveAnubis, resolveArmadura, resolveAssassino, resolveConselheiro,
   resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveDestroyAllOwnLanes, resolveEscriba,
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
   resolveSeqerMau, resolveSekhmet, resolveSet, resolveSobek, resolveAfogamento,
   resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao,
 } from "../engine.js";
+import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
+
+/* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
+   registradas por módulo sem ampliar aquele arquivo monolítico; como este
+   registry é carregado pelo match e pelo validador de coleção, CARDS e byKey
+   recebem a definição antes de qualquer partida ou validação. */
+registrarLaminaOferenda(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -48,6 +55,16 @@ registerEffect("moveAnimal", {
 registerEffect("reserveNextReveal", {
   phase: "enter", priority: 100,
   resolver: ({ state, source, definition }) => resolveHeka(state, source, definition),
+});
+
+registerEffect("armNextOwnSacrifice", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition }) => {
+    source.aguardaSacrificio = true;
+    source.sacrificioArmadoEmPlays = source.entryPlays ?? state.plays[source.owner];
+    pushLog(state, `${definition.nome}: a próxima carta jogada por ${source.owner === 0 ? "Lado A" : "Lado B"} será oferecida.`);
+    return { uid: source.uid, text: "☥ próxima", kind: "sac", seq: state.effectSeq };
+  },
 });
 
 registerEffect("scatterEnemies", {
