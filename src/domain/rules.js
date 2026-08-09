@@ -4,6 +4,7 @@ export const MAX_CARDS_PER_LANE = LANE_CAP;
 export const DECK_SIZE = 12;
 export const MAX_ROUND = 6;
 export const OPENING_DEAL = 3;
+export const MAX_CARDS_LIBRARY = 100; // Capacidade máxima de cartas na coleção (CARDS + PRAGAS + TOKENS)
 
 export const RULES = Object.freeze({
   lanes: LANES,
