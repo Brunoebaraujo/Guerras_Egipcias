@@ -17,12 +17,12 @@ const mortas = (s) => s.board.filter((c) => c.dying).map((c) => c.key).sort();
 beforeEach(resetUid);
 
 /* ==========================================================================
-   DILÚVIO DE HÁPI — 5/5, afoga custo 1 e 2 na via, dos dois lados
+   DILÚVIO DE HÁPI — 5/3, afoga custo 1 e 2 na via, dos dois lados
    ========================================================================== */
 describe("Dilúvio de Hápi — estatística", () => {
-  it("é 5 de custo e 5 de Poder", () => {
+  it("é 5 de custo e 3 de Poder", () => {
     expect(byKey["diluvio"].custo).toBe(5);
-    expect(byKey["diluvio"].poder).toBe(5);
+    expect(byKey["diluvio"].poder).toBe(3);
   });
 
   it("declara a faixa de custo que afoga", () => {
