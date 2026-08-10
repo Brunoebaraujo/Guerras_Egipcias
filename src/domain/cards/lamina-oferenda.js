@@ -9,6 +9,7 @@ export const LAMINA_OFERENDA = {
   custo: 1,
   poder: 2,
   arch: "sacrificio",
+  arte: "lamina-oferenda",
   trigger: "entrar",
   efeitos: [{ id: "armNextOwnSacrifice", value: 1, quantity: 1 }],
   texto: "Ao Entrar: a próxima carta que você jogar é destruída. Depois, dê +1 de Poder a outra carta aleatória do seu lado.",
