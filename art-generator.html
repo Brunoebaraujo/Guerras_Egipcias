@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gerador de Arte - Guerras Egípcias</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e0e0e0;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { text-align: center; margin-bottom: 2rem; color: #ffd700; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    .card {
+      background: #0f3460;
+      border: 2px solid #ffd700;
+      border-radius: 8px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+    .card h2 { color: #ffd700; margin-bottom: 1rem; }
+    .card p { font-size: 0.9rem; line-height: 1.6; margin-bottom: 1.5rem; color: #b0b0b0; }
+    .prompt-display {
+      background: #1a1a2e;
+      border-left: 3px solid #ffd700;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      max-height: 200px;
+      overflow-y: auto;
+      font-family: 'Courier New', monospace;
+    }
+    .image-preview {
+      width: 100%;
+      height: 300px;
+      background: #1a1a2e;
+      border: 2px dashed #ffd700;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      color: #666;
+      overflow: hidden;
+    }
+    .image-preview img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .image-preview.loading {
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .button-group {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    button {
+      flex: 1;
+      padding: 0.8rem 1.2rem;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 0.9rem;
+    }
+    .btn-generate {
+      background: #ffd700;
+      color: #000;
+    }
+    .btn-generate:hover:not(:disabled) { background: #ffed4e; transform: scale(1.05); }
+    .btn-generate:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-download {
+      background: #27ae60;
+      color: #fff;
+    }
+    .btn-download:hover:not(:disabled) { background: #2ecc71; }
+    .btn-download:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .status {
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      text-align: center;
+    }
+    .status.loading { background: #0f5c6e; color: #4db8ff; }
+    .status.success { background: #0d4d2d; color: #4ade80; }
+    .status.error { background: #5a1f1f; color: #f87171; }
+    .instructions {
+      background: #0f3460;
+      border: 2px solid #4db8ff;
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      color: #b0b0b0;
+    }
+    .instructions h3 { color: #4db8ff; margin-bottom: 1rem; }
+    .instructions ol { margin-left: 1.5rem; line-height: 1.8; }
+    .instructions li { margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 Gerador de Arte - Guerras Egípcias</h1>
+    
+    <div class="instructions">
+      <h3>📋 Instruções:</h3>
+      <ol>
+        <li>Clique em "Gerar Arte" para cada carta (leva ~30-60 segundos)</li>
+        <li>Verifique a preview e aprove a imagem</li>
+        <li>Clique "Baixar WebP" para salvar em 1000×1000</li>
+        <li>Mova os arquivos para: <code>public/cartas/[nome].webp</code></li>
+        <li>Execute: <code>npm run assets:resolucoes</code></li>
+        <li>Commit e push!</li>
+      </ol>
+    </div>
+
+    <div class="cards">
+      <!-- Benção de Nut -->
+      <div class="card">
+        <h2>🌙 Benção de Nut</h2>
+        <p><strong>Tipo:</strong> Divindade (4/2) — Buff<br><strong>Efeito:</strong> +1 a todas as cartas de custo 1</p>
+        <div class="image-preview" id="preview-nut"></div>
+        <div class="prompt-display" id="prompt-nut">Carregando prompt...</div>
+        <div class="button-group">
+          <button class="btn-generate" id="btn-gen-nut">🎨 Gerar Arte</button>
+          <button class="btn-download" id="btn-dl-nut" disabled>💾 Baixar WebP</button>
+        </div>
+        <div class="status" id="status-nut"></div>
+      </div>
+
+      <!-- Escudo de Anúbis -->
+      <div class="card">
+        <h2>⚔️ Escudo de Anúbis</h2>
+        <p><strong>Tipo:</strong> Divindade (4/4) — Buff<br><strong>Efeito:</strong> Protege custo 1 de destruição</p>
+        <div class="image-preview" id="preview-escudo"></div>
+        <div class="prompt-display" id="prompt-escudo">Carregando prompt...</div>
+        <div class="button-group">
+          <button class="btn-generate" id="btn-gen-escudo">🎨 Gerar Arte</button>
+          <button class="btn-download" id="btn-dl-escudo" disabled>💾 Baixar WebP</button>
+        </div>
+        <div class="status" id="status-escudo"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const nutPrompt = `Nut, deusa egípcia do céu e das estrelas. Figura central em postura de bênção e maternidade, com mãos em gesto de dádiva para baixo. Coroa ou símbolo do céu (arco estrelado) acima. Hieróglifos sutis decorativos ao fundo. Luz mística vinda de cima criando halo. Sombra azul-lápis profundo ao redor. Paleta: dourado dominante, azul-lápis nas sombras, areia e âmbar como tons quentes. Composição centrada, ligeiramente abaixo do meio. Iluminação cinematográfica, pintura visível, semi-realista. Egito Antigo. Silhueta reconhecível em ~170px.`;
+
+    const escudoPrompt = `Anúbis, deus dos mortos egípcio, como guardião protetor. Figura central em postura de guarda absoluta. Cabeça de chacal altiva com orelhas vigilantes. Um ou dois escudos em ouro egípcio à frente. Braços em gesto defensivo, cercando quem está sob sua proteção. Hieróglifos sutis decorativos ao fundo. Luz mística frontal/lateral criando halo protetor. Sombra azul-lápis profundo isolando a figura. Paleta: dourado brilhante no escudo, azul-lápis profundo nas sombras, bronze e ouro escuro na pele. Composição frontal ou ligeiramente de baixo. Iluminação cinematográfica, pintura visível, semi-realista. Egito Antigo. Tone: guardianismo absoluto, proteção inviolável.`;
+
+    const images = {
+      nut: { prompt: nutPrompt, blob: null, element: 'nut' },
+      escudo: { prompt: escudoPrompt, blob: null, element: 'escudo' }
+    };
+
+    document.getElementById('prompt-nut').textContent = nutPrompt;
+    document.getElementById('prompt-escudo').textContent = escudoPrompt;
+
+    async function generateImage(key) {
+      const config = images[key];
+      const statusEl = document.getElementById(`status-${config.element}`);
+      const previewEl = document.getElementById(`preview-${config.element}`);
+      const dlBtn = document.getElementById(`btn-dl-${config.element}`);
+
+      statusEl.textContent = '⏳ Gerando imagem com IA...';
+      statusEl.className = 'status loading';
+      previewEl.classList.add('loading');
+
+      try {
+        const response = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-6',
+            max_tokens: 1000,
+            messages: [{
+              role: 'user',
+              content: `Você é um gerador de arte para um jogo de cartas de mitologia egípcia. Crie uma imagem detalhada baseada nesta descrição:\n\n${config.prompt}\n\nImportante: A imagem DEVE ser 1000x1000 pixels, quadrada, sem texto, sem assinatura, sem moldura. Será recortada em 1.213:1 (10% topo e rodapé descartados). Qualidade PNG/WEBP.`
+            }]
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const content = data.content[0].text || 'Erro ao processar resposta';
+
+        statusEl.textContent = '⚠️ Nota: API não gera imagens diretamente. Use DALL-E, Midjourney ou StableDiffusion com o prompt acima.';
+        statusEl.className = 'status error';
+        previewEl.classList.remove('loading');
+      } catch (error) {
+        statusEl.textContent = `❌ Erro: ${error.message}. Use geradores de IA externos (DALL-E, Midjourney).`;
+        statusEl.className = 'status error';
+        previewEl.classList.remove('loading');
+      }
+    }
+
+    document.getElementById('btn-gen-nut').addEventListener('click', () => generateImage('nut'));
+    document.getElementById('btn-gen-escudo').addEventListener('click', () => generateImage('escudo'));
+
+    // Simular upload manual de imagem para teste local
+    document.querySelectorAll('.image-preview').forEach((el) => {
+      el.addEventListener('click', (e) => {
+        if (!el.querySelector('img')) {
+          const input = document.createElement('input');
+          input.type = 'file';
+          input.accept = 'image/*';
+          input.onchange = (evt) => {
+            const file = evt.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (e) => {
+                el.innerHTML = `<img src="${e.target.result}" alt="preview">`;
+                el.parentElement.querySelector('.btn-download').disabled = false;
+              };
+              reader.readAsDataURL(file);
+            }
+          };
+          input.click();
+        }
+      });
+    });
+  </script>
+</body>
+</html>

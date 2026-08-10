@@ -137,6 +137,14 @@ export const CARDS = [
     trigger: "entrar", efeitos: [{ id: "growPerBlessedAlly", value: 1 }], arte: "khnum", arteFoco: "center 0%",
     lore: "Khnum, o deus oleiro que molda as almas dos deuses, reforja a si mesmo conforme trabalha em harmonia com seus pares abençoados. Sua forma se torna mais robusta, seu poder mais refinado — cada bênção que flui ao seu redor alimenta sua transformação divina.",
     texto: "Ao Entrar: ganha +1 de Poder para cada carta aliada com bênção revelada em jogo." },
+  { key: "nut", nome: "Nut", tipo: "Divindade", custo: 4, poder: 2, arch: "buff",
+    trigger: "entrar", efeitos: [{ id: "blessAllCostOne", value: 1 }], arte: "nut", arteFoco: "center 0%",
+    lore: "Nut, a mãe do céu, abençoava o que nascia — cada gota de seu leite divino elevava o poder daqueles que a serviam com devoção.",
+    texto: "Ao Entrar: todas as suas cartas de custo 1 reveladas ganham +1 de Poder (permanente)." },
+  { key: "escudo-anubis", nome: "Escudo de Anúbis", tipo: "Divindade", custo: 4, poder: 4, arch: "buff",
+    trigger: "continuo", efeitos: [{ id: "protectCostOneFromDestruction" }], arte: "escudo-anubis", arteFoco: "center 0%",
+    lore: "Anúbis guardava os mortos contra toda destruição — sua proteção era tão forte que nem mesmo os males divinos podiam alcançar os frágeis que estavam sob seu encargo.",
+    texto: "Contínuo: todas as suas cartas de custo 1 não podem ser destruídas (debuffs e outros efeitos se aplicam)." },
   /* ASSASSINOS — Arquétipo de Veneno
      Veneno acumula em marcas independentes (uma carta pode ter [1,1,2]). O dano é a
      soma das marcas, aplicada no início de cada rodada seguinte. Senti marca 2 alvos;
@@ -392,7 +400,7 @@ const NOME_CURTO = {
   // Assassinos
   sicario: "Sicário", senti: "Senti", hemsu: "Hemsu", semerj: "Semerj", akhu: "Akhu", "seqer-mau": "Seqer-Mau",
   // Divindades de nome composto
-  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum", hu: "Hu", isfet: "Isfet",
+  amheh: "Am-heh", moises: "Moisés", khnum: "Khnum", hu: "Hu", isfet: "Isfet", "escudo-anubis": "Escudo",
   // Criaturas e demais
   escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
   selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",
@@ -1461,11 +1469,39 @@ export function resolveDestroyAllOfTypeInLane(s, card, tipo, { escopo = "todos" 
   return { uid: card.uid, text: `destruiu ${victims.length}`, kind: "debuff", seq: s.effectSeq };
 }
 
+// Helper para filtrar cartas de custo 1 que estão protegidas por Escudo de Anúbis
+function filtrarProtegidosDeCusto1(s, victims) {
+  return victims.filter((v) => {
+    if (custoDe(v) !== 1) return true; // não é custo 1, permite destruição
+    // é custo 1: verifica se há Escudo de Anúbis do lado do alvo
+    const temEscudo = s.board.some((c) => 
+      c.owner === v.owner && 
+      cartaTemEfeito(c, "protectCostOneFromDestruction") && 
+      emJogo(c)
+    );
+    return !temEscudo; // retorna true se NÃO está protegido
+  });
+}
+
 export function resolveSekhmet(s, card, cost) {
-  const victims = s.board.filter((c) => custoDe(c) === cost && c.uid !== card.uid && emJogo(c));
-  if (victims.length === 0) { pushLog(s, `Sekhmet: nenhuma carta de custo ${cost} em jogo.`); return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq }; }
+  let victims = s.board.filter((c) => custoDe(c) === cost && c.uid !== card.uid && emJogo(c));
+  const protegidas = victims.length;
+  victims = filtrarProtegidosDeCusto1(s, victims);
+  const bloqueadas = protegidas - victims.length;
+  
+  if (victims.length === 0) { 
+    const msg = bloqueadas > 0 
+      ? `Sekhmet: cartas de custo ${cost} estão protegidas pelo Escudo de Anúbis.` 
+      : `Sekhmet: nenhuma carta de custo ${cost} em jogo.`;
+    pushLog(s, msg);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq }; 
+  }
+  
   const returns = destroyList(s, victims);
-  pushLog(s, `Sekhmet destruiu ${victims.length} carta(s) de custo ${cost}.` + (returns.length ? ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.` : ""));
+  let msg = `Sekhmet destruiu ${victims.length} carta(s) de custo ${cost}.`;
+  if (bloqueadas > 0) msg += ` ${bloqueadas} carta(s) de custo 1 protegida(s) pelo Escudo de Anúbis.`;
+  if (returns.length) msg += ` Múmia(s): ${returns.map((r) => r.val).join(", ")}.`;
+  pushLog(s, msg);
   return { uid: card.uid, text: `☾ ${victims.length}✕`, kind: "debuff", seq: s.effectSeq };
 }
 
@@ -1490,6 +1526,28 @@ export function resolveKhnum(s, card, def = byKey[card.key]) {
   aplicarBencao(s, card, blessed, def.nome);
   pushLog(s, `${def.nome} ganhou +${blessed} de Poder (${blessed} carta(s) abençoada(s)).`);
   return { uid: card.uid, text: `☀ +${blessed}`, kind: "buff", seq: s.effectSeq };
+}
+
+// ----------------------- Nut: abençoa todas as cartas de custo 1 -----------------------
+export function resolveBlessAllCostOne(s, card, def = byKey[card.key], value = 1) {
+  const targets = s.board.filter((c) => 
+    c.owner === card.owner && 
+    c.uid !== card.uid && 
+    custoDe(c) === 1 && 
+    emJogo(c)
+  );
+  
+  if (targets.length === 0) {
+    pushLog(s, `${def.nome}: nenhuma carta de custo 1 aliada em jogo.`);
+    return { uid: card.uid, text: "sem alvo", kind: "block", seq: s.effectSeq };
+  }
+  
+  targets.forEach((target) => {
+    aplicarBencao(s, target, value, def.nome);
+  });
+  
+  pushLog(s, `${def.nome} concedeu +${value} a ${targets.length} carta(s) de custo 1.`);
+  return { uid: card.uid, text: `☀ +${value}×${targets.length}`, kind: "buff", seq: s.effectSeq };
 }
 
 // -------------------------- Heka: buff do próximo ----------------------------

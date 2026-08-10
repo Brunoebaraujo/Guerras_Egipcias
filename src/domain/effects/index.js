@@ -5,7 +5,7 @@ import {
   resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveDestroyAllOwnLanes, resolveEscriba,
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
   resolveSeqerMau, resolveSekhmet, resolveSet, resolveSobek, resolveAfogamento,
-  resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao,
+  resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao, resolveBlessAllCostOne,
 } from "../engine.js";
 import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
 
@@ -27,6 +27,14 @@ registerEffect("buffRandomAlly", {
     aplicarBencao(state, target, params.value, definition.nome, { rng });
     pushLog(state, `${definition.nome} concedeu +${params.value} para ${byKey[target.key].nome}.`);
     return { uid: target.uid, text: `☀ +${params.value}`, kind: "buff", seq: state.effectSeq };
+  },
+});
+
+registerEffect("blessAllCostOne", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition, params }) => {
+    const value = params?.value || 1;
+    return resolveBlessAllCostOne(state, source, definition, value);
   },
 });
 
@@ -191,6 +199,7 @@ for (const [id, phase] of [
   ["rebirthOnDeath", "death"],
   ["absorbDestroyedPower", "continuous"],
   ["protectLaneFromTargets", "continuous"],
+  ["protectCostOneFromDestruction", "continuous"],
   ["growWhenOwnAnimalDies", "death-reaction"],
   ["growPerFullLane", "continuous"],
   ["spreadBlessingPerLane", "reaction"],
