@@ -1809,6 +1809,13 @@ export function resolvePurificacao(s, card, def = byKey[card.key], rng = default
    Fim da Rodada: para cada LADO da via dele que ficou parado nesta rodada,
    uma Mosca para aquele jogador, em via aleatória do campo dele.
 
+   A rodada em que o Servo é jogado NÃO conta: `resolverFimDeRodada` só o
+   inclui como fonte a partir da rodada seguinte (`enteredRound < s.round`).
+   Faz sentido pela própria pergunta que ele faz — "este lado ficou parado
+   NESTA rodada?" não tem resposta na rodada em que ele acabou de entrar,
+   porque a rodada de colocação dele é a mesma em que ele foi a jogada de
+   alguém.
+
    A verificação é DE LADO, não de via: são duas perguntas independentes sobre
    a mesma via, e uma não sabe da outra. Os quatro desfechos (jogou/jogou,
    jogou/parou, parou/jogou, parou/parou) saem todos deste laço, sem caso

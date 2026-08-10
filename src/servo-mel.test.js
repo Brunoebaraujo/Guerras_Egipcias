@@ -180,8 +180,8 @@ describe("cada Servo resolve independentemente", () => {
    Mosca que o Servo acabou de criar já sairia comendo Poder na mesma virada —
    dois efeitos pelo preço de um, e uma ordem de resolução que dependeria da
    posição no array. */
-describe("integração: a Mosca criada não age na mesma rodada", () => {
-  it("nasce limpa na virada em que foi criada, e só age na seguinte", () => {
+describe("integração: o Servo não age na rodada em que entra, e a Mosca criada não age na mesma rodada em que nasce", () => {
+  it("rodada de entrada do Servo: nenhuma Mosca nasce", () => {
     const lista = ["servo-mel", "arqueiro", "lanceiro", "carruagem", "guardareal", "general",
                    "colosso", "hathor", "heka", "amon", "sobek", "osiris"];
     const meio = { rng: () => 0.5 };
@@ -194,14 +194,38 @@ describe("integração: a Mosca criada não age na mesma rodada", () => {
     g = autoReveal(g, meio).state;
     g = applyAction(g, { t: "nextRound" }, meio).state;
 
-    // Ninguém jogou na Via 1 nesta rodada: uma Mosca para cada lado.
+    // Rodada 1 é a rodada de entrada do Servo: ele ainda não é fonte válida
+    // para Fim de Rodada, então nenhuma Mosca nasce, mesmo com a Via 1 parada.
+    expect(g.board.filter((c) => c.key === "token-mosca")).toHaveLength(0);
+  });
+
+  it("a partir da rodada seguinte, ninguém jogou → uma Mosca por lado, limpa; só age na rodada depois", () => {
+    const lista = ["servo-mel", "arqueiro", "lanceiro", "carruagem", "guardareal", "general",
+                   "colosso", "hathor", "heka", "amon", "sobek", "osiris"];
+    const meio = { rng: () => 0.5 };
+    let g = freshMatch([lista, lista], meio);
+    g.board.push({
+      uid: nextUid(g), key: "servo-mel", owner: 0, lane: 0, revealed: true, dying: false,
+      printed: 1, baked: 0, mods: [], entryPlays: 0, enteredRound: 1, moved: false,
+    });
+    // Rodada 1 (entrada): não conta, como provado no teste acima.
+    g = applyAction(g, { t: "startReveal" }, meio).state;
+    g = autoReveal(g, meio).state;
+    g = applyAction(g, { t: "nextRound" }, meio).state;
+
+    // Rodada 2: primeira rodada em que o Servo é fonte válida. Ninguém joga
+    // na Via 1 → uma Mosca para cada lado.
+    g = applyAction(g, { t: "startReveal" }, meio).state;
+    g = autoReveal(g, meio).state;
+    g = applyAction(g, { t: "nextRound" }, meio).state;
+
     const moscas = g.board.filter((c) => c.key === "token-mosca");
     expect(moscas).toHaveLength(2);
-    // E nenhuma delas aplicou o próprio -1 ainda.
+    // E nenhuma delas aplicou o próprio -1 ainda — nasceram nesta mesma virada.
     expect(moscas.every((m) => m.mods.length === 0)).toBe(true);
     expect(g.board.find((c) => c.key === "servo-mel").mods).toHaveLength(0);
 
-    // Na virada seguinte elas agem.
+    // Na virada seguinte (rodada 3) elas agem.
     g = applyAction(g, { t: "startReveal" }, meio).state;
     g = autoReveal(g, meio).state;
     g = applyAction(g, { t: "nextRound" }, meio).state;

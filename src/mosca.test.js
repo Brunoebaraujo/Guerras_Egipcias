@@ -116,16 +116,21 @@ describe("regras gerais do motor continuam valendo", () => {
   });
 });
 
-/* Os testes acima chamam o resolver direto. Este prova a LIGAÇÃO: uma Mosca
+/* Os testes acima chamam o resolver direto. Estes provam a LIGAÇÃO: uma Mosca
    parada no tabuleiro dispara sozinha na virada da rodada, sem ninguém a
-   chamar — que é o comportamento que o jogador vê. */
+   chamar — que é o comportamento que o jogador vê.
+
+   A rodada em que a Mosca ENTRA em jogo não conta (mesma regra do Servo
+   Coberto de Mel): `resolverFimDeRodada` só a inclui como fonte a partir da
+   rodada seguinte a `enteredRound`. Uma Mosca plantada na abertura da rodada
+   1 fica limpa no fim da rodada 1 e só come pela primeira vez no fim da 2. */
 describe("integração com a virada de rodada", () => {
-  it("a Mosca age sozinha no nextRound, e de novo na rodada seguinte", () => {
+  it("rodada de entrada: a Mosca ainda não age", () => {
     const lista = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general",
                    "colosso", "hathor", "heka", "amon", "sobek", "osiris"];
     const meio = { rng: () => 0.5 };
     let g = freshMatch([lista, lista], meio);
-    // Planta uma Mosca sozinha na Via 0 do lado A, já revelada.
+    // Planta uma Mosca sozinha na Via 0 do lado A, já revelada, na rodada 1.
     g.board.push({
       uid: nextUid(g), key: "token-mosca", owner: 0, lane: 0, revealed: true, dying: false,
       printed: 0, baked: 0, mods: [], entryPlays: 0, enteredRound: 1, moved: false, token: true,
@@ -134,8 +139,31 @@ describe("integração com a virada de rodada", () => {
     g = autoReveal(g, meio).state;
     g = applyAction(g, { t: "nextRound" }, meio).state;
     const mosca = g.board.find((c) => c.key === "token-mosca");
-    expect(power(mosca, ctxOf(g))).toBe(-1);   // sozinha na via: comeu a si mesma
+    expect(power(mosca, ctxOf(g))).toBe(0);   // ainda não é fonte válida nesta virada
+  });
 
+  it("a partir da rodada seguinte, age sozinha no nextRound, e de novo na rodada depois dessa", () => {
+    const lista = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general",
+                   "colosso", "hathor", "heka", "amon", "sobek", "osiris"];
+    const meio = { rng: () => 0.5 };
+    let g = freshMatch([lista, lista], meio);
+    g.board.push({
+      uid: nextUid(g), key: "token-mosca", owner: 0, lane: 0, revealed: true, dying: false,
+      printed: 0, baked: 0, mods: [], entryPlays: 0, enteredRound: 1, moved: false, token: true,
+    });
+    // Rodada 1 (entrada): não conta, como provado no teste acima.
+    g = applyAction(g, { t: "startReveal" }, meio).state;
+    g = autoReveal(g, meio).state;
+    g = applyAction(g, { t: "nextRound" }, meio).state;
+
+    // Rodada 2: primeira em que a Mosca é fonte válida — sozinha na via, come a si mesma.
+    g = applyAction(g, { t: "startReveal" }, meio).state;
+    g = autoReveal(g, meio).state;
+    g = applyAction(g, { t: "nextRound" }, meio).state;
+    const mosca = g.board.find((c) => c.key === "token-mosca");
+    expect(power(mosca, ctxOf(g))).toBe(-1);
+
+    // Rodada 3: age de novo.
     g = applyAction(g, { t: "startReveal" }, meio).state;
     g = autoReveal(g, meio).state;
     g = applyAction(g, { t: "nextRound" }, meio).state;

@@ -165,7 +165,7 @@ function drawForRound(s) {
    Roda no `nextRound`, ANTES de a rodada virar — inclusive na rodada 6, onde
    resolve logo antes da apuração e portanto CONTA no placar final.
 
-   Duas decisões que valem a leitura:
+   Três decisões que valem a leitura:
 
    1. A lista de fontes é uma FOTOGRAFIA tirada antes de resolver qualquer uma.
       É isso que impede que uma Mosca criada pelo Servo Coberto de Mel neste
@@ -177,11 +177,19 @@ function drawForRound(s) {
       "cartas inimigas que revelarem nesta via não disparam Ao Entrar" — e Fim
       de Rodada não é entrada: a carta já está em jogo há uma rodada inteira.
 
-   A ordem é a do tabuleiro, que é a ordem de colocação: determinística, e a
-   mesma que a fila de revelação já usa. */
+   3. `enteredRound < s.round` filtra a própria fonte, não só as que ela cria.
+      Sem isso, o Servo Coberto de Mel (ou qualquer futura carta com Fim de
+      Rodada) dispararia na MESMA rodada em que foi colocado — a rodada de
+      abertura não teve chance de ninguém "ficar parado" na via, e mesmo assim
+      já puniria um lado. A regra 1 já garantia isso para fontes CRIADAS
+      durante a fase (a Mosca nova não está na fotografia); esta linha estende
+      a mesma garantia para fontes colocadas normalmente pelo jogador — os
+      dois caminhos de entrada passam a esperar uma rodada inteira antes de
+      agir, que é o mesmo idioma que `enteredRound >= round` já usa em outros
+      lugares do motor (mover, ativar) para "carta boa demais para agir já". */
 function resolverFimDeRodada(s, rng) {
   const fontes = s.board
-    .filter((c) => emJogo(c) && temEfeitoDeFase(byKey[c.key], "endRound"))
+    .filter((c) => emJogo(c) && c.enteredRound < s.round && temEfeitoDeFase(byKey[c.key], "endRound"))
     .map((c) => c.uid);
   for (const uid of fontes) {
     const card = s.board.find((c) => c.uid === uid);
