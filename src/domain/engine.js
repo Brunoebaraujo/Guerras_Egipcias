@@ -348,10 +348,11 @@ export const TOKENS = [
     trigger: "fim", efeitos: [{ id: "endRoundCurseLane", value: -1 }],
     texto: "Fim da Rodada: -1 de Poder permanente a uma carta aleatória desta via, de qualquer lado — a própria Mosca inclusive.",
     lore: "O enxame da quarta praga não devorava nem picava — apenas estava em toda parte, num zumbido que não deixava pensar. O Egito aprendeu que atrapalhar basta." },
-  /* Fichas do arquétipo Animal. Custo 0, e não 1 como as duas de cima: as fichas
-     das Pragas foram feitas alcançáveis pela Sekhmet de propósito, mas estas são
-     o corpo barato de um arquétipo que JÁ é vulnerável à Peste nos Animais e a
-     todo efeito de via. Somar a Sekhmet a isso seria cobrar duas vezes. */
+  /* Ficha do Ganso Doméstico. Custo 0: a arma dele já é o cerco de vias e a
+     invocação em massa, e é o corpo barato de um arquétipo que JÁ é vulnerável
+     à Peste nos Animais e a todo efeito de via. Somar a Sekhmet a isso seria
+     cobrar duas vezes — diferente da Cabra, cujo custo 1 é proposital (ver
+     abaixo). */
   { key: "token-ganso", nome: "Ganso Doméstico", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true, arte: "token-ganso",
     lore: "Ganso do Nilo nunca aparece sozinho nas pinturas: vem sempre em fila, e a fila é o ponto." },
   /* Ficha do Enxame. Custo 1, e não 0 como as duas acima: estas nascem com o
@@ -361,7 +362,11 @@ export const TOKENS = [
   { key: "token-gafanhoto", nome: "Gafanhoto", tipo: "Guerreiro · Animal", tipos: ["Guerreiro", "Animal"],
     custo: 3, poder: 2, arch: "crescimento", token: true, arte: "token-gafanhoto",
     lore: "Um gafanhoto sozinho é insignificante, e foi por isso que ninguém contou o primeiro. Quando se contou o milésimo, já não havia o que colher." },
-  { key: "token-cabra", nome: "Cabra", tipo: "Animal", custo: 0, poder: 1, arch: "animal", token: true, arte: "token-cabra",
+  /* Fichas do Rebanho de Cabras. Custo 1, não 0: precisam ser alcançáveis pela
+     Sekhmet (que varre por custo) e elegíveis à bênção da Nut (que abençoa
+     todo custo 1) como qualquer outra carta 1 de verdade — mesma razão da Rã
+     e da Mosca. */
+  { key: "token-cabra", nome: "Cabra", tipo: "Animal", custo: 1, poder: 1, arch: "animal", token: true, arte: "token-cabra",
     lore: "Uma cabra come o que houver, dá leite e não pede pasto. Vinte cabras são um patrimônio." },
 ];
 

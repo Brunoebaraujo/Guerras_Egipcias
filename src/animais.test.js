@@ -51,6 +51,8 @@ describe("identidade do arquétipo", () => {
     }
     expect(byKey["token-ganso"].poder).toBe(1);
     expect(byKey["token-cabra"].poder).toBe(1);
+    expect(byKey["token-ganso"].custo).toBe(0);
+    expect(byKey["token-cabra"].custo).toBe(1);   // alcançável pela Sekhmet e pela Nut
   });
 
   it("a ficha de Ganso NÃO invoca outro Ganso (sem geração infinita)", () => {
