@@ -378,7 +378,7 @@ describe("o eco se comporta como um Ao Entrar comum", () => {
     expect(r.awaiting).toBe(false);           // Hathor resolve sem mira
     const lanceiro = r.state.board.find((c) => c.key === "lanceiro");
     // Hathor ecoada pelo Ka seleciona aleatoriamente — neste caso, só há lanceiro
-    expect(pw(r.state, lanceiro)).toBe(4 + 3);  // 4 (base) + 3 (Hathor)
+    expect(pw(r.state, lanceiro)).toBe(5 + 3);  // 5 (base) + 3 (Hathor)
   });
 
   it("o eco alimenta a Renenutet como qualquer bênção permanente", () => {

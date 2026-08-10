@@ -81,15 +81,15 @@ describe("Lâmina de Oferenda — resolução", () => {
       run: ({ card }) => card.mods.push({ src: "Ao Entrar de teste", val: 5 }),
     }]);
 
-    // O +5 foi aplicado ANTES da morte: destroyedPower fotografa Poder 8, não 3.
-    expect(state.destroyedPower[0]).toBe(8);
+    // O +5 foi aplicado ANTES da morte: destroyedPower fotografa Poder 9, não 4.
+    expect(state.destroyedPower[0]).toBe(9);
     expect(vitima.dying).toBeTruthy();
     expect(state.deaths[0]).toBe(1);
 
     // rng=0 pega apenas o primeiro candidato do pool.
     expect(power(aliado1, ctxOf(state))).toBe(2); // servo (1) + 1
-    expect(power(aliado2, ctxOf(state))).toBe(4); // lanceiro (4) sem buff
-    expect(power(aliado3, ctxOf(state))).toBe(8); // guardareal (8) sem buff
+    expect(power(aliado2, ctxOf(state))).toBe(5); // lanceiro (5) sem buff
+    expect(power(aliado3, ctxOf(state))).toBe(9); // guardareal (9) sem buff
     expect(lamina.mods).toHaveLength(0);
     expect(lamina.aguardaSacrificio).toBe(false);
   });

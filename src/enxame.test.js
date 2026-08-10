@@ -127,7 +127,7 @@ describe("Enxame e Gafanhotos são Guerreiro e Animal", () => {
     const cabra = mk("cabra-nilo");
     s.board.push(cabra);
     resolveCabraDoNilo(s, cabra);
-    expect(pw(s, cabra)).toBe(4);                // 1 + Enxame + 2 fichas
+    expect(pw(s, cabra)).toBe(7);                // 1 + (Enxame + 2 fichas) × 2
   });
 
   it("continuam sendo Guerreiro: o Montu sozinho ainda vale", () => {

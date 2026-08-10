@@ -190,7 +190,7 @@ describe("Trevas sobre o Egito", () => {
     g = revelar(g);
     const m = g.board.find((c) => c.key === "moises");
     expect(m.pragasVistas).toEqual(["sangue"]);
-    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(13);
+    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(14);
   });
 });
 
@@ -201,10 +201,10 @@ describe("Úlceras no nextRound", () => {
   it("a carta ulcerada perde 1 de Poder a cada virada de rodada", () => {
     let g = mkMatch({ round: 2, phase: "revealed", board: [mk("colosso", { owner: 1, ulceras: true })] });
     g = applyAction(g, { t: "nextRound" }).state;
-    expect(power(g.board[0], ctxOf(g))).toBe(13);
+    expect(power(g.board[0], ctxOf(g))).toBe(14);
     g.phase = "revealed";
     g = applyAction(g, { t: "nextRound" }).state;
-    expect(power(g.board[0], ctxOf(g))).toBe(12);
+    expect(power(g.board[0], ctxOf(g))).toBe(13);
   });
 
   it("cobra -1 já no reveal e -1 de novo na rodada seguinte", () => {
@@ -213,9 +213,9 @@ describe("Úlceras no nextRound", () => {
     g = jogar(g, 0, h, 0);
     g = revelar(g);
     const alvo = g.board.find((c) => c.key === "colosso");
-    expect(power(alvo, ctxOf(g))).toBe(13);
+    expect(power(alvo, ctxOf(g))).toBe(14);
     g = applyAction(g, { t: "nextRound" }).state;
-    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(12);
+    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(13);
   });
 
   /* A razão de existir do tique imediato: na rodada 6 não há rodada seguinte,
@@ -225,7 +225,7 @@ describe("Úlceras no nextRound", () => {
     let g = mkMatch({ round: 6, hand: [[h], []], board: [mk("colosso", { owner: 1, lane: 0 })] });
     g = jogar(g, 0, h, 0);
     g = revelar(g);
-    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(13);
+    expect(power(g.board.find((c) => c.key === "colosso"), ctxOf(g))).toBe(14);
   });
 
   it("escreve o tique no log da partida", () => {

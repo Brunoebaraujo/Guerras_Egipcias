@@ -32,7 +32,7 @@ describe("a Mosca aplica exatamente um -1 por Fim da Rodada", () => {
     const s = mkState([mosca, alvo]);
     // pool = [mosca, alvo]; escolhe o índice 1
     resolveMosca(s, mosca, byKey["token-mosca"], escolhe(1, 2));
-    expect(power(alvo, ctxOf(s))).toBe(13);
+    expect(power(alvo, ctxOf(s))).toBe(14);
     expect(alvo.mods).toHaveLength(1);
   });
 
@@ -44,7 +44,7 @@ describe("a Mosca aplica exatamente um -1 por Fim da Rodada", () => {
     const noAlvo = escolhe(2, 3);   // pool = [m1, m2, alvo]
     resolveMosca(s, m1, byKey["token-mosca"], noAlvo);
     resolveMosca(s, m2, byKey["token-mosca"], noAlvo);
-    expect(power(alvo, ctxOf(s))).toBe(12);   // 14 − 1 − 1
+    expect(power(alvo, ctxOf(s))).toBe(13);   // 15 − 1 − 1
   });
 });
 
@@ -69,7 +69,7 @@ describe("a Mosca não distingue dono", () => {
     const aliado = mk("arqueiro", { owner: 0, lane: 2 });
     const s = mkState([mosca, aliado]);
     resolveMosca(s, mosca, byKey["token-mosca"], escolhe(1, 2));
-    expect(power(aliado, ctxOf(s))).toBe(2);   // 3 − 1
+    expect(power(aliado, ctxOf(s))).toBe(3);   // 4 − 1
   });
 
   it("não alcança outra via", () => {
@@ -77,7 +77,7 @@ describe("a Mosca não distingue dono", () => {
     const longe = mk("colosso", { owner: 1, lane: 2 });
     const s = mkState([mosca, longe]);
     resolveMosca(s, mosca, byKey["token-mosca"], escolhe(0, 1));
-    expect(power(longe, ctxOf(s))).toBe(14);
+    expect(power(longe, ctxOf(s))).toBe(15);
     expect(power(mosca, ctxOf(s))).toBe(-1);   // sobrou ela mesma
   });
 });
@@ -99,7 +99,7 @@ describe("regras gerais do motor continuam valendo", () => {
     const oculta = mk("colosso", { owner: 1, lane: 0, revealed: false });
     const s = mkState([mosca, oculta]);
     resolveMosca(s, mosca, byKey["token-mosca"], escolhe(0, 1));
-    expect(power(oculta, ctxOf(s))).toBe(14);
+    expect(power(oculta, ctxOf(s))).toBe(15);
     expect(power(mosca, ctxOf(s))).toBe(-1);
   });
 
@@ -111,7 +111,7 @@ describe("regras gerais do motor continuam valendo", () => {
     const abrigada = mk("colosso", { owner: 1, lane: 0 });
     const s = mkState([mosca, gato, abrigada]);
     resolveMosca(s, mosca, byKey["token-mosca"], escolhe(0, 1));
-    expect(power(abrigada, ctxOf(s))).toBe(14);
+    expect(power(abrigada, ctxOf(s))).toBe(15);
     expect(power(mosca, ctxOf(s))).toBe(-1);
   });
 });

@@ -64,7 +64,7 @@ describe("quem é elegível", () => {
   it("usa o Poder atual, não o impresso", () => {
     const p = mk("purificacao", { lane: 0 });
     const moscaBuffada = mk("token-mosca", { owner: 0, lane: 0, mods: [{ src: "Hathor", val: 2 }] });
-    const colossoPodre = mk("colosso", { owner: 0, lane: 1, mods: maldicao(14) });
+    const colossoPodre = mk("colosso", { owner: 0, lane: 1, mods: maldicao(15) });
     const s = mkState([p, moscaBuffada, colossoPodre]);
     resolvePurificacao(s, p, DEF, primeiro);
     expect(moscaBuffada.owner).toBe(0);
@@ -94,14 +94,14 @@ describe("a carta chega inteira", () => {
     const p = mk("purificacao", { lane: 0 });
     const carga = mk("arqueiro", {
       owner: 0, lane: 0, baked: 2, venenos: [1, 2],
-      mods: [{ src: "Hathor", val: 3 }, ...maldicao(8)],
+      mods: [{ src: "Hathor", val: 3 }, ...maldicao(9)],
     });
     const s = mkState([p, carga]);
     resolvePurificacao(s, p, DEF, primeiro);
     expect(carga.owner).toBe(1);
     expect(carga.baked).toBe(2);
     expect(carga.venenos).toEqual([1, 2]);
-    expect(power(carga, ctxOf(s))).toBe(0);   // 3 + 2 + 3 − 8
+    expect(power(carga, ctxOf(s))).toBe(0);   // 4 + 2 + 3 − 9
   });
 
   it("reancora entryPlays no contador do novo dono (a conta da Ammit)", () => {

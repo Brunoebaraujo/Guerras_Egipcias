@@ -51,7 +51,7 @@ describe("identidade do arquétipo", () => {
     }
     expect(byKey["token-ganso"].poder).toBe(1);
     expect(byKey["token-cabra"].poder).toBe(1);
-    expect(byKey["token-ganso"].custo).toBe(0);
+    expect(byKey["token-ganso"].custo).toBe(1);   // alcançável pela Sekhmet e pela Nut
     expect(byKey["token-cabra"].custo).toBe(1);   // alcançável pela Sekhmet e pela Nut
   });
 
@@ -93,11 +93,11 @@ describe("Cabra do Nilo", () => {
     expect(badge.kind).toBe("block");
   });
 
-  it("entra com outro Animal aliado na via: fica com 2", () => {
+  it("entra com outro Animal aliado na via: fica com 3", () => {
     const cabra = mk("cabra-nilo");
     const s = mkState([mk("cao"), cabra]);
     resolveCabraDoNilo(s, cabra);
-    expect(pw(s, cabra)).toBe(2);
+    expect(pw(s, cabra)).toBe(3);
   });
 
   it("Animal inimigo na via não conta", () => {
@@ -127,28 +127,28 @@ describe("Cabra do Nilo", () => {
     const s = mkState([cao, cabra]);
     resolveCabraDoNilo(s, cabra);
     destroyList(s, [cao]);
-    expect(pw(s, cabra)).toBe(2);
+    expect(pw(s, cabra)).toBe(3);
   });
 
   it("conta fichas como companhia", () => {
     const cabra = mk("cabra-nilo");
     const s = mkState([mk("token-cabra"), cabra]);
     resolveCabraDoNilo(s, cabra);
-    expect(pw(s, cabra)).toBe(2);
+    expect(pw(s, cabra)).toBe(3);
   });
 
-  it("escala: +1 para CADA Animal seu na via", () => {
+  it("escala: +2 para CADA Animal seu na via", () => {
     const cabra = mk("cabra-nilo");
     const s = mkState([mk("cao"), mk("cao"), mk("token-ganso"), cabra]);
     resolveCabraDoNilo(s, cabra);
-    expect(pw(s, cabra)).toBe(4);          // 1 impresso + 3 companheiros
+    expect(pw(s, cabra)).toBe(7);          // 1 impresso + 3 companheiros × 2
   });
 
-  it("teto natural do lado da via: três companheiros, +3", () => {
+  it("teto natural do lado da via: três companheiros, +6", () => {
     const cabra = mk("cabra-nilo");
     const s = mkState([...encher(0, 0, 3), cabra]);
     resolveCabraDoNilo(s, cabra);
-    expect(pw(s, cabra)).toBe(4);
+    expect(pw(s, cabra)).toBe(7);
   });
 
   it("a escala ignora Animais inimigos e de outras vias", () => {
@@ -161,7 +161,7 @@ describe("Cabra do Nilo", () => {
       cabra,
     ]);
     resolveCabraDoNilo(s, cabra);
-    expect(pw(s, cabra)).toBe(2);
+    expect(pw(s, cabra)).toBe(3);
   });
 
   it("o bônus congela: Animais que chegam depois não aumentam", () => {
@@ -169,7 +169,7 @@ describe("Cabra do Nilo", () => {
     const s = mkState([mk("cao"), cabra]);
     resolveCabraDoNilo(s, cabra);
     s.board.push(mk("cao"));
-    expect(pw(s, cabra)).toBe(2);
+    expect(pw(s, cabra)).toBe(3);
   });
 });
 
@@ -278,7 +278,7 @@ describe("Gato Egípcio", () => {
     const praga = mk("sangue", { owner: 0, lane: 0 });
     const s = mkState([gato, aliado, praga]);
     const badge = resolvePraga(s, praga, primeiro);
-    expect(pw(s, aliado)).toBe(14);      // intacto
+    expect(pw(s, aliado)).toBe(15);      // intacto
     expect(pw(s, gato)).toBe(2);
     expect(badge.kind).toBe("block");
   });
@@ -343,7 +343,7 @@ describe("Gato Egípcio", () => {
   it("dois Gatos na mesma via não somam nada além da própria proteção", () => {
     const s = mkState([mk("gato", { owner: 1 }), mk("gato", { owner: 1 }), mk("colosso", { owner: 1 })]);
     expect(laneProtegida(s.board, 1, 0)).toBe(true);
-    expect(pw(s, s.board[2])).toBe(14);
+    expect(pw(s, s.board[2])).toBe(15);
   });
 
   it("a mira inimiga é revalidada na resolução, e não só no realce", () => {
@@ -523,7 +523,7 @@ describe("Hiena do Deserto", () => {
 });
 
 /* ==========================================================================
-   Garça do Nilo — CONTÍNUA: +3 por via sua cheia, recontada a cada leitura
+   Garça do Nilo — CONTÍNUA: +2 por via sua cheia, recontada a cada leitura
    ========================================================================== */
 describe("Garça do Nilo", () => {
   // Monta a Garça na via 2 com `n` vias suas cheias. A via 2 usa a própria
@@ -541,40 +541,40 @@ describe("Garça do Nilo", () => {
     expect(pw(s, garca)).toBe(2);
   });
 
-  it("uma via cheia: fica com 5", () => {
+  it("uma via cheia: fica com 4", () => {
     const { s, garca } = comViasCheias(1);
-    expect(pw(s, garca)).toBe(5);
+    expect(pw(s, garca)).toBe(4);
   });
 
-  it("duas vias cheias: fica com 8", () => {
+  it("duas vias cheias: fica com 6", () => {
     const { s, garca } = comViasCheias(2);
-    expect(pw(s, garca)).toBe(8);
+    expect(pw(s, garca)).toBe(6);
   });
 
-  it("três vias cheias: fica com 11 — a própria Garça fecha a terceira", () => {
+  it("três vias cheias: fica com 8 — a própria Garça fecha a terceira", () => {
     const { s, garca } = comViasCheias(3);
     expect(contarViasCheias(s.board, 0)).toBe(3);
-    expect(pw(s, garca)).toBe(11);
+    expect(pw(s, garca)).toBe(8);
   });
 
   it("conta qualquer tipo de carta, não só Animais", () => {
     const garca = mk("garca", { lane: 2 });
     const s = mkState([...Array(4).fill(0).map(() => mk("carruagem", { lane: 0 })), garca]);
-    expect(pw(s, garca)).toBe(5);
+    expect(pw(s, garca)).toBe(4);
   });
 
   it("VIA CHEIA EM RODADA POSTERIOR: a Garça cresce sozinha", () => {
     const { s, garca } = comViasCheias(1);
-    expect(pw(s, garca)).toBe(5);
+    expect(pw(s, garca)).toBe(4);
     s.board.push(...encher(1, 0, 4));          // outra via fecha depois
-    expect(pw(s, garca)).toBe(8);
+    expect(pw(s, garca)).toBe(6);
     s.board.push(...encher(2, 0, 3));          // a via dela fecha por último (ela é a 4ª)
-    expect(pw(s, garca)).toBe(11);
+    expect(pw(s, garca)).toBe(8);
   });
 
   it("via esvaziada depois: o bônus recua junto", () => {
     const { s, garca } = comViasCheias(1);
-    expect(pw(s, garca)).toBe(5);
+    expect(pw(s, garca)).toBe(4);
     destroyList(s, [s.board.find((c) => c.lane === 0)]);
     expect(pw(s, garca)).toBe(2);
   });
@@ -582,7 +582,7 @@ describe("Garça do Nilo", () => {
   it("carta ainda oculta já ocupa o espaço e conta para a via cheia", () => {
     const garca = mk("garca", { lane: 2 });
     const s = mkState([...encher(0, 0, 3), mk("cao", { lane: 0, revealed: false }), garca]);
-    expect(pw(s, garca)).toBe(5);
+    expect(pw(s, garca)).toBe(4);
   });
 
   it("via cheia do INIMIGO não conta", () => {
@@ -605,13 +605,13 @@ describe("Garça do Nilo", () => {
   it("o Anúbis não apaga o bônus, porque não há bônus gravado para apagar", () => {
     const { s, garca } = comViasCheias(1);
     garca.judged = 2;
-    expect(pw(s, garca)).toBe(5);
+    expect(pw(s, garca)).toBe(4);
   });
 
   it("duas Garças na mesma via leem o mesmo tabuleiro", () => {
     const g1 = mk("garca", { lane: 2 }), g2 = mk("garca", { lane: 2 });
     const s = mkState([...encher(0, 0, 4), g1, g2]);
-    expect([pw(s, g1), pw(s, g2)]).toEqual([5, 5]);
+    expect([pw(s, g1), pw(s, g2)]).toEqual([4, 4]);
   });
 });
 
@@ -648,7 +648,7 @@ describe("Domador de Animais", () => {
   it("não fortalece Guerreiros, Divindades nem a si mesmo", () => {
     const s = mkState([mk("domador"), mk("carruagem"), mk("amon")]);
     expect(pw(s, s.board[0])).toBe(2 + 1);   // 2 impresso + 1 do Amon aliado
-    expect(pw(s, s.board[1])).toBe(6 + 1);
+    expect(pw(s, s.board[1])).toBe(7 + 1);
   });
 
   it("não fortalece Animais inimigos", () => {
@@ -676,13 +676,13 @@ describe("Domador de Animais", () => {
   it("Montu continua valendo só para Guerreiros e não toca em Animais", () => {
     const s = mkState([mk("montu"), mk("cao"), mk("carruagem")]);
     expect(pw(s, s.board[1])).toBe(1);
-    expect(pw(s, s.board[2])).toBe(8);
+    expect(pw(s, s.board[2])).toBe(9);
   });
 
   it("Domador e Montu convivem, cada um com a própria parcela nomeada", () => {
     const s = mkState([mk("domador"), mk("montu"), mk("cao"), mk("carruagem")]);
     expect(pw(s, s.board[2])).toBe(3);      // Animal: só o Domador
-    expect(pw(s, s.board[3])).toBe(8);      // Guerreiro: só o Montu
+    expect(pw(s, s.board[3])).toBe(9);      // Guerreiro: só o Montu
   });
 });
 
@@ -787,14 +787,14 @@ describe("arquétipo Animal na partida", () => {
     expect(s.board).toHaveLength(4);
   });
 
-  it("Cão + Cabra do Nilo na mesma via: a Cabra revela com 2", () => {
+  it("Cão + Cabra do Nilo na mesma via: a Cabra revela com 3", () => {
     let s = jogar(["cao", "cabra-nilo"]);
     s = applyAction(s, { t: "place", side: 0, hid: s.hand[0][0].hid, lane: 0 }).state;
     s = applyAction(s, { t: "place", side: 0, hid: s.hand[0][0].hid, lane: 0 }).state;
     s = applyAction(s, { t: "startReveal" }).state;
     s = revelar(s);
     const cabra = s.board.find((c) => c.key === "cabra-nilo");
-    expect(power(cabra, ctxOf(s))).toBe(2);
+    expect(power(cabra, ctxOf(s))).toBe(3);
   });
 
   it("o Selo do Silêncio bloqueia o Ao Entrar do Ápis", () => {

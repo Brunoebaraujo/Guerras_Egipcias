@@ -66,11 +66,11 @@ describe("consumirCarta() — saída de campo sem morte", () => {
 
   it("compara com destroyList(): a MESMA carta destruída alimenta os dois", () => {
     const osiris = mk("osiris"), amheh = mk("amheh", { lane: 2 });
-    const vitima = mk("arqueiro", { lane: 1 });            // 3 de Poder
+    const vitima = mk("arqueiro", { lane: 1 });            // 4 de Poder
     const s = mkState([osiris, amheh, vitima]);
     destroyList(s, [vitima]);
     expect(s.deaths[0]).toBe(1);
-    expect(s.destroyedPower[0]).toBe(3);
+    expect(s.destroyedPower[0]).toBe(4);
     expect(power(osiris, ctxOf(s))).toBe(6);               // 4 + 2×1 morte
   });
 
@@ -91,7 +91,7 @@ describe("consumirCarta() — saída de campo sem morte", () => {
   it("carta consumida não pontua mais na via", () => {
     const c = mk("colosso");
     const s = mkState([c]);
-    expect(laneScore(ctxOf(s), 0, 0)).toBe(14);
+    expect(laneScore(ctxOf(s), 0, 0)).toBe(15);
     consumirCarta(s, c);
     expect(laneScore(ctxOf(s), 0, 0)).toBe(0);
   });

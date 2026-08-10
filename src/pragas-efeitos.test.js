@@ -28,7 +28,7 @@ describe("Águas em Sangue", () => {
     const c = mk("colosso", { owner: 1, lane: 2 });
     const s = mkState([praga, a, b, c]);
     resolvePraga(s, praga, primeiro);
-    for (const v of [a, b, c]) expect(power(v, ctxOf(s))).toBe(13);
+    for (const v of [a, b, c]) expect(power(v, ctxOf(s))).toBe(14);
   });
 
   it("via inimiga vazia não desperdiça o efeito das outras", () => {
@@ -36,7 +36,7 @@ describe("Águas em Sangue", () => {
     const a = mk("colosso", { owner: 1, lane: 0 });
     const s = mkState([praga, a]);
     const badge = resolvePraga(s, praga, primeiro);
-    expect(power(a, ctxOf(s))).toBe(13);
+    expect(power(a, ctxOf(s))).toBe(14);
     expect(badge.text).toContain("×1");
   });
 
@@ -45,7 +45,7 @@ describe("Águas em Sangue", () => {
     const cheia = [0, 1, 2, 3].map(() => mk("colosso", { owner: 1, lane: 0 }));
     const s = mkState([praga, ...cheia]);
     resolvePraga(s, praga, primeiro);
-    const feridas = cheia.filter((c) => power(c, ctxOf(s)) === 13);
+    const feridas = cheia.filter((c) => power(c, ctxOf(s)) === 14);
     expect(feridas).toHaveLength(1);
   });
 
@@ -54,7 +54,7 @@ describe("Águas em Sangue", () => {
     const aliado = mk("colosso", { owner: 0, lane: 1 });
     const s = mkState([praga, aliado]);
     resolvePraga(s, praga, primeiro);
-    expect(power(aliado, ctxOf(s))).toBe(14);
+    expect(power(aliado, ctxOf(s))).toBe(15);
   });
 
   it("sem carta inimiga alguma, devolve badge de bloqueio", () => {
@@ -88,8 +88,8 @@ describe("Nuvem de Gafanhotos", () => {
     const b = mk("colosso", { owner: 1, lane: 2 });
     const s = mkState([praga, a, b]);
     resolvePraga(s, praga, primeiro);
-    expect(power(a, ctxOf(s))).toBe(12);
-    expect(power(b, ctxOf(s))).toBe(12);
+    expect(power(a, ctxOf(s))).toBe(13);
+    expect(power(b, ctxOf(s))).toBe(13);
   });
 
   it("pode levar uma carta a Poder negativo", () => {
@@ -439,7 +439,7 @@ describe("Praga das Úlceras", () => {
     const alvo = mk("colosso", { owner: 1, lane: 0 });
     const s = mkState([praga, alvo]);
     resolvePraga(s, praga, primeiro);
-    expect(power(alvo, ctxOf(s))).toBe(13);
+    expect(power(alvo, ctxOf(s))).toBe(14);
   });
 
   it("o tique imediato soma com os de início de rodada", () => {
@@ -449,17 +449,17 @@ describe("Praga das Úlceras", () => {
     resolvePraga(s, praga, primeiro);   // -1 imediato
     aplicarUlceras(s);                  // -1 na rodada seguinte
     aplicarUlceras(s);                  // -1 na outra
-    expect(power(alvo, ctxOf(s))).toBe(11);
+    expect(power(alvo, ctxOf(s))).toBe(12);
   });
 
   it("cada início de rodada cobra -1, e o dano acumula", () => {
     const alvo = mk("colosso", { owner: 1, ulceras: true });
     const s = mkState([alvo]);
     aplicarUlceras(s);
-    expect(power(alvo, ctxOf(s))).toBe(13);
+    expect(power(alvo, ctxOf(s))).toBe(14);
     aplicarUlceras(s);
     aplicarUlceras(s);
-    expect(power(alvo, ctxOf(s))).toBe(11);
+    expect(power(alvo, ctxOf(s))).toBe(12);
   });
 
   it("carta que saiu do campo para de apodrecer", () => {
@@ -486,7 +486,7 @@ describe("Praga das Úlceras", () => {
     aplicarUlceras(s);
     // -1 do tique imediato da PRIMEIRA + -1 do início de rodada. A segunda
     // Praga não somou nada: nem marca nova, nem tique imediato.
-    expect(power(alvo, ctxOf(s))).toBe(12);
+    expect(power(alvo, ctxOf(s))).toBe(13);
   });
 
   it("via inimiga vazia: bloqueio", () => {

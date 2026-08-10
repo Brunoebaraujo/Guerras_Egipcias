@@ -23,7 +23,7 @@ beforeEach(resetUid);
 describe("power()", () => {
   it("carta base vale o poder impresso", () => {
     const s = mkState([mk("colosso")]);
-    expect(power(s.board[0], ctxOf(s))).toBe(14);
+    expect(power(s.board[0], ctxOf(s))).toBe(15);
   });
 
   it("Amon dá +1 às outras cartas do MESMO lado, em todas as vias, e não a si", () => {
@@ -38,7 +38,7 @@ describe("power()", () => {
 
   it("Montu dá +2 apenas a Guerreiros do dono", () => {
     const s = mkState([mk("montu"), mk("carruagem"), mk("hathor")]);
-    expect(power(s.board[1], ctxOf(s))).toBe(8);      // 6 + 2
+    expect(power(s.board[1], ctxOf(s))).toBe(9);      // 7 + 2
     expect(power(s.board[2], ctxOf(s))).toBe(3);      // Divindade: sem buff
   });
 
@@ -63,7 +63,7 @@ describe("power()", () => {
 
   it("cartas com dying não contam no placar da via", () => {
     const s = mkState([mk("colosso"), mk("servo", { dying: 1 })]);
-    expect(laneScore(ctxOf(s), 0, 0)).toBe(14);
+    expect(laneScore(ctxOf(s), 0, 0)).toBe(15);
   });
 });
 
@@ -169,9 +169,9 @@ describe("Sobek", () => {
 describe("Apófis / Dilúvio", () => {
   it("Apófis absorve o poder total das vítimas", () => {
     const apofis = mk("apofis");
-    const s = mkState([apofis, mk("carruagem"), mk("servo")]);         // 6 + 1
+    const s = mkState([apofis, mk("carruagem"), mk("servo")]);         // 7 + 1
     resolveDestroyOwnLane(s, apofis, true);
-    expect(power(apofis, ctxOf(s))).toBe(10);                          // 3 + 7
+    expect(power(apofis, ctxOf(s))).toBe(11);                          // 3 + 8
   });
 
   // O Dilúvio deixou de ser sacrifício da própria via: virou afogamento por
@@ -407,7 +407,7 @@ describe("Heka — buff da próxima carta revelada", () => {
     resolveHeka(s, h2);                                              // h2 reserva +3
     s.queue = [];
     expect(applyPendingBuff(s, w)).toBe(3);
-    expect(power(w, ctxOf(s))).toBe(9);                            // 6 + 3
+    expect(power(w, ctxOf(s))).toBe(10);                            // 7 + 3
   });
 
   it("Heka -> Enxame cross-via: o +3 propaga para as cópias", () => {
@@ -629,7 +629,7 @@ describe("Anúbis (julgamento: nivela ao menor base)", () => {
     resolveAnubis(s, anubis);
     const tardia = mk("general", { lane: 0 });   // entra depois
     s.board.push(tardia);
-    expect(P(tardia, ctxOf(s))).toBe(10);        // intacta
+    expect(P(tardia, ctxOf(s))).toBe(11);        // intacta
   });
 });
 
@@ -649,17 +649,17 @@ describe("matchResult() — vencedor e desempate por saldo de pontos", () => {
   });
 
   it("empate de vias (1x1) é decidido pela MAIOR diferença de pontos", () => {
-    // via 0: B vence por 28 | via 1: empate 14x14 | via 2: A vence por 14
-    // vias 1x1 -> saldo A=28, B=42 -> B vence por 14
+    // via 0: B vence por 30 | via 1: empate 15x15 | via 2: A vence por 15
+    // vias 1x1 -> saldo A=30, B=45 -> B vence por 15
     const s = mkState([
-      mk("colosso", { owner: 1, lane: 0 }), mk("colosso", { owner: 1, lane: 0 }), // B 28
+      mk("colosso", { owner: 1, lane: 0 }), mk("colosso", { owner: 1, lane: 0 }), // B 30
       mk("colosso", { owner: 0, lane: 1 }), mk("colosso", { owner: 1, lane: 1 }), // empate
-      mk("colosso", { owner: 0, lane: 2 }), // A 14
+      mk("colosso", { owner: 0, lane: 2 }), // A 15
     ]);
     const r = matchResult(s);
     expect(r.side).toBe(1);
     expect(r.tiebreak).toBe(true);
-    expect(r.margin).toBe(14);
+    expect(r.margin).toBe(15);
   });
 
   it("empate real: mesmas vias e mesmo saldo", () => {
@@ -678,23 +678,23 @@ describe("matchResult() — vencedor e desempate por saldo de pontos", () => {
 describe("Am-heh, o Devorador de Milhões", () => {
   it("absorve o Poder real de cada carta destruída (0 base + soma)", () => {
     const amheh = mk("amheh", { owner: 0, lane: 0 });
-    const alvo5 = mk("guardareal", { owner: 1, lane: 1 }); // P8 impresso... usamos um P5
+    const alvo5 = mk("guardareal", { owner: 1, lane: 1 }); // P9 impresso
     const s = mkState([amheh, alvo5]);
     expect(power(amheh, ctxOf(s))).toBe(0); // nada destruído ainda
     destroyList(s, [alvo5]);
-    // guardareal é P8 → Am-heh deve valer 0 + 8
-    expect(power(amheh, ctxOf(s))).toBe(8);
+    // guardareal é P9 → Am-heh deve valer 0 + 9
+    expect(power(amheh, ctxOf(s))).toBe(9);
   });
 
   it("soma acumula de vários lados e é mais forte que o Osíris", () => {
     const amheh = mk("amheh", { owner: 0, lane: 0 });
     const osiris = mk("osiris", { owner: 0, lane: 2 });
-    const a = mk("colosso", { owner: 1, lane: 1 }); // P14
+    const a = mk("colosso", { owner: 1, lane: 1 }); // P15
     const b = mk("servo", { owner: 0, lane: 1 });    // P1
     const s = mkState([amheh, osiris, a, b]);
     destroyList(s, [a, b]);
-    // Am-heh: 14 + 1 = 15 ; Osíris: 4 + 2*2 mortes = 8
-    expect(power(amheh, ctxOf(s))).toBe(15);
+    // Am-heh: 15 + 1 = 16 ; Osíris: 4 + 2*2 mortes = 8
+    expect(power(amheh, ctxOf(s))).toBe(16);
     expect(power(osiris, ctxOf(s))).toBe(8);
     expect(power(amheh, ctxOf(s))).toBeGreaterThan(power(osiris, ctxOf(s)));
   });
