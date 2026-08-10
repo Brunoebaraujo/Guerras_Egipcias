@@ -48,6 +48,7 @@ export const SILENCIO_DEUSES = {
   poder: 3,
   arch: "silencio",
   arte: "silencio-deuses",
+  arteFoco: "center 0%",
   trigger: "continuo",
   efeitos: [{ id: "suppressAuraInLane" }],
   texto: "Enquanto estiver nesta Via, todas as OUTRAS cartas aqui têm seus efeitos de Aura suprimidos — inclusive Auras que alcançam outras vias a partir daqui.",
