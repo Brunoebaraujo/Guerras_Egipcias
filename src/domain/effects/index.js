@@ -8,12 +8,14 @@ import {
   resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao, resolveBlessAllCostOne,
 } from "../engine.js";
 import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
+import { registrarTechCards } from "../cards/tech-cards.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
    registry é carregado pelo match e pelo validador de coleção, CARDS e byKey
    recebem a definição antes de qualquer partida ou validação. */
 registrarLaminaOferenda(CARDS, byKey);
+registrarTechCards(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -206,6 +208,11 @@ for (const [id, phase] of [
   ["spreadBlessingOnReceive", "reaction"],
   ["activateTransferPower", "activated"],
   ["resolvePlague", "enter"],
+  // Tech cards — nenhuma delas resolve nada no momento em que entra; o
+  // comportamento é lido a cada leitura de Poder, via `auraSuprimida()` e
+  // `debuffsSuspensosPara()` em engine.js. Ver src/domain/cards/tech-cards.js.
+  ["suspendPowerDebuffs", "continuous"],
+  ["suppressAuraInLane", "continuous"],
 ]) {
   registerEffect(id, { phase, resolver: () => null });
 }

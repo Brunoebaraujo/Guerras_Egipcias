@@ -602,6 +602,36 @@ export function podeSerAlvo(board, alvo, fonte, { ignoraDono = false } = {}) {
 export const laneHasMaat = (board, lane) =>
   board.some((c) => c.lane === lane && cartaTemEfeito(c, "resetLaneToPrinted") && c.revealed && !c.dying);
 
+/* --------------------- SUPRESSÃO DE AURA (Silêncio dos Deuses) -------------
+   Uma Aura (Amon, hinos de tipo) nasce de uma carta-FONTE. Se QUALQUER OUTRA
+   carta na mesma via da fonte carregar `suppressAuraInLane` (Silêncio dos
+   Deuses), revelada e viva, a Aura inteira daquela fonte desliga — para
+   TODOS os alvos dela, mesmo em outras vias. A checagem é sobre onde a fonte
+   está fisicamente, não sobre quem recebe o bônus: por isso um Amon na Via 2
+   fica mudo mesmo abençoando cartas nas Vias 1 e 3.
+
+   Dois Silêncios na mesma via não acumulam nem se cancelam entre si: `.some`
+   já trata presença como booleana, então 1 ou 2 fontes têm o mesmo efeito, e
+   só quando NENHUMA restar a Aura volta a valer. Silêncio nunca suprime a si
+   mesmo — ele não gera Aura, então nunca aparece como `fonte` aqui; e mesmo
+   que um dia ganhasse uma, `c.uid !== fonte.uid` já bastaria (é a regra de
+   "outras cartas" do próprio texto).
+
+   Qualquer fonte de Aura nova passa a respeitar isto automaticamente contanto
+   que o handler dela chame `auraSuprimida(board, fonte)` antes de contar sua
+   contribuição — não há lista de cartas hardcoded em lugar nenhum. */
+export const auraSuprimida = (board, fonte) =>
+  board.some((c) => c.uid !== fonte.uid && c.lane === fonte.lane && emJogo(c) && cartaTemEfeito(c, "suppressAuraInLane"));
+
+/* --------------------- SUSPENSÃO DE DEBUFF (Olho de Hórus) -----------------
+   `true` quando o DONO tem em jogo pelo menos um Olho de Hórus Restaurador
+   com a própria Aura ATIVA (isto é, não suprimida por um Silêncio na via
+   dele — daí reusar `auraSuprimida` aqui: o Olho também é fonte de Aura).
+   Não remove nem recalcula os mods negativos de ninguém; só informa a
+   decomporPartes() se eles devem ou não entrar na soma naquela leitura. */
+export const debuffsSuspensosPara = (board, owner) =>
+  board.some((c) => c.owner === owner && emJogo(c) && cartaTemEfeito(c, "suspendPowerDebuffs") && !auraSuprimida(board, c));
+
 /* HINOS — auras contínuas que fortalecem um TIPO inteiro do próprio dono.
    Montu (+2 aos Guerreiros) era um caso especial escrito à mão; o Domador de
    Animais (+1 aos Animais) tem a mesma forma, então a forma virou regra: quem
@@ -618,6 +648,7 @@ export function hinosPara(board, card) {
     const d = byKey[c.key];
     const anthem = efeitoDe(d, "anthemType");
     if (!anthem || !temTipo(card, anthem.type)) continue;
+    if (auraSuprimida(board, c)) continue;
     soma.set(d.nome, (soma.get(d.nome) || 0) + anthem.value);
   }
   return [...soma].map(([label, val]) => ({ label, val }));
@@ -638,8 +669,20 @@ export function decomporPartes(card, ctx) {
   if (card.baked) partes.push({ label: "Faixa acumulada", val: card.baked, tipo: "acumulado" });
   // Buffs permanentes gravados ANTES do julgamento foram apagados; só sobrevivem
   // os mods marcados apos o julgamento (nao ha, hoje) — auras entram abaixo.
-  for (const m of card.mods)
-    partes.push({ label: m.src, val: m.val, tipo: m.inert ? "inerte" : m.val > 0 ? "bencao" : "maldicao" });
+  // Olho de Hórus Restaurador: enquanto ativo, mods NEGATIVOS (debuffs de
+  // Poder) do dono ficam de fora da soma, mas continuam em `card.mods` — não
+  // são removidos nem recriados, só não contam nesta leitura. `origVal`
+  // preserva o valor real para a UI mostrar o que está suspenso.
+  const debuffsSuspensos = debuffsSuspensosPara(board, card.owner);
+  for (const m of card.mods) {
+    const suspenso = debuffsSuspensos && m.val < 0;
+    partes.push({
+      label: m.src,
+      val: suspenso ? 0 : m.val,
+      tipo: m.inert ? "inerte" : suspenso ? "suspenso" : m.val > 0 ? "bencao" : "maldicao",
+      ...(suspenso ? { origVal: m.val } : {}),
+    });
+  }
 
   partes.push(...collectEvent("continuousPower", { card, ctx }));
   return partes;
@@ -2001,7 +2044,9 @@ registerEventHandler("continuousPower", {
   handle: ({ card, ctx }) => {
     const value = ctx.board.reduce((total, source) => {
       const effect = efeitoDe(byKey[source.key], "auraAllOtherAllies");
-      return total + (source.owner === card.owner && source.revealed && !source.dying && source.uid !== card.uid ? effect?.value || 0 : 0);
+      if (!effect || source.owner !== card.owner || !source.revealed || source.dying || source.uid === card.uid) return total;
+      if (auraSuprimida(ctx.board, source)) return total;
+      return total + effect.value;
     }, 0);
     return value ? { label: "Amon", val: value, tipo: "continuo" } : null;
   },

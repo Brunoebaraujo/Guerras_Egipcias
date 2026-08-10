@@ -303,7 +303,7 @@ export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, bad
 const PART_COLOR = {
   base: "text-stone-300", acumulado: "text-amber-300", bencao: "text-emerald-300",
   inerte: "text-emerald-400/70", maldicao: "text-rose-300", continuo: "text-sky-300",
-  maat: "text-yellow-300", julgado: "text-yellow-300",
+  maat: "text-yellow-300", julgado: "text-yellow-300", suspenso: "text-stone-500 line-through",
 };
 
 export function ZoomModal({ zoom, onClose, onToggleActivate }) {
@@ -343,10 +343,12 @@ export function ZoomModal({ zoom, onClose, onToggleActivate }) {
               {partes.map((p, i) => (
                 <div key={i} className="flex justify-between gap-3 text-xs leading-5">
                   <span className={PART_COLOR[p.tipo]}>
-                    {p.label}{p.tipo === "continuo" ? " · contínuo" : p.tipo === "inerte" ? " · inerte" : ""}
+                    {p.label}{p.tipo === "continuo" ? " · contínuo" : p.tipo === "inerte" ? " · inerte" : p.tipo === "suspenso" ? " · suspenso" : ""}
                   </span>
                   <span className={`tabular-nums ${PART_COLOR[p.tipo]}`}>
-                    {p.tipo === "base" || p.tipo === "maat" ? p.val || "" : `${p.val > 0 ? "+" : ""}${p.val}`}
+                    {p.tipo === "base" || p.tipo === "maat" ? p.val || ""
+                      : p.tipo === "suspenso" ? `(${p.origVal > 0 ? "+" : ""}${p.origVal})`
+                      : `${p.val > 0 ? "+" : ""}${p.val}`}
                   </span>
                 </div>
               ))}
