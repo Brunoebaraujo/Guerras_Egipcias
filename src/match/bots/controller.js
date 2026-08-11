@@ -1,5 +1,5 @@
 /* ==========================================================================
-   BOTS — controlador (Onda 1: fundação).
+   BOTS — controlador.
 
    Fica em `match/`, não em `domain/`, porque é o único lugar que compõe uma
    função de decisão (domain/bots) com `applyAction` (o maestro puro da

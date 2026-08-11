@@ -1,20 +1,23 @@
 // @ts-check
 /* ==========================================================================
-   BOTS — camada de DECISÃO (Onda 1: fundação).
+   BOTS — camada de DECISÃO.
 
    Puro por convenção, igual a `domain/` e `match/`: nenhuma função aqui toca
    o navegador (APIs de storage ou globais de DOM), nem importa React. Uma
    função de decisão recebe uma fatia do estado da partida e devolve UMA ação
-   (`{ t: "place", ... }` etc.)
-   ou `null` quando não há mais nada de bom a fazer nesta rodada — nunca aplica
-   a ação, isso é responsabilidade de quem orquestra (`match/bots/controller.js`).
+   (`{ t: "place", ... }` etc.) ou `null` quando não há mais nada de bom a
+   fazer nesta rodada — nunca aplica a ação, isso é responsabilidade de quem
+   orquestra (`match/bots/controller.js`).
 
-   Esta primeira leva só tem `decideRandomPlacement`: um bot que joga cartas
-   legais ao acaso, sem olhar sinergia nem via. Serve para validar o encaixe
-   com o loop de `match/index.js` (Onda 1). Fácil de verdade (heurística de
-   curva/custo), Médio (avaliação de tabuleiro) e Difícil (busca + adaptação)
-   entram nas ondas seguintes, cada um como uma nova função aqui — o
-   `controller.js` e o registro em `index.js` não precisam mudar.
+   `decideRandomPlacement` (Onda 1) validou o encaixe com o loop de
+   `match/index.js` e continua aqui como referência/bloco de construção.
+   `decideFacil` (Onda 2) é o nível Fácil de verdade: sem lookahead, sem
+   sinergia, sem preferência de via — só gasta a energia jogando sempre a
+   carta mais cara que cabe, que é o comportamento mais previsível (e mais
+   fácil de vencer) que dá pra descrever sem simular jogada nenhuma. Médio
+   (avaliação de tabuleiro) e Difícil (busca + adaptação) entram nas ondas
+   seguintes, cada um como uma nova função aqui — `controller.js` e o
+   registro em `index.js` não precisam mudar.
    ========================================================================== */
 import { byKey, custoDe, viaCheia } from "../engine.js";
 import { LANES } from "../rules.js";
@@ -61,9 +64,36 @@ export function decideRandomPlacement({ state, side, rng }) {
   return { t: "place", side, hid: escolha.hid, lane: escolha.lane };
 }
 
+/**
+ * Decisão do nível FÁCIL: entre as jogadas legais, prioriza sempre a carta de
+ * MAIOR custo que a energia disponível ainda paga — o viés mais simples de
+ * descrever sem simular jogada nenhuma ("gasta o máximo que puder, sem
+ * pensar em mais nada"). Empates (mesmo custo, cartas diferentes ou vias
+ * diferentes da mesma carta) são resolvidos ao acaso — o nível Fácil não
+ * escolhe via de propósito nenhum, e não compara cartas de mesmo custo entre
+ * si (isso é o que separa Fácil de Médio: aqui não há avaliação de
+ * tabuleiro).
+ *
+ * Chamado repetidamente pelo controller: a cada jogada a energia cai, então
+ * o loop natural já produz "joga a mais cara, depois a próxima mais cara que
+ * ainda cabe" até a mão ou a energia acabarem.
+ *
+ * @param {{ state: *, side: 0|1, rng: () => number }} args
+ * @returns {{ t: "place", side: 0|1, hid: number, lane: number } | null}
+ */
+export function decideFacil({ state, side, rng }) {
+  const opcoes = legalPlacements(state, side);
+  if (opcoes.length === 0) return null;
+  const maxCusto = Math.max(...opcoes.map((o) => o.custo));
+  const melhores = opcoes.filter((o) => o.custo === maxCusto);
+  const escolha = melhores[Math.floor(rng() * melhores.length)];
+  return { t: "place", side, hid: escolha.hid, lane: escolha.lane };
+}
+
 // Reexportado por conveniência de quem só quer o texto da carta escolhida em
 // log/telemetria (ex.: debug do controller).
 export const nomeDaMao = (state, side, hid) => {
   const h = (state.hand?.[side] || []).find((x) => x.hid === hid);
   return h ? byKey[h.key]?.nome : undefined;
 };
+

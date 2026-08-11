@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyAction, autoReveal, freshMatch } from "./match.js";
-import { decideRandomPlacement, legalPlacements } from "./domain/bots/decide.js";
+import { byKey, custoDe } from "./engine.js";
+import { decideFacil, decideRandomPlacement, legalPlacements } from "./domain/bots/decide.js";
 import { runBotPlanning } from "./match/bots/controller.js";
 import { createRng } from "./domain/rng.js";
 import { BOT_LEVELS, BOT_LEVEL_ORDER } from "./domain/bots/index.js";
@@ -34,6 +35,52 @@ describe("domain/bots/decide — legalidade", () => {
     state.energy = [0, 0]; // simula rodada sem energia — cartas custam >0
     const action = decideRandomPlacement({ state, side: 0, rng: createRng("x") });
     expect(action).toBeNull();
+  });
+});
+
+describe("domain/bots/decide — decideFacil (nível Fácil de verdade)", () => {
+  it("prioriza sempre a jogada de maior custo entre as legais", () => {
+    const state = freshMatch([deckA, deckB], { seed: "bots-facil-1" });
+    const action = decideFacil({ state, side: 0, rng: createRng("bots-facil-1") });
+    expect(action).not.toBeNull();
+    const opcoes = legalPlacements(state, 0);
+    const maxCusto = Math.max(...opcoes.map((o) => o.custo));
+    const h = state.hand[0].find((x) => x.hid === action.hid);
+    expect(custoDe(h)).toBe(maxCusto);
+  });
+
+  it("devolve uma ação que applyAction sempre aceita", () => {
+    const state = freshMatch([deckA, deckB], { seed: "bots-facil-2" });
+    const action = decideFacil({ state, side: 1, rng: createRng("bots-facil-2") });
+    const r = applyAction(state, action);
+    expect(r.error).toBeUndefined();
+  });
+
+  it("devolve null quando não há jogada legal (mesmo critério de legalPlacements)", () => {
+    const state = freshMatch([deckA, deckB], { seed: "bots-facil-3" });
+    state.energy = [0, 0];
+    expect(decideFacil({ state, side: 0, rng: createRng("x") })).toBeNull();
+  });
+
+  it("é determinístico: mesma seed produz a mesma sequência de escolhas", () => {
+    const rodar = () => {
+      const state = freshMatch([deckA, deckB], { seed: "bots-facil-det" });
+      const rng = createRng("bots-facil-det");
+      return runBotPlanning({ state, side: 1, decide: decideFacil, rng }).state;
+    };
+    expect(JSON.stringify(rodar())).toBe(JSON.stringify(rodar()));
+  });
+
+  it("gasta a energia de forma gulosa: ao final do planejamento, nenhuma carta restante na mão cabe na energia sobrando", () => {
+    const state = freshMatch([deckA, deckB], { seed: "bots-facil-greedy" });
+    const rng = createRng("bots-facil-greedy");
+    const { state: after } = runBotPlanning({ state, side: 1, decide: decideFacil, rng });
+    const energiaSobrando = after.energy[1];
+    const cabeAlgo = after.hand[1].some((h) => custoDe(h) <= energiaSobrando);
+    // Só pode sobrar carta jogável se todas as vias já estiverem cheias (4/4 nas 3).
+    const viasCheias = [0, 1, 2].every((lane) =>
+      after.board.filter((c) => c.owner === 1 && c.lane === lane).length >= 4);
+    expect(cabeAlgo && !viasCheias).toBe(false);
   });
 });
 
@@ -99,6 +146,36 @@ describe("integração: partida inteira com o bot controlando o Lado B", () => {
     expect(finish.error).toBeUndefined();
     expect(finish.state.finished).toBe(true);
   });
+
+  it("uma partida de 6 rodadas conduzida pelo nível Fácil (decideFacil) chega ao fim sem erros", () => {
+    let state = freshMatch([deckA, deckB], { seed: "bots-full-match-facil" });
+    const rng = createRng("bots-full-match-facil");
+    for (let round = 1; round <= 6; round++) {
+      for (const h of [...state.hand[0]]) {
+        const legalA = legalPlacements(state, 0).find((op) => op.hid === h.hid);
+        if (!legalA) continue;
+        const r = applyAction(state, { t: "place", side: 0, hid: h.hid, lane: legalA.lane });
+        if (!r.error) state = r.state;
+      }
+      state = runBotPlanning({ state, side: 1, decide: BOT_LEVELS.facil.decide, rng }).state;
+
+      const reveal = applyAction(state, { t: "startReveal" });
+      expect(reveal.error).toBeUndefined();
+      state = reveal.state;
+      const { state: revealed, error } = autoReveal(state, { rng });
+      expect(error).toBeUndefined();
+      state = revealed;
+
+      if (round < 6) {
+        const next = applyAction(state, { t: "nextRound" });
+        expect(next.error).toBeUndefined();
+        state = next.state;
+      }
+    }
+    const finish = applyAction(state, { t: "finish" });
+    expect(finish.error).toBeUndefined();
+    expect(finish.state.finished).toBe(true);
+  });
 });
 
 describe("domain/bots/index — registro de níveis", () => {
@@ -108,7 +185,7 @@ describe("domain/bots/index — registro de níveis", () => {
 
   it("só 'facil' está disponível nesta onda; médio/difícil aguardam decisão real", () => {
     expect(BOT_LEVELS.facil.disponivel).toBe(true);
-    expect(typeof BOT_LEVELS.facil.decide).toBe("function");
+    expect(BOT_LEVELS.facil.decide).toBe(decideFacil);
     expect(BOT_LEVELS.medio.disponivel).toBe(false);
     expect(BOT_LEVELS.dificil.disponivel).toBe(false);
   });
