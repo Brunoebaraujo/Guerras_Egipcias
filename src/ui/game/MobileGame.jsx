@@ -26,7 +26,7 @@ function flipBoardConfig(config, viewSeat) {
   };
 }
 
-function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard, viewSeat = 0 }) {
+function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp, zoomBoard, viewSeat = 0, hideSide = null }) {
   const displayConfig = flipBoardConfig(config, viewSeat);
   const base = import.meta.env.BASE_URL;
   const cardHpct = displayConfig.cardW * displayConfig.ar * (7 / 5); // altura do slot em % (mantém 5:7)
@@ -79,17 +79,22 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                   const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
                   const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
                   const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
+                  // Carta ainda não revelada do lado escondido do jogador (o
+                  // Bot, em vs. Bot): sem zoom, sem mira, sem recolher — só o
+                  // verso da carta. Ver a nota completa em MiniCard.
+                  const blind = hideSide != null && c.owner === hideSide && !c.revealed;
                   let onClick;
-                  if (c.dying) onClick = undefined;
+                  if (blind) onClick = undefined;
+                  else if (c.dying) onClick = undefined;
                   else if (canTarget) onClick = (e) => { e.stopPropagation(); applyAim(c); };
                   else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); startMove(c); };
                   else onClick = (e) => { e.stopPropagation(); zoomBoard(c); };
-                  const onRemove = pickUp && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
+                  const onRemove = pickUp && !c.revealed && !c.dying && !blind ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
                   return (
                     <div key={c.uid} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${displayConfig.cardW}%`, aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 4 }}>
                       <MiniCard c={c} ctx={ctx} bw={MOBILE_BW} canTarget={canTarget} movable={movable} isMoving={isMoving}
                         reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging}
-                        onClick={onClick} onRemove={onRemove} />
+                        onClick={onClick} onRemove={onRemove} blind={blind} />
                     </div>
                   );
                 })}
@@ -258,12 +263,12 @@ function GameMobile(p) {
     startReveal, setFast, reset, setScreen,
     placeCard, pickUp, resetPlan, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
     zoomBoard, zoomHand,
-    online = false, seat = 0, myReady = false, oppHand = 0,
+    online = false, seat = 0, myReady = false, oppHand = 0, hideSide = null,
   } = p;
   const disabled = !planning || !!aim || !!moving;
   const phaseLabel = planning ? "Planejar" : g.phase === "revealing" ? "Revelando…" : "Revelado";
   const phaseBg = planning ? "#1c1917" : g.phase === "revealing" ? "#1e1b4b" : "#064e3b";
-  const laneProps = { g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp: planning ? pickUp : null, zoomBoard };
+  const laneProps = { g, ctx, planning, sel, aim, moving, placeCard, moveTo, applyAim, isAimable, isMovable, startMove, pickUp: planning ? pickUp : null, zoomBoard, hideSide };
   
   // Em multiplayer, rotaciona a vista: o jogador SEMPRE vê suas vias embaixo
   // seat=0 (A): lado 0 embaixo (normal)

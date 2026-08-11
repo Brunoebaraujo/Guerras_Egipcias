@@ -680,7 +680,8 @@ export default function App() {
           setScreen={setScreen} setForceView={setForceView}
           placeCard={placeCard} pickUp={pickUp} resetPlan={resetPlan} startMove={startMove} moveTo={moveTo}
           applyAim={applyAim} skipAim={skipAim} isAimable={isAimable} isMovable={isMovable}
-          zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog} />
+          zoomBoard={zoomBoard} zoomHand={zoomHand} copiarLog={copiarLog} baixarLog={baixarLog}
+          hideSide={vsBot ? vsBot.side : null} />
         {zoom && <ZoomModal zoom={zoom} onClose={handleZoomClose} onToggleActivate={toggleActivateHu} />}
         {!bannerVisto && <BannerVitoria g={g} online={false} onFechar={() => setBannerVisto(true)} />}
       </>
@@ -809,7 +810,8 @@ export default function App() {
             <div style={{ height: "100%", aspectRatio: BOARD.ratio, maxWidth: "100%" }}>
               <Tabuleiro g={g} ctx={ctx} aim={aim} moving={moving} sel={sel} planning={planning}
                 placeCard={placeCard} moveTo={moveTo} applyAim={applyAim} isAimable={isAimable}
-                startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard} />
+                startMove={startMove} isMovable={isMovable} pickUp={pickUp} zoomBoard={zoomBoard}
+                hideSide={vsBot ? vsBot.side : null} />
             </div>
           </div>
         </main>

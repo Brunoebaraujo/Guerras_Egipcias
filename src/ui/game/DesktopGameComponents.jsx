@@ -34,7 +34,7 @@ export const BOARD = {
  */
 export function Tabuleiro({
   g, ctx, aim, moving, sel, planning, placeCard, moveTo, applyAim, isAimable,
-  startMove, isMovable, pickUp, zoomBoard, viewSeat = null,
+  startMove, isMovable, pickUp, zoomBoard, viewSeat = null, hideSide = null,
 }) {
   const base = import.meta.env.BASE_URL;
   const ref = useRef(null);
@@ -78,6 +78,7 @@ export function Tabuleiro({
                 onTarget={(c) => aim && isAimable(c) && applyAim(c)}
                 onStartMove={startMove} isMovable={isMovable}
                 onRemove={planning ? pickUp : null} aimable={isAimable} onZoom={zoomBoard}
+                hideSide={hideSide}
                 tone={side === 0 ? "amber" : "sky"} />
             ))}
             {/* Discos de placar: soma de poder da via, do lado a que pertencem */}
@@ -121,7 +122,7 @@ export function ScoreDisc({ cx, cy, d, px, v, tone, lead }) {
   );
 }
 
-function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onDrop, onMoveHere, onTarget, onStartMove, isMovable, onRemove, aimable, onZoom, tone }) {
+function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onDrop, onMoveHere, onTarget, onStartMove, isMovable, onRemove, aimable, onZoom, tone, hideSide = null }) {
   const cards = g.board.filter((c) => c.lane === lane && c.owner === side);
   const canMoveHere = moving && moving.side === side && moving.lane !== lane;
   const active = canDrop || canMoveHere;
@@ -146,15 +147,21 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
           const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
           // Heka revelada "carrega" o brilho enquanto o dono tiver reserva pendente.
           const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
+          // Carta ainda não revelada, do lado que estamos escondendo do jogador
+          // (o Bot, em partidas vs. Bot): nem zoom, nem mira, nem recolher —
+          // pro jogador, ela é só um verso de carta, sem identidade nenhuma.
+          const blind = hideSide != null && c.owner === hideSide && !c.revealed;
           let onClick;
-          if (c.dying) onClick = undefined;
+          if (blind) onClick = undefined;
+          else if (c.dying) onClick = undefined;
           else if (canTarget) onClick = (e) => { e.stopPropagation(); onTarget(c); };
           else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); onStartMove(c); };
           else onClick = (e) => { e.stopPropagation(); onZoom(c); };
           return (
             <MiniCard key={c.uid} c={c} ctx={ctx} bw={bw} canTarget={canTarget} movable={movable} isMoving={isMoving}
               reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging} onClick={onClick}
-              onRemove={onRemove && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); onRemove(c.uid); } : null} />
+              blind={blind}
+              onRemove={onRemove && !c.revealed && !c.dying && !blind ? (e) => { e.stopPropagation(); onRemove(c.uid); } : null} />
           );
         })}
       </div>
@@ -173,7 +180,7 @@ function EffectBadge({ badge, size }) {
 }
 
 /* Carta em miniatura sobre o tabuleiro: arte de fundo quando existir. */
-export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, blessings = [], dying, charging, onClick, onRemove }) {
+export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, blessings = [], dying, charging, onClick, onRemove, blind = false }) {
   const def = byKey[c.key];
   const f = (n) => Math.max(8, (bw * n) / 100);       // fontes proporcionais ao tabuleiro
   /* ESPAÇAMENTO ≠ FONTE. `f` tem piso de 8px porque fonte menor que isso não se
@@ -195,6 +202,20 @@ export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, bad
   };
 
   if (!c.revealed) {
+    // Verso de carta: o jogador não tem acesso a NENHUMA informação da carta
+    // do Bot antes da revelação — nem nome, nem arquétipo, nem poder. Mostrar
+    // qualquer um desses (como o ramo abaixo mostra para as PRÓPRIAS cartas
+    // ocultas do jogador, que ele tem todo o direito de conferir) daria ao
+    // jogador uma vantagem que o Bot não tem: ele não "vê a tela".
+    if (blind) {
+      return (
+        <div className={dying ? "duat-vanish" : ""} style={{ ...common, cursor: "default" }} title="Carta oculta do adversário">
+          <div style={{ ...frame, background: "rgba(20,15,8,.9)", border: `1px dashed ${ladoCor}`, alignItems: "center", justifyContent: "center" }}>
+            <div style={{ color: ladoCor, fontSize: f(1.7), lineHeight: 1, opacity: 0.6 }}>𓂀</div>
+          </div>
+        </div>
+      );
+    }
     const prov = c.printed + (c.baked || 0);
     return (
       <div onClick={onClick} className={dying ? "duat-vanish" : ""} style={common} title={`${def.nome} — por revelar`}>
