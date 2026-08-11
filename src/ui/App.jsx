@@ -490,14 +490,23 @@ export default function App() {
 
   // ============================ TELA: DECKS ================================
   if (screen === "mpdeck") {
-    return <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} libApi={libApi} presets={presets} />;
+    return (
+      <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} libApi={libApi}
+        presets={presets} presetApi={presetApi} />
+    );
   }
 
   if (screen === "deck") {
     if (isMobile) return (
       <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={() => startMatch()}
         setScreen={setScreen} setForceView={setForceView} msg={msg} libApi={libApi}
-        presets={presets} presetApi={presetApi} />
+        presets={presets} presetApi={presetApi}
+        bot={{
+          levels: BOT_LEVELS, order: BOT_LEVEL_ORDER,
+          level: botLevel, setLevel: setBotLevel,
+          deckChoice: botDeckChoice, setDeckChoice: setBotDeckChoice,
+          start: () => startMatch({ bot: { level: botLevel, deckChoice: botDeckChoice } }),
+        }} />
     );
     const ready = build[0].length === DECK_SIZE && build[1].length === DECK_SIZE;
     const readyBot = build[0].length === DECK_SIZE;

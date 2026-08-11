@@ -432,14 +432,16 @@ function PresetEditorModal({ presets, api, onClose }) {
 
 function DeckMobile({
   build, setDeck, flash, startMatch, setScreen, setForceView, msg, libApi = LIB_API_STUB,
-  presets = DEFAULT_PRESETS, presetApi = null,
+  presets = DEFAULT_PRESETS, presetApi = null, bot = null,
 }) {
   const [side, setSide] = useState(0);
   const [detail, setDetail] = useState(null); // def da carta ampliada, ou null
   const [lib, setLib] = useState(null);        // {focusSave} — modal da biblioteca
   const [presetEditor, setPresetEditor] = useState(false);
+  const [botPanel, setBotPanel] = useState(false);
   const cur = build[side];
   const ready = build[0].length === DECK_SIZE && build[1].length === DECK_SIZE;
+  const readyBot = build[0].length === DECK_SIZE;
   const accent = side === 0 ? "#fcd34d" : "#7dd3fc";
 
   const addCard = (k) => {
@@ -500,6 +502,48 @@ function DeckMobile({
           <button onClick={() => setPresetEditor(true)} style={{ ...chip, flex: 1, background: "#78350f", color: "#fde68a", border: "1px solid #92400e" }}>✎ Editar presets</button>
         )}
       </div>
+      {bot && (
+        <div style={{ padding: "0 10px 6px" }}>
+          <button onClick={() => setBotPanel((v) => !v)} style={{
+            ...chip, width: "100%", background: botPanel ? "#86198f" : "#3b0764", color: "#f5d0fe", border: "1px solid #86198f",
+          }}>🤖 vs Bot{botPanel ? " ▲" : " ▼"}</button>
+          {botPanel && (
+            <div style={{ marginTop: 6, padding: 8, borderRadius: 9, background: "#1c0a24", border: "1px solid #581c87" }}>
+              <div style={{ fontSize: 11, color: "#e9d5ff", marginBottom: 6 }}>O Lado B ({SIDE_NAME[1]}) vira controlado pela máquina.</div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+                {bot.order.map((lvl) => {
+                  const info = bot.levels[lvl];
+                  const active = bot.level === lvl;
+                  return (
+                    <button key={lvl} onClick={() => info.disponivel && bot.setLevel(lvl)} disabled={!info.disponivel} style={{
+                      ...chip,
+                      background: !info.disponivel ? "#292524" : active ? "#c026d3" : "#292524",
+                      color: !info.disponivel ? "#57534e" : active ? "#fdf4ff" : "#d6d3d1",
+                      cursor: info.disponivel ? "pointer" : "not-allowed",
+                      fontWeight: active ? 700 : 400,
+                    }}>{info.label}{!info.disponivel ? " (em breve)" : ""}</button>
+                  );
+                })}
+              </div>
+              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+                <button onClick={() => bot.setDeckChoice("aleatorio")} style={{
+                  ...chip, background: bot.deckChoice === "aleatorio" ? "#c026d3" : "#292524", color: bot.deckChoice === "aleatorio" ? "#fdf4ff" : "#d6d3d1",
+                }}>🎲 Aleatório</button>
+                {Object.keys(presets).map((name) => (
+                  <button key={name} onClick={() => bot.setDeckChoice(name)} style={{
+                    ...chip, background: bot.deckChoice === name ? "#c026d3" : "#292524", color: bot.deckChoice === name ? "#fdf4ff" : "#d6d3d1",
+                  }}>{name}</button>
+                ))}
+              </div>
+              <button onClick={bot.start} disabled={!readyBot} style={{
+                width: "100%", padding: "10px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 13,
+                background: readyBot ? "#c026d3" : "#292524", color: readyBot ? "#fdf4ff" : "#78716c", cursor: readyBot ? "pointer" : "not-allowed",
+              }}>Iniciar contra Bot</button>
+              {!readyBot && <div style={{ fontSize: 10.5, color: "#a8a29e", marginTop: 5 }}>Complete o deck do {SIDE_NAME[0]} primeiro.</div>}
+            </div>
+          )}
+        </div>
+      )}
       <AvisoOutorga deck={cur} estilo="mobile" />
 
       {msg && <div style={{ margin: "0 10px 6px", padding: "6px 9px", borderRadius: 8, background: "#4c0519", border: "1px solid #9f1239", color: "#fecdd3", fontSize: 12 }}>{msg}</div>}
@@ -575,9 +619,10 @@ export { DeckMobile, PresetEditorModal };
    Adicionar/Retirar do deck e um X para fechar. Funciona em desktop e mobile.
    O deck do multiplayer é o Lado A (build[0]).
    ========================================================================== */
-function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB, presets = DEFAULT_PRESETS }) {
+function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB, presets = DEFAULT_PRESETS, presetApi = null }) {
   const [detail, setDetail] = useState(null);
   const [lib, setLib] = useState(null);
+  const [presetEditor, setPresetEditor] = useState(false);
   const cur = build[0];
   const full = cur.length === DECK_SIZE;
   const accent = "#818cf8";
@@ -612,6 +657,9 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB, 
       <div style={{ display: "flex", gap: 6, padding: "0 10px 6px" }}>
         <button onClick={() => setLib({ focusSave: true })} style={{ ...chip, flex: 1, background: "#065f46", color: "#d1fae5", border: "1px solid #047857" }}>💾 Salvar</button>
         <button onClick={() => setLib({ focusSave: false })} style={{ ...chip, flex: 1, background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>📂 Meus decks{libApi.decks.length ? ` (${libApi.decks.length})` : ""}</button>
+        {presetApi && (
+          <button onClick={() => setPresetEditor(true)} style={{ ...chip, flex: 1, background: "#78350f", color: "#fde68a", border: "1px solid #92400e" }}>✎ Editar presets</button>
+        )}
       </div>
       <AvisoOutorga deck={cur} estilo="mobile" />
 
@@ -666,6 +714,10 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB, 
       {lib && (
         <DeckLibraryModal api={libApi} side={0} sideLabel="Seu deck" accent="#818cf8"
           cards={cur} focusSave={lib.focusSave} onClose={() => setLib(null)} onLoaded={() => setLib(null)} />
+      )}
+
+      {presetEditor && presetApi && (
+        <PresetEditorModal presets={presets} api={presetApi} onClose={() => setPresetEditor(false)} />
       )}
     </div>
   );
