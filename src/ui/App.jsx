@@ -13,6 +13,9 @@ import {
   loadStore, saveStore, addDeck, updateDeck, renameDeck, duplicateDeck, deleteDeck,
   estadoDoDeck, SCHEMA_V, MAX_DECKS, NAME_MAX,
 } from "../deckLibrary.js";
+import {
+  loadOverrides, saveOverrides, setOverride, clearOverride, estadoDoOverride, effectivePresets,
+} from "../storage/presetLibrary.js";
 import { DECK_SIZE } from "../rules.js";
 import { useViewport } from "./hooks/useViewport.js";
 import { resultLabel } from "./matchPresentation.js";
@@ -25,11 +28,13 @@ import { DUAT_KEYFRAMES } from "./game/animations.js";
 import { Lobby } from "./multiplayer/Multiplayer.jsx";
 import {
   AvisoOutorga, COLLECTION, DECK_LIST, DeckLibraryModal, DeckMobile, MpDeck,
-  PRAGAS_ORDENADAS, PRESETS,
+  PRAGAS_ORDENADAS, DEFAULT_PRESETS, PresetEditorModal,
 } from "./decks/DeckUi.jsx";
 import {
   DIMENSOES_FILTRO, FILTROS_VAZIOS, FiltrosGaleria, GradeGaleria,
 } from "./gallery/GalleryComponents.jsx";
+import { BOT_LEVELS, BOT_LEVEL_ORDER } from "../domain/bots/index.js";
+import { runBotPlanning } from "../match/bots/controller.js";
 
 export { GameMobile } from "./game/MobileGame.jsx";
 export { Lobby, OnlineGame } from "./multiplayer/Multiplayer.jsx";
@@ -57,6 +62,38 @@ export default function App() {
   const [libDecks, setLibDecks] = useState(() => loadStore().decks);
   const [libLoadedId, setLibLoadedId] = useState([null, null]);
   const [libModal, setLibModal] = useState(null); // {side, focusSave} — modal da biblioteca (desktop)
+  // Sobrescritas de preset (persistentes em localStorage), mescladas com os
+  // padrões do código a cada render. `presets` é o que toda tela deve usar —
+  // deckbuilder, multiplayer e a escolha de deck do bot leem o mesmo objeto,
+  // então editar um preset em "Decks" vale para os três lugares de uma vez.
+  const [presetOverrides, setPresetOverrides] = useState(() => loadOverrides());
+  const presets = React.useMemo(() => effectivePresets(DEFAULT_PRESETS, presetOverrides), [presetOverrides]);
+  const presetApi = {
+    hasOverride: (name) => !!presetOverrides[name],
+    estadoDe: (name) => estadoDoOverride(presetOverrides[name]).estado,
+    salvar(name, cards) {
+      const r = setOverride(presetOverrides, name, cards);
+      if (r.error) return r;
+      setPresetOverrides(r.overrides);
+      saveOverrides(r.overrides);
+      return r;
+    },
+    restaurar(name) {
+      const r = clearOverride(presetOverrides, name);
+      setPresetOverrides(r.overrides);
+      saveOverrides(r.overrides);
+      return r;
+    },
+  };
+  // Modo "vs Bot": null = hotseat normal. Quando ativo, o Lado B (side 1) é
+  // jogado pelo controller de bots em vez de um segundo humano — ver o efeito
+  // logo abaixo do loop de revelação, que chama runBotPlanning a cada rodada.
+  const [vsBot, setVsBot] = useState(null); // { side: 1, level: "facil" } | null
+  const [botPanel, setBotPanel] = useState(false);
+  const [botLevel, setBotLevel] = useState("facil");
+  const [botDeckChoice, setBotDeckChoice] = useState("aleatorio"); // "aleatorio" | nome do preset
+  const [presetEditorOpen, setPresetEditorOpen] = useState(false); // modal desktop de edição de presets
+  const botActedRef = useRef({ round: 0, phase: null });
   const [sel, setSel] = useState(null);       // {side, hid}
   const aim = g.awaitingAim;                  // mira pendente vive no ESTADO (match.js)
   const [moving, setMoving] = useState(null); // {uid, side, lane} — Escaravelho
@@ -136,6 +173,24 @@ export default function App() {
 
   const commit = (s) => setG(s);
   function flash(t) { setMsg(t); clearTimeout(flashRef.current); flashRef.current = setTimeout(() => setMsg(""), 2600); }
+
+  /* Turno do bot: roda uma vez por rodada, assim que o planejamento começa.
+     `botActedRef` evita repetir — sem ele, todo re-render em fase "plan"
+     tentaria jogar de novo (o bot já jogou tudo o que tinha, então não teria
+     efeito visível, mas rodaria `runBotPlanning` à toa a cada digitação do
+     jogador). O bot não passa pelo `dispatch` normal porque erro de bot não é
+     algo que o jogador precise ver piscar na tela — se uma decisão vier
+     rejeitada, o controller para sozinho e o bot só joga menos naquela rodada. */
+  useEffect(() => {
+    if (!vsBot || g.phase !== "plan" || g.finished || aim) return;
+    const jaJogou = botActedRef.current.round === g.round && botActedRef.current.phase === "plan";
+    if (jaJogou) return;
+    botActedRef.current = { round: g.round, phase: "plan" };
+    const nivel = BOT_LEVELS[vsBot.level];
+    if (!nivel?.decide) return;
+    const { state } = runBotPlanning({ state: g, side: vsBot.side, decide: nivel.decide });
+    if (state !== g) commit(state);
+  }, [vsBot, g.phase, g.finished, g.round, aim]);
 
   // Toda transição de partida passa por aqui: chama o redutor puro (match.js) e
   // só aplica se for legal. Ações ilegais viram um aviso na tela (flash).
@@ -232,7 +287,7 @@ export default function App() {
     setSel(null); setMoving(null);
     dispatch({ t: "nextRound" });
   }
-  function reset() { resetUid(); setSel(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); setG(freshState(chosen)); }
+  function reset() { resetUid(); setSel(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); botActedRef.current = { round: 0, phase: null }; setG(freshState(chosen)); }
 
   // ---------------------------- SELEÇÃO DE DECK ----------------------------
   const setDeck = (side, arr) => setBuild((b) => { const n = [b[0].slice(), b[1].slice()]; n[side] = arr; return n; });
@@ -311,10 +366,25 @@ export default function App() {
     loadedId: libLoadedId,
   };
 
-  function startMatch() {
-    if (build[0].length !== DECK_SIZE || build[1].length !== DECK_SIZE) { flash(`Cada deck precisa ter exatamente ${DECK_SIZE} cartas.`); return; }
-    setChosen([build[0].slice(), build[1].slice()]);
-    setG(freshState(build)); setSel(null); setMoving(null); setFast(false);
+  function startMatch({ bot } = {}) {
+    if (build[0].length !== DECK_SIZE) { flash(`Seu deck precisa ter exatamente ${DECK_SIZE} cartas.`); return; }
+    let ladoB = build[1];
+    let botConfig = null;
+    if (bot) {
+      const nomes = Object.keys(presets);
+      const nomeEscolhido = bot.deckChoice === "aleatorio"
+        ? nomes[Math.floor(Math.random() * nomes.length)]
+        : (presets[bot.deckChoice] ? bot.deckChoice : nomes[0]);
+      ladoB = (presets[nomeEscolhido] || presets[nomes[0]]).slice();
+      botConfig = { side: 1, level: bot.level, deckName: nomeEscolhido };
+    } else if (build[1].length !== DECK_SIZE) {
+      flash(`Cada deck precisa ter exatamente ${DECK_SIZE} cartas.`); return;
+    }
+    const lists = [build[0].slice(), ladoB.slice()];
+    setChosen(lists);
+    botActedRef.current = { round: 0, phase: null };
+    setVsBot(botConfig);
+    setG(freshState(lists)); setSel(null); setMoving(null); setFast(false);
     setScreen("game");
   }
 
@@ -327,8 +397,9 @@ export default function App() {
       <MainMenu
         onSolo={() => {
           // Inicia Hotseat com Exército (Side A) vs Sacrifício (Side B)
-          setChosen([PRESETS["Exército"], PRESETS["Sacrifício"]]);
-          setG(freshState([PRESETS["Exército"], PRESETS["Sacrifício"]]));
+          setVsBot(null);
+          setChosen([presets["Exército"], presets["Sacrifício"]]);
+          setG(freshState([presets["Exército"], presets["Sacrifício"]]));
           setScreen("game");
         }}
         onMultiplayer={() => setScreen("mpdeck")}
@@ -339,7 +410,7 @@ export default function App() {
 
   // ============================ TELA: LOBBY ================================
   if (screen === "lobby") {
-    return <Lobby onBack={() => setScreen("mpdeck")} deck={build[0].length === DECK_SIZE ? build[0] : PRESETS["Padrão"]} />;
+    return <Lobby onBack={() => setScreen("mpdeck")} deck={build[0].length === DECK_SIZE ? build[0] : presets["Padrão"]} />;
   }
 
   // ============================ TELA: GALERIA ==============================
@@ -419,15 +490,17 @@ export default function App() {
 
   // ============================ TELA: DECKS ================================
   if (screen === "mpdeck") {
-    return <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} libApi={libApi} />;
+    return <MpDeck build={build} setDeck={setDeck} flash={flash} setScreen={setScreen} msg={msg} libApi={libApi} presets={presets} />;
   }
 
   if (screen === "deck") {
     if (isMobile) return (
-      <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={startMatch}
-        setScreen={setScreen} setForceView={setForceView} msg={msg} libApi={libApi} />
+      <DeckMobile build={build} setDeck={setDeck} flash={flash} startMatch={() => startMatch()}
+        setScreen={setScreen} setForceView={setForceView} msg={msg} libApi={libApi}
+        presets={presets} presetApi={presetApi} />
     );
     const ready = build[0].length === DECK_SIZE && build[1].length === DECK_SIZE;
+    const readyBot = build[0].length === DECK_SIZE;
     const DeckPanel = (side) => {
       const cur = build[side];
       const full = cur.length === DECK_SIZE;
@@ -439,8 +512,8 @@ export default function App() {
           </div>
           <AvisoOutorga deck={cur} />
           <div className="flex flex-wrap gap-1 mb-2">
-            {Object.keys(PRESETS).map((name) => (
-              <button key={name} onClick={() => setDeck(side, PRESETS[name].slice())}
+            {Object.keys(presets).map((name) => (
+              <button key={name} onClick={() => setDeck(side, presets[name].slice())}
                 className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">{name}</button>
             ))}
             <button onClick={() => randomDeck(side)} className="px-2 py-1 rounded bg-stone-700 hover:bg-stone-600 text-xs">Aleatório</button>
@@ -479,15 +552,59 @@ export default function App() {
                 className="px-3 py-2 rounded-md bg-indigo-700 hover:bg-indigo-600 text-sm text-indigo-50 font-semibold">⚔ Multiplayer</button>
               <button onClick={() => setScreen("galeria")}
                 className="px-3 py-2 rounded-md bg-stone-700 hover:bg-stone-600 text-sm">Galeria</button>
+              <button onClick={() => setPresetEditorOpen(true)}
+                className="px-3 py-2 rounded-md bg-amber-900 hover:bg-amber-800 text-sm text-amber-100">✎ Editar presets</button>
+              <button onClick={() => setBotPanel((v) => !v)}
+                className={`px-3 py-2 rounded-md text-sm font-semibold ${botPanel ? "bg-fuchsia-700 hover:bg-fuchsia-600 text-fuchsia-50" : "bg-stone-700 hover:bg-stone-600 text-stone-200"}`}>🤖 vs Bot</button>
               <button onClick={() => setForceView("mobile")} title="Ver a interface mobile"
                 className="px-3 py-2 rounded-md bg-stone-800 hover:bg-stone-700 text-sm text-stone-300">📱</button>
-              <button onClick={startMatch} disabled={!ready}
+              <button onClick={() => startMatch()} disabled={!ready}
                 className={`px-4 py-2 rounded-md font-semibold text-sm ${ready ? "bg-emerald-600 hover:bg-emerald-500 text-stone-900" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
                 Embaralhar e iniciar
               </button>
             </div>
           </header>
           {msg && <div className="mb-3 px-3 py-2 rounded bg-rose-950 border border-rose-800 text-rose-200 text-sm">{msg}</div>}
+          {botPanel && (
+            <div className="mb-3 p-3 rounded-lg border border-fuchsia-700 bg-fuchsia-950/30">
+              <div className="text-sm font-semibold text-fuchsia-200 mb-2">🤖 Jogar contra Bot — o Lado B ({SIDE_NAME[1]}) vira controlado pela máquina.</div>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-xs text-stone-400 mr-1">Nível:</span>
+                {BOT_LEVEL_ORDER.map((lvl) => {
+                  const info = BOT_LEVELS[lvl];
+                  const active = botLevel === lvl;
+                  return (
+                    <button key={lvl} onClick={() => info.disponivel && setBotLevel(lvl)} disabled={!info.disponivel}
+                      title={info.disponivel ? undefined : "Chega numa próxima onda"}
+                      className={`px-2 py-1 rounded text-xs font-semibold ${
+                        !info.disponivel ? "bg-stone-800 text-stone-600 cursor-not-allowed"
+                          : active ? "bg-fuchsia-600 text-fuchsia-50" : "bg-stone-700 hover:bg-stone-600 text-stone-200"
+                      }`}>
+                      {info.label}{!info.disponivel ? " (em breve)" : ""}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="flex flex-wrap items-center gap-2 mb-2">
+                <span className="text-xs text-stone-400 mr-1">Deck do bot:</span>
+                <button onClick={() => setBotDeckChoice("aleatorio")}
+                  className={`px-2 py-1 rounded text-xs ${botDeckChoice === "aleatorio" ? "bg-fuchsia-600 text-fuchsia-50" : "bg-stone-700 hover:bg-stone-600 text-stone-200"}`}>
+                  🎲 Aleatório
+                </button>
+                {Object.keys(presets).map((name) => (
+                  <button key={name} onClick={() => setBotDeckChoice(name)}
+                    className={`px-2 py-1 rounded text-xs ${botDeckChoice === name ? "bg-fuchsia-600 text-fuchsia-50" : "bg-stone-700 hover:bg-stone-600 text-stone-200"}`}>
+                    {name}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => startMatch({ bot: { level: botLevel, deckChoice: botDeckChoice } })} disabled={!readyBot}
+                className={`px-4 py-2 rounded-md font-semibold text-sm ${readyBot ? "bg-fuchsia-600 hover:bg-fuchsia-500 text-fuchsia-50" : "bg-stone-700 text-stone-500 cursor-not-allowed"}`}>
+                Iniciar contra Bot
+              </button>
+              {!readyBot && <span className="ml-2 text-xs text-stone-500">Complete o deck do {SIDE_NAME[0]} primeiro.</span>}
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">{[0, 1].map((s) => DeckPanel(s))}</div>
           <p className="text-xs text-stone-500 mt-3">Dica: comece de um preset e ajuste, ou monte do zero clicando nas cartas. {CARDS.length} cartas na coleção, 12 por deck.</p>
         </div>
@@ -495,6 +612,9 @@ export default function App() {
           <DeckLibraryModal api={libApi} side={libModal.side} sideLabel={SIDE_NAME[libModal.side]}
             accent={libModal.side === 0 ? "#fbbf24" : "#38bdf8"} cards={build[libModal.side]}
             focusSave={libModal.focusSave} onClose={() => setLibModal(null)} onLoaded={() => setLibModal(null)} />
+        )}
+        {presetEditorOpen && (
+          <PresetEditorModal presets={presets} api={presetApi} onClose={() => setPresetEditorOpen(false)} />
         )}
       </div>
     );

@@ -16,7 +16,11 @@ export const DECK_LIST = [
   "armadura", "escaravelho", "ammit", "enxame",
   "mumia", "sobek", "hathor", "set", "selo",
 ];
-export const PRESETS = {
+/* Nomes fixos no código — a fonte de verdade de CADA preset é a sobrescrita do
+   jogador (ver `storage/presetLibrary.js`) quando ela existir; sem sobrescrita,
+   cai aqui. Renomear ou remover uma chave de `DEFAULT_PRESETS` é seguro: uma
+   sobrescrita órfã simplesmente para de aparecer (`effectivePresets`). */
+export const DEFAULT_PRESETS = {
   "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "escaravelho", "heka", "lanceiro", "carruagem", "enxame", "montu", "guardareal", "amon", "general", "colosso"],
   "Sacrifício": ["servo", "bennu", "mumia", "armadura", "heka", "sobek", "enxame", "sekhmet", "apofis", "osiris", "diluvio", "amheh"],
@@ -30,6 +34,10 @@ export const PRESETS = {
   // Ocupação: corpo barato nas três vias, Domador para somar e Ápis para fechar.
   "Animais":    ["cao", "cabra-nilo", "ganso", "gato", "macaco", "hiena", "garca", "rebanho", "domador", "apis", "amon", "escaravelho"],
 };
+// Compat: código existente (e telas ainda não migradas) que lia `PRESETS`
+// direto continua funcionando — mas sem refletir edições do jogador. Prefira
+// sempre `presets` vindo do App (mesclado com as sobrescritas).
+export const PRESETS = DEFAULT_PRESETS;
 export const COLLECTION = [...CARDS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
 
 /* Quantas cartas o deck ganha de brinde (Moisés → 10 Pragas). O deckbuilder
@@ -322,10 +330,114 @@ export function DeckLibraryModal({ api, side, sideLabel, accent = "#818cf8", car
 }
 
 
-function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView, msg, libApi = LIB_API_STUB }) {
+/* ==========================================================================
+   EDITOR DE PRESETS — edita o conteúdo de um deck pré-configurado (Padrão,
+   Exército, Sacrifício...) e salva localmente. Reaproveita a mesma grade
+   virtualizada de seleção (`GradeSelecaoCartas`) dos construtores de deck; a
+   diferença é que aqui um clique alterna a carta direto (adicionar/retirar),
+   sem passar pelo modal de detalhe — o objetivo é edição rápida, não escolha
+   cuidadosa carta a carta.
+
+   `api` vem do App e encapsula a persistência (`storage/presetLibrary.js`):
+     api.estadoDe(name)         -> "ok" | "desatualizado" | "invalido" | "inexistente"
+     api.hasOverride(name)      -> bool
+     api.salvar(name, cards)    -> { ok, error? }
+     api.restaurar(name)        -> void (apaga a sobrescrita, volta ao padrão)
+   ========================================================================== */
+function PresetEditorModal({ presets, api, onClose }) {
+  const nomes = Object.keys(presets);
+  const [nome, setNome] = useState(nomes[0] || null);
+  const [working, setWorking] = useState(() => (nome ? presets[nome].slice() : []));
+  const [aviso, setAviso] = useState("");
+
+  const trocarPreset = (n) => { setNome(n); setWorking(presets[n].slice()); setAviso(""); };
+
+  const cheio = working.length >= DECK_SIZE;
+  const toggle = (def) => {
+    setAviso("");
+    if (working.includes(def.key)) { setWorking(working.filter((k) => k !== def.key)); return; }
+    if (cheio) { setAviso(`Preset cheio — ${DECK_SIZE} cartas (retire uma antes).`); return; }
+    setWorking([...working, def.key]);
+  };
+
+  const overridden = nome ? api.hasOverride(nome) : false;
+  const estado = nome ? api.estadoDe(nome) : "inexistente";
+  const pronto = working.length === DECK_SIZE && new Set(working).size === DECK_SIZE;
+
+  function salvar() {
+    if (!nome || !pronto) return;
+    const r = api.salvar(nome, working);
+    if (r.error) { setAviso(r.error); return; }
+    setAviso(`"${nome}" salvo — vale para deckbuilder e para bots que usarem este preset.`);
+  }
+  function restaurar() {
+    if (!nome) return;
+    api.restaurar(nome);
+    setWorking(presets[nome].slice());
+    setAviso(`"${nome}" restaurado ao padrão original.`);
+  }
+
+  const chip = { padding: "6px 10px", borderRadius: 8, border: "1px solid #44403c", background: "#292524", color: "#e7e5e4", fontSize: 12.5, cursor: "pointer" };
+  const chipOff = { ...chip, opacity: 0.45, cursor: "not-allowed" };
+  const accent = "#fbbf24";
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 60, background: "rgba(0,0,0,.78)", display: "flex", alignItems: "center", justifyContent: "center", padding: 14 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{
+        width: "100%", maxWidth: 560, maxHeight: "88vh", display: "flex", flexDirection: "column",
+        background: "#0c0a09", border: `1px solid ${accent}`, borderRadius: 14, overflow: "hidden",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid #292524" }}>
+          <span style={{ fontWeight: 800, color: accent, fontSize: 15 }}>✎ Editar presets</span>
+          <button onClick={onClose} aria-label="Fechar" style={{ marginLeft: "auto", ...chip, padding: "4px 11px", fontSize: 18, lineHeight: 1 }}>✕</button>
+        </div>
+
+        {/* escolha de preset */}
+        <div style={{ display: "flex", gap: 5, padding: "10px 14px 6px", overflowX: "auto", borderBottom: "1px solid #1c1917" }}>
+          {nomes.map((n) => (
+            <button key={n} onClick={() => trocarPreset(n)} style={{
+              ...chip, whiteSpace: "nowrap",
+              border: n === nome ? `1.5px solid ${accent}` : chip.border,
+              color: n === nome ? accent : chip.color,
+              fontWeight: n === nome ? 700 : 400,
+            }}>{n}{api.hasOverride(n) ? " ✎" : ""}</button>
+          ))}
+        </div>
+
+        {nome && (
+          <>
+            <div style={{ padding: "8px 14px 4px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 13, color: "#e7e5e4" }}>{nome}</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: working.length === DECK_SIZE ? "#34d399" : working.length > DECK_SIZE ? "#fb7185" : "#a8a29e" }}>{working.length}/{DECK_SIZE}</span>
+              {overridden && estado === "ok" && <span style={{ fontSize: 10.5, color: accent }} title="Este preset foi editado — vale a versão salva">✎ editado</span>}
+              {estado === "desatualizado" && <span style={{ fontSize: 10.5, color: "#fbbf24" }} title="A coleção mudou desde que este preset foi editado — ele ainda joga, mas confira os números">⚠ desatualizado</span>}
+              {estado === "invalido" && <span style={{ fontSize: 10.5, color: "#fb7185" }}>✕ não jogável</span>}
+              <span style={{ marginLeft: "auto", fontSize: 11, color: "#78716c" }}>Toque numa carta para adicionar/retirar.</span>
+            </div>
+
+            <GradeSelecaoCartas selecionadas={working} accent={accent} colunas={COLUNAS.online} onEscolher={toggle} />
+
+            {aviso && <div style={{ margin: "0 14px 8px", padding: "6px 9px", borderRadius: 8, background: "#1c1917", border: "1px solid #44403c", color: "#fcd34d", fontSize: 12 }}>{aviso}</div>}
+
+            <div style={{ display: "flex", gap: 8, padding: "10px 14px", borderTop: "1px solid #292524" }}>
+              <button onClick={restaurar} disabled={!overridden} style={overridden ? { ...chip, color: "#fda4af", borderColor: "#7f1d1d" } : chipOff}>↺ Restaurar padrão</button>
+              <button onClick={salvar} disabled={!pronto} style={pronto ? { ...chip, marginLeft: "auto", background: "#059669", color: "#0c0a09", border: "none", fontWeight: 700 } : { ...chipOff, marginLeft: "auto" }}>💾 Salvar preset</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function DeckMobile({
+  build, setDeck, flash, startMatch, setScreen, setForceView, msg, libApi = LIB_API_STUB,
+  presets = DEFAULT_PRESETS, presetApi = null,
+}) {
   const [side, setSide] = useState(0);
   const [detail, setDetail] = useState(null); // def da carta ampliada, ou null
   const [lib, setLib] = useState(null);        // {focusSave} — modal da biblioteca
+  const [presetEditor, setPresetEditor] = useState(false);
   const cur = build[side];
   const ready = build[0].length === DECK_SIZE && build[1].length === DECK_SIZE;
   const accent = side === 0 ? "#fcd34d" : "#7dd3fc";
@@ -373,8 +485,8 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
 
       {/* presets do lado atual */}
       <div style={{ display: "flex", gap: 5, padding: "2px 10px 6px", overflowX: "auto" }}>
-        {Object.keys(PRESETS).map((name) => (
-          <button key={name} onClick={() => setDeck(side, PRESETS[name].slice())} style={chip}>{name}</button>
+        {Object.keys(presets).map((name) => (
+          <button key={name} onClick={() => setDeck(side, presets[name].slice())} style={chip}>{name}</button>
         ))}
         <button onClick={() => setDeck(side, shuffled(CARDS.map((c) => c.key)).slice(0, DECK_SIZE))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(side, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
@@ -384,6 +496,9 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
       <div style={{ display: "flex", gap: 6, padding: "0 10px 6px" }}>
         <button onClick={() => setLib({ focusSave: true })} style={{ ...chip, flex: 1, background: "#065f46", color: "#d1fae5", border: "1px solid #047857" }}>💾 Salvar</button>
         <button onClick={() => setLib({ focusSave: false })} style={{ ...chip, flex: 1, background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>📂 Meus decks{libApi.decks.length ? ` (${libApi.decks.length})` : ""}</button>
+        {presetApi && (
+          <button onClick={() => setPresetEditor(true)} style={{ ...chip, flex: 1, background: "#78350f", color: "#fde68a", border: "1px solid #92400e" }}>✎ Editar presets</button>
+        )}
       </div>
       <AvisoOutorga deck={cur} estilo="mobile" />
 
@@ -444,11 +559,15 @@ function DeckMobile({ build, setDeck, flash, startMatch, setScreen, setForceView
         <DeckLibraryModal api={libApi} side={side} sideLabel={SIDE_NAME[side]} accent={accent}
           cards={cur} focusSave={lib.focusSave} onClose={() => setLib(null)} onLoaded={() => setLib(null)} />
       )}
+
+      {presetEditor && presetApi && (
+        <PresetEditorModal presets={presets} api={presetApi} onClose={() => setPresetEditor(false)} />
+      )}
     </div>
   );
 }
 
-export { DeckMobile };
+export { DeckMobile, PresetEditorModal };
 
 /* ==========================================================================
    MONTAGEM DO DECK — MULTIPLAYER (deck único, antes de conectar).
@@ -456,7 +575,7 @@ export { DeckMobile };
    Adicionar/Retirar do deck e um X para fechar. Funciona em desktop e mobile.
    O deck do multiplayer é o Lado A (build[0]).
    ========================================================================== */
-function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }) {
+function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB, presets = DEFAULT_PRESETS }) {
   const [detail, setDetail] = useState(null);
   const [lib, setLib] = useState(null);
   const cur = build[0];
@@ -484,8 +603,8 @@ function MpDeck({ build, setDeck, flash, setScreen, msg, libApi = LIB_API_STUB }
       </div>
 
       <div style={{ display: "flex", gap: 5, padding: "8px 10px 6px", overflowX: "auto" }}>
-        {Object.keys(PRESETS).map((name) => (
-          <button key={name} onClick={() => setDeck(0, PRESETS[name].slice())} style={chip}>{name}</button>
+        {Object.keys(presets).map((name) => (
+          <button key={name} onClick={() => setDeck(0, presets[name].slice())} style={chip}>{name}</button>
         ))}
         <button onClick={() => setDeck(0, shuffled(CARDS.map((c) => c.key)).slice(0, DECK_SIZE))} style={chip}>Aleatório</button>
         <button onClick={() => setDeck(0, [])} style={{ ...chip, color: "#a8a29e" }}>Limpar</button>
