@@ -81,7 +81,29 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks, onBot }) {
     );
   }
 
-  // Segunda tela: menu com 3 botões quadrados enfileirados verticalmente
+  // Terceira tela: menu com 4 botões em grade 2×2 (2 colunas, 2 por coluna) —
+  // encaixa sem rolagem na maioria dos aparelhos; a versão anterior empilhava
+  // os 4 botões numa coluna só e estourava a tela em telas menores/3G.
+  const itens = [
+    {
+      key: "solo", onClick: onSolo, title: "Solo (Hotseat)", label: "1v1 Hotseat",
+      bg: `url(${base}btn-hotseat.webp)`, color: "#fbbf24", glow: haloShadow, glowHi: haloShadowHi,
+    },
+    {
+      key: "mp", onClick: onMultiplayer, title: "Multiplayer", label: "Multiplayer Online",
+      bg: `url(${base}btn-multiplayer.webp)`, color: "#06b6d4", glow: haloShadow, glowHi: haloShadowHi,
+    },
+    {
+      key: "bot", onClick: onBot, title: "Jogar contra Bot", label: "Jogar contra Bot",
+      bg: "linear-gradient(160deg, #4a044e, #1e0a24)", emoji: "🤖",
+      color: "#e879f9", glow: haloShadowBot, glowHi: haloShadowBotHi,
+    },
+    {
+      key: "decks", onClick: onDecks, title: "Decks", label: "Construir Decks",
+      bg: `url(${base}btn-decks.webp)`, color: "#06b6d4", glow: haloShadow, glowHi: haloShadowHi,
+    },
+  ];
+
   return (
     <div style={{
       height: "100dvh",
@@ -96,198 +118,57 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks, onBot }) {
       overflow: "hidden",
       boxSizing: "border-box",
     }}>
-      {/* Coluna dos 3 botões com labels */}
+      {/* Grade 2×2 */}
       <div style={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        gap: 32,
-        maxWidth: 300,
+        display: "grid",
+        gridTemplateColumns: "repeat(2, minmax(120px, 150px))",
+        columnGap: 22,
+        rowGap: 28,
+        maxWidth: 340,
         width: "100%",
+        justifyContent: "center",
       }}>
-        {/* Solo (Hotseat) */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-          width: "100%",
-        }}>
-          <button
-            onClick={onSolo}
-            style={{
-              width: 160,
-              height: 160,
-              backgroundImage: `url(${base}btn-hotseat.webp)`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              border: "none",
-              borderRadius: 12,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: haloShadow,
-              position: "relative",
-              overflow: "hidden",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = haloShadowHi;
-              hoverTransform(e);
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = haloShadow;
-              unhoverTransform(e);
-            }}
-            title="Solo (Hotseat)"
-          />
-          <div style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#fbbf24",
-            textAlign: "center",
-            textShadow: "0 0 8px rgba(251, 191, 36, 0.4)",
-          }}>
-            1v1 Hotseat
+        {itens.map((item) => (
+          <div key={item.key} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, width: "100%" }}>
+            <button
+              onClick={item.onClick}
+              style={{
+                width: "100%",
+                aspectRatio: "1 / 1",
+                ...(item.emoji
+                  ? { background: item.bg, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "clamp(36px, 12vw, 52px)" }
+                  : { backgroundImage: item.bg, backgroundSize: "cover", backgroundPosition: "center" }),
+                border: "none",
+                borderRadius: 12,
+                cursor: "pointer",
+                transition: "all 0.2s ease",
+                boxShadow: item.glow,
+                position: "relative",
+                overflow: "hidden",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.boxShadow = item.glowHi;
+                hoverTransform(e);
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.boxShadow = item.glow;
+                unhoverTransform(e);
+              }}
+              title={item.title}
+            >
+              {item.emoji}
+            </button>
+            <div style={{
+              fontSize: 14,
+              fontWeight: 700,
+              color: item.color,
+              textAlign: "center",
+              textShadow: `0 0 8px ${item.color}66`,
+            }}>
+              {item.label}
+            </div>
           </div>
-        </div>
-
-        {/* Multiplayer */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-          width: "100%",
-        }}>
-          <button
-            onClick={onMultiplayer}
-            style={{
-              width: 160,
-              height: 160,
-              backgroundImage: `url(${base}btn-multiplayer.webp)`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              border: "none",
-              borderRadius: 12,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: haloShadow,
-              position: "relative",
-              overflow: "hidden",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = haloShadowHi;
-              hoverTransform(e);
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = haloShadow;
-              unhoverTransform(e);
-            }}
-            title="Multiplayer"
-          />
-          <div style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#06b6d4",
-            textAlign: "center",
-            textShadow: "0 0 8px rgba(6, 182, 212, 0.4)",
-          }}>
-            Multiplayer Online
-          </div>
-        </div>
-
-        {/* Bot */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-          width: "100%",
-        }}>
-          <button
-            onClick={onBot}
-            style={{
-              width: 160,
-              height: 160,
-              background: "linear-gradient(160deg, #4a044e, #1e0a24)",
-              border: "none",
-              borderRadius: 12,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: haloShadowBot,
-              position: "relative",
-              overflow: "hidden",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: 56,
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = haloShadowBotHi;
-              hoverTransform(e);
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = haloShadowBot;
-              unhoverTransform(e);
-            }}
-            title="Jogar contra Bot"
-          >
-            🤖
-          </button>
-          <div style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#e879f9",
-            textAlign: "center",
-            textShadow: "0 0 8px rgba(217, 70, 239, 0.4)",
-          }}>
-            Jogar contra Bot
-          </div>
-        </div>
-
-        {/* Decks */}
-        <div style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-          width: "100%",
-        }}>
-          <button
-            onClick={onDecks}
-            style={{
-              width: 160,
-              height: 160,
-              backgroundImage: `url(${base}btn-decks.webp)`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              border: "none",
-              borderRadius: 12,
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-              boxShadow: haloShadow,
-              position: "relative",
-              overflow: "hidden",
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.boxShadow = haloShadowHi;
-              hoverTransform(e);
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.boxShadow = haloShadow;
-              unhoverTransform(e);
-            }}
-            title="Decks"
-          />
-          <div style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: "#06b6d4",
-            textAlign: "center",
-            textShadow: "0 0 8px rgba(6, 182, 212, 0.4)",
-          }}>
-            Construir Decks
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
