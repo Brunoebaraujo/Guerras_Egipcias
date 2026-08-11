@@ -24,9 +24,8 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks, onBot }) {
   // Halo dourado para os botões quadrados
   const haloShadow = "0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.4), inset 0 0 10px rgba(251, 191, 36, 0.2)";
   const haloShadowHi = "0 0 30px rgba(251, 191, 36, 1), 0 0 60px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(251, 191, 36, 0.3)";
-  // Halo magenta para o botão do Bot — sem arte própria ainda, então o botão é
-  // um bloco de cor + emoji em vez de `backgroundImage`, mas segue a mesma
-  // moldura (tamanho, cantos, halo ao redor) dos outros três.
+  // Halo magenta do botão do Bot — mesma moldura dos outros três, cor própria
+  // pra identificar o modo "vs Bot" no resto da interface.
   const haloShadowBot = "0 0 20px rgba(217, 70, 239, 0.7), 0 0 40px rgba(217, 70, 239, 0.35), inset 0 0 10px rgba(217, 70, 239, 0.2)";
   const haloShadowBotHi = "0 0 30px rgba(217, 70, 239, 0.95), 0 0 60px rgba(217, 70, 239, 0.55), inset 0 0 15px rgba(217, 70, 239, 0.3)";
 
@@ -95,7 +94,7 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks, onBot }) {
     },
     {
       key: "bot", onClick: onBot, title: "Jogar contra Bot", label: "Jogar contra Bot",
-      bg: "linear-gradient(160deg, #4a044e, #1e0a24)", emoji: "🤖",
+      bg: `url(${base}btn-bot.webp)`,
       color: "#e879f9", glow: haloShadowBot, glowHi: haloShadowBotHi,
     },
     {
