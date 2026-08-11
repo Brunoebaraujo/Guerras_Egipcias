@@ -11,16 +11,16 @@
 
    `decideRandomPlacement` (Onda 1) validou o encaixe com o loop de
    `match/index.js` e continua aqui como referência/bloco de construção.
-   `decideFacil` (Onda 2) é o nível Fácil de verdade: sem lookahead, sem
-   sinergia, sem preferência de via — só gasta a energia jogando sempre a
-   carta mais cara que cabe, que é o comportamento mais previsível (e mais
-   fácil de vencer) que dá pra descrever sem simular jogada nenhuma. Médio
-   (avaliação de tabuleiro) e Difícil (busca + adaptação) entram nas ondas
-   seguintes, cada um como uma nova função aqui — `controller.js` e o
-   registro em `index.js` não precisam mudar.
+   `decideFacil` (Onda 2) é o nível Fácil: sem lookahead, sem sinergia, sem
+   preferência de via — só gasta a energia jogando sempre a carta mais cara
+   que cabe. `decideMedio` (Onda 4) já olha o tabuleiro — ver a nota de
+   avaliação em `evaluate.js`. Difícil (busca + adaptação) entra numa onda
+   seguinte, como mais uma função aqui — `controller.js` e o registro em
+   `index.js` não precisam mudar.
    ========================================================================== */
 import { byKey, custoDe, viaCheia } from "../engine.js";
 import { LANES } from "../rules.js";
+import { avaliarOpcao } from "./evaluate.js";
 
 /**
  * Todas as jogadas de `place` legais para `side` no estado atual: carta na
@@ -86,6 +86,30 @@ export function decideFacil({ state, side, rng }) {
   if (opcoes.length === 0) return null;
   const maxCusto = Math.max(...opcoes.map((o) => o.custo));
   const melhores = opcoes.filter((o) => o.custo === maxCusto);
+  const escolha = melhores[Math.floor(rng() * melhores.length)];
+  return { t: "place", side, hid: escolha.hid, lane: escolha.lane };
+}
+
+/**
+ * Decisão do nível MÉDIO: entre as jogadas legais, escolhe a de MAIOR nota
+ * segundo `avaliarOpcao` (ver `evaluate.js`) — poder próprio projetado contra
+ * o poder já estabelecido do adversário na mesma via, com bônus por virar
+ * uma via perdida/empatada. Diferente do Fácil, aqui a via importa: a mesma
+ * carta pode valer muito numa via perdida e pouco numa via já dominada.
+ * Empates de nota são resolvidos ao acaso — o Médio ainda não tem lookahead
+ * pra desempatar de outro jeito (isso é trabalho do Difícil).
+ *
+ * @param {{ state: *, side: 0|1, rng: () => number }} args
+ * @returns {{ t: "place", side: 0|1, hid: number, lane: number } | null}
+ */
+export function decideMedio({ state, side, rng }) {
+  const opcoes = legalPlacements(state, side);
+  if (opcoes.length === 0) return null;
+  const hand = state.hand[side];
+  const notas = opcoes.map((opcao) => avaliarOpcao(state, side, opcao, hand));
+  const melhorNota = Math.max(...notas);
+  const EPS = 1e-9;
+  const melhores = opcoes.filter((_, i) => Math.abs(notas[i] - melhorNota) <= EPS);
   const escolha = melhores[Math.floor(rng() * melhores.length)];
   return { t: "place", side, hid: escolha.hid, lane: escolha.lane };
 }

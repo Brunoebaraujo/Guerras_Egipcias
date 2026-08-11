@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
+export default function MainMenu({ onSolo, onMultiplayer, onDecks, onBot }) {
   const base = import.meta.env.BASE_URL;
   const [showMenu, setShowMenu] = useState(false);
 
@@ -24,6 +24,11 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
   // Halo dourado para os botões quadrados
   const haloShadow = "0 0 20px rgba(251, 191, 36, 0.8), 0 0 40px rgba(251, 191, 36, 0.4), inset 0 0 10px rgba(251, 191, 36, 0.2)";
   const haloShadowHi = "0 0 30px rgba(251, 191, 36, 1), 0 0 60px rgba(251, 191, 36, 0.6), inset 0 0 15px rgba(251, 191, 36, 0.3)";
+  // Halo magenta para o botão do Bot — sem arte própria ainda, então o botão é
+  // um bloco de cor + emoji em vez de `backgroundImage`, mas segue a mesma
+  // moldura (tamanho, cantos, halo ao redor) dos outros três.
+  const haloShadowBot = "0 0 20px rgba(217, 70, 239, 0.7), 0 0 40px rgba(217, 70, 239, 0.35), inset 0 0 10px rgba(217, 70, 239, 0.2)";
+  const haloShadowBotHi = "0 0 30px rgba(217, 70, 239, 0.95), 0 0 60px rgba(217, 70, 239, 0.55), inset 0 0 15px rgba(217, 70, 239, 0.3)";
 
   if (!showMenu) {
     // Primeira tela: só fundo + botão "Iniciar"
@@ -187,6 +192,55 @@ export default function MainMenu({ onSolo, onMultiplayer, onDecks }) {
             textShadow: "0 0 8px rgba(6, 182, 212, 0.4)",
           }}>
             Multiplayer Online
+          </div>
+        </div>
+
+        {/* Bot */}
+        <div style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+        }}>
+          <button
+            onClick={onBot}
+            style={{
+              width: 160,
+              height: 160,
+              background: "linear-gradient(160deg, #4a044e, #1e0a24)",
+              border: "none",
+              borderRadius: 12,
+              cursor: "pointer",
+              transition: "all 0.2s ease",
+              boxShadow: haloShadowBot,
+              position: "relative",
+              overflow: "hidden",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontSize: 56,
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = haloShadowBotHi;
+              hoverTransform(e);
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = haloShadowBot;
+              unhoverTransform(e);
+            }}
+            title="Jogar contra Bot"
+          >
+            🤖
+          </button>
+          <div style={{
+            fontSize: 16,
+            fontWeight: 700,
+            color: "#e879f9",
+            textAlign: "center",
+            textShadow: "0 0 8px rgba(217, 70, 239, 0.4)",
+          }}>
+            Jogar contra Bot
           </div>
         </div>
 

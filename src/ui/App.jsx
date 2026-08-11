@@ -388,6 +388,25 @@ export default function App() {
     setScreen("game");
   }
 
+  /* Início rápido do menu principal — mesmo espírito do "1v1 Hotseat" (que já
+     pula direto pra partida com presets fixos, sem passar pela tela de
+     Decks). Usa o deck do jogador já montado em `build[0]` se estiver
+     completo; senão cai no preset "Padrão", pra nunca travar num deck vazio
+     na primeira visita. O bot sorteia um preset entre os disponíveis
+     (incluindo edições salvas) e joga no nível Fácil — hoje o único nível
+     que decide de verdade (ver domain/bots/index.js). */
+  function quickBotMatch() {
+    const nomes = Object.keys(presets);
+    const ladoA = build[0].length === DECK_SIZE ? build[0].slice() : (presets["Padrão"] || presets[nomes[0]]).slice();
+    const nomeBot = nomes[Math.floor(Math.random() * nomes.length)];
+    const ladoB = (presets[nomeBot] || presets[nomes[0]]).slice();
+    setChosen([ladoA, ladoB]);
+    botActedRef.current = { round: 0, phase: null };
+    setVsBot({ side: 1, level: "facil", deckName: nomeBot });
+    setG(freshState([ladoA, ladoB])); setSel(null); setMoving(null); setFast(false);
+    setScreen("game");
+  }
+
   const ctx = ctxOf(g);
   const wins = laneWins(g);
 
@@ -404,6 +423,7 @@ export default function App() {
         }}
         onMultiplayer={() => setScreen("mpdeck")}
         onDecks={() => setScreen("deck")}
+        onBot={quickBotMatch}
       />
     );
   }

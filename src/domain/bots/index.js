@@ -8,20 +8,21 @@
    registrado aqui. Isso é o que permite trocar a implementação de um nível
    sem tocar em mais nada além deste arquivo e de `decide.js`.
 
-   "facil" agora tem heurística de verdade (Onda 2: gasta sempre a carta mais
-   cara que cabe, sem sinergia nem preferência de via — ver `decideFacil` em
-   `decide.js`). "medio" e "dificil" continuam de fora do registro: a UI
-   mostra as três opções, mas só habilita a que já joga, para não prometer
-   inteligência que ainda não existe.
+   "facil" tem heurística de curva (Onda 2: gasta sempre a carta mais cara
+   que cabe). "medio" agora joga de verdade também (Onda 4: avaliação de
+   tabuleiro — ver `decideMedio` em `decide.js` e a nota em `evaluate.js`).
+   "dificil" continua de fora do registro: a UI mostra as três opções, mas só
+   habilita as que já jogam, para não prometer inteligência que ainda não
+   existe.
    ========================================================================== */
-import { decideFacil } from "./decide.js";
+import { decideFacil, decideMedio } from "./decide.js";
 
 export const BOT_LEVELS = {
   facil: { label: "Fácil", decide: decideFacil, disponivel: true },
-  medio: { label: "Médio", decide: null, disponivel: false },
+  medio: { label: "Médio", decide: decideMedio, disponivel: true },
   dificil: { label: "Difícil", decide: null, disponivel: false },
 };
 
 export const BOT_LEVEL_ORDER = ["facil", "medio", "dificil"];
 
-export { decideFacil, decideRandomPlacement, legalPlacements } from "./decide.js";
+export { decideFacil, decideMedio, legalPlacements } from "./decide.js";
