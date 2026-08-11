@@ -123,7 +123,13 @@ export function ScoreDisc({ cx, cy, d, px, v, tone, lead }) {
 }
 
 function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onDrop, onMoveHere, onTarget, onStartMove, isMovable, onRemove, aimable, onZoom, tone, hideSide = null }) {
-  const cards = g.board.filter((c) => c.lane === lane && c.owner === side);
+  // Carta ainda não revelada do lado escondido (o Bot, em partidas vs. Bot):
+  // some da lista ANTES de chegar a qualquer slot — o jogador não sabe nem
+  // QUE existe uma carta ali, não só o que ela é. Mesmo tratamento que o
+  // multiplayer de verdade já dá (filterStateForSeat remove essas cartas do
+  // array antes de chegar ao cliente); aqui é local, então filtramos na UI.
+  const cards = g.board.filter((c) => c.lane === lane && c.owner === side
+    && !(hideSide != null && c.owner === hideSide && !c.revealed));
   const canMoveHere = moving && moving.side === side && moving.lane !== lane;
   const active = canDrop || canMoveHere;
   const ringColor = tone === "amber" ? "rgba(251,191,36,.8)" : "rgba(56,189,248,.8)";
@@ -147,21 +153,15 @@ function LaneZone({ side, lane, g, ctx, bw, px, style, aim, moving, canDrop, onD
           const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
           // Heka revelada "carrega" o brilho enquanto o dono tiver reserva pendente.
           const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
-          // Carta ainda não revelada, do lado que estamos escondendo do jogador
-          // (o Bot, em partidas vs. Bot): nem zoom, nem mira, nem recolher —
-          // pro jogador, ela é só um verso de carta, sem identidade nenhuma.
-          const blind = hideSide != null && c.owner === hideSide && !c.revealed;
           let onClick;
-          if (blind) onClick = undefined;
-          else if (c.dying) onClick = undefined;
+          if (c.dying) onClick = undefined;
           else if (canTarget) onClick = (e) => { e.stopPropagation(); onTarget(c); };
           else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); onStartMove(c); };
           else onClick = (e) => { e.stopPropagation(); onZoom(c); };
           return (
             <MiniCard key={c.uid} c={c} ctx={ctx} bw={bw} canTarget={canTarget} movable={movable} isMoving={isMoving}
               reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging} onClick={onClick}
-              blind={blind}
-              onRemove={onRemove && !c.revealed && !c.dying && !blind ? (e) => { e.stopPropagation(); onRemove(c.uid); } : null} />
+              onRemove={onRemove && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); onRemove(c.uid); } : null} />
           );
         })}
       </div>
@@ -180,7 +180,7 @@ function EffectBadge({ badge, size }) {
 }
 
 /* Carta em miniatura sobre o tabuleiro: arte de fundo quando existir. */
-export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, blessings = [], dying, charging, onClick, onRemove, blind = false }) {
+export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, badge, blessings = [], dying, charging, onClick, onRemove }) {
   const def = byKey[c.key];
   const f = (n) => Math.max(8, (bw * n) / 100);       // fontes proporcionais ao tabuleiro
   /* ESPAÇAMENTO ≠ FONTE. `f` tem piso de 8px porque fonte menor que isso não se
@@ -202,20 +202,6 @@ export function MiniCard({ c, ctx, bw, canTarget, movable, isMoving, reveal, bad
   };
 
   if (!c.revealed) {
-    // Verso de carta: o jogador não tem acesso a NENHUMA informação da carta
-    // do Bot antes da revelação — nem nome, nem arquétipo, nem poder. Mostrar
-    // qualquer um desses (como o ramo abaixo mostra para as PRÓPRIAS cartas
-    // ocultas do jogador, que ele tem todo o direito de conferir) daria ao
-    // jogador uma vantagem que o Bot não tem: ele não "vê a tela".
-    if (blind) {
-      return (
-        <div className={dying ? "duat-vanish" : ""} style={{ ...common, cursor: "default" }} title="Carta oculta do adversário">
-          <div style={{ ...frame, background: "rgba(20,15,8,.9)", border: `1px dashed ${ladoCor}`, alignItems: "center", justifyContent: "center" }}>
-            <div style={{ color: ladoCor, fontSize: f(1.7), lineHeight: 1, opacity: 0.6 }}>𓂀</div>
-          </div>
-        </div>
-      );
-    }
     const prov = c.printed + (c.baked || 0);
     return (
       <div onClick={onClick} className={dying ? "duat-vanish" : ""} style={common} title={`${def.nome} — por revelar`}>
@@ -462,7 +448,24 @@ function HandThumb({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   );
 }
 
-export function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
+/* Miniatura anônima para a mão escondida (vs. Bot): mesma moldura de
+   HandThumb, mesmo tamanho, zero informação — só prova que ali existe uma
+   carta. Sem botão de lupa (não há nada pra ampliar) nem clique (não é a
+   mão do jogador, não dá pra selecionar). */
+function HiddenHandThumb({ tone }) {
+  const accent = tone === "amber" ? "#fbbf24" : "#7dd3fc";
+  return (
+    <div style={{
+      width: "100%", aspectRatio: "92 / 128", borderRadius: 8, overflow: "hidden",
+      border: `1px solid ${accent}55`, background: "#1c1917",
+      display: "flex", alignItems: "center", justifyContent: "center",
+    }}>
+      <span style={{ color: accent, fontSize: 20, opacity: 0.55 }}>𓂀</span>
+    </div>
+  );
+}
+
+export function Hand({ side, tone, g, sel, setSel, disabled, onZoom, hidden = false }) {
   const accent = tone === "amber" ? "border-amber-600 text-amber-200" : "border-sky-600 text-sky-200";
   const hand = g.hand[side];
   const isPrio = g.priority === side;
@@ -481,7 +484,9 @@ export function Hand({ side, tone, g, sel, setSel, disabled, onZoom }) {
       </div>
       <div className="grid gap-1.5 px-1 overflow-y-auto" style={{ gridTemplateColumns: "repeat(3, 1fr)", flex: "1 1 auto", minHeight: 0, alignContent: "start" }}>
         {hand.length === 0 && <span className="text-xs text-stone-600 py-2 col-span-3">Mão vazia.</span>}
-        {hand.map((h) => <HandThumb key={h.hid} h={h} {...props} />)}
+        {hidden
+          ? hand.map((h) => <HiddenHandThumb key={h.hid} tone={tone} />)
+          : hand.map((h) => <HandThumb key={h.hid} h={h} {...props} />)}
       </div>
     </div>
   );

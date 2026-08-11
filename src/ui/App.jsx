@@ -793,10 +793,12 @@ export default function App() {
             de baixo do tabuleiro devolve TODA a altura vertical para ele. */}
         <div className="flex flex-col gap-2" style={{ width: 232, flex: "0 0 232px", height: "100%", minHeight: 0 }}>
           <div className="flex flex-col" style={{ flex: "1 1 50%", minHeight: 0 }}>
-            <Hand side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
+            <Hand side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand}
+              hidden={!!vsBot && vsBot.side === 0} />
           </div>
           <div className="flex flex-col" style={{ flex: "1 1 50%", minHeight: 0 }}>
-            <Hand side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand} />
+            <Hand side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={!planning || aim || moving} onZoom={zoomHand}
+              hidden={!!vsBot && vsBot.side === 1} />
           </div>
         </div>
 

@@ -36,7 +36,8 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
       <div style={{ position: "absolute", inset: 0 }}>
         {[0, 1, 2].map((lane) =>
           [0, 1].map((side) => {
-            const cards = g.board.filter((c) => c.lane === lane && c.owner === side);
+            const cards = g.board.filter((c) => c.lane === lane && c.owner === side
+              && !(hideSide != null && c.owner === hideSide && !c.revealed));
             const canDrop = planning && sel && sel.side === side && !moving && !aim;
             const canMoveHere = moving && moving.side === side && moving.lane !== lane;
             const active = canDrop || canMoveHere;
@@ -79,22 +80,17 @@ function BoardArt({ config, g, ctx, planning, sel, aim, moving, placeCard, moveT
                   const badge = g.effect && g.effect.uid === c.uid ? g.effect : null;
                   const blessings = (g.blessings || []).filter((b) => b.uid === c.uid);
                   const charging = c.key === "heka" && c.revealed && !c.dying && !!(g.pendingBuff && g.pendingBuff[c.owner]);
-                  // Carta ainda não revelada do lado escondido do jogador (o
-                  // Bot, em vs. Bot): sem zoom, sem mira, sem recolher — só o
-                  // verso da carta. Ver a nota completa em MiniCard.
-                  const blind = hideSide != null && c.owner === hideSide && !c.revealed;
                   let onClick;
-                  if (blind) onClick = undefined;
-                  else if (c.dying) onClick = undefined;
+                  if (c.dying) onClick = undefined;
                   else if (canTarget) onClick = (e) => { e.stopPropagation(); applyAim(c); };
                   else if (movable || isMoving) onClick = (e) => { e.stopPropagation(); startMove(c); };
                   else onClick = (e) => { e.stopPropagation(); zoomBoard(c); };
-                  const onRemove = pickUp && !c.revealed && !c.dying && !blind ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
+                  const onRemove = pickUp && !c.revealed && !c.dying ? (e) => { e.stopPropagation(); pickUp(c.uid); } : null;
                   return (
                     <div key={c.uid} style={{ position: "absolute", left: `${x}%`, top: `${y}%`, width: `${displayConfig.cardW}%`, aspectRatio: "5 / 7", transform: "translate(-50%,-50%)", zIndex: 4 }}>
                       <MiniCard c={c} ctx={ctx} bw={MOBILE_BW} canTarget={canTarget} movable={movable} isMoving={isMoving}
                         reveal={reveal} badge={badge} blessings={blessings} dying={!!c.dying} charging={charging}
-                        onClick={onClick} onRemove={onRemove} blind={blind} />
+                        onClick={onClick} onRemove={onRemove} />
                     </div>
                   );
                 })}
@@ -212,22 +208,27 @@ function MHandCard({ h, side, tone, g, sel, setSel, disabled, onZoom }) {
   );
 }
 
-function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, onResetPlan = null, online = false, isOpp = false, oppHand = 0 }) {
+function MHandRow({ side, tone, g, sel, setSel, disabled, onZoom, onResetPlan = null, online = false, isOpp = false, oppHand = 0, hideSide = null }) {
   const hand = g.hand[side];
   // Quantas cartas este lado posicionou nesta rodada e ainda não foram reveladas.
   const postos = g.board.filter((c) => c.owner === side && !c.revealed && !c.dying && c.enteredRound === g.round).length;
   const accent = tone === "amber" ? "#fcd34d" : "#7dd3fc";
   const isPrio = g.priority === side;
   const edge = side === 1 ? { borderBottom: `1px solid ${accent}44` } : { borderTop: `1px solid ${accent}44` };
-  
-  // Em mobile multiplayer adversário: info condensada (só ícone + número)
-  if (online && isOpp) {
+
+  // Mão escondida do jogador: multiplayer de verdade zera o array no cliente
+  // (filterStateForSeat), então `hand.length` já é 0 e não precisamos contar
+  // à parte — mas vs. Bot roda tudo local, com a mão real do Bot presente no
+  // estado, então `hand.length` já dá a contagem certa sem precisar de prop.
+  const escondida = (online && isOpp) || (hideSide != null && hideSide === side);
+  if (escondida) {
+    const count = online ? oppHand : hand.length;
     return (
       <div style={{ padding: "3px 8px", background: "#141210", ...edge }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span style={{ fontSize: 11, fontWeight: 700, color: accent }}>{SIDE_NAME[side]}</span>
           {isPrio && <span style={{ fontSize: 9, color: "#78716c" }}>revela 1º</span>}
-          <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]} · 🂠{oppHand}</span>
+          <span style={{ marginLeft: "auto", fontSize: 9, color: "#78716c" }}>⚡{g.energy[side]} · deck {g.deck[side].length} · † {g.deaths[side]} · 🂠{count}</span>
         </div>
       </div>
     );
@@ -318,7 +319,7 @@ function GameMobile(p) {
         <>
           <MHandRow side={oppSide} tone={oppSide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
             onResetPlan={null}
-            online={online} isOpp={true} oppHand={oppHand} />
+            online={online} isOpp={true} oppHand={oppHand} hideSide={hideSide} />
 
           {/* Tabuleiro: flex máximo para ganhar espaço */}
           <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: "4px 4px", minHeight: 0 }}>
@@ -327,14 +328,14 @@ function GameMobile(p) {
 
           <MHandRow side={mySide} tone={mySide === 0 ? "amber" : "sky"} g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
             onResetPlan={planning ? resetPlan : null}
-            online={online} isOpp={false} oppHand={oppHand} />
+            online={online} isOpp={false} oppHand={oppHand} hideSide={hideSide} />
         </>
       ) : (
         /* Single player: layout original */
         <>
           <MHandRow side={1} tone="sky" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
             onResetPlan={planning ? resetPlan : null}
-            online={online} isOpp={false} oppHand={oppHand} />
+            online={online} isOpp={false} oppHand={oppHand} hideSide={hideSide} />
 
           <div style={{ flex: "1 1 auto", display: "flex", alignItems: "center", justifyContent: "center", padding: 6, minHeight: 0 }}>
             <BoardArt config={BOARD_MOBILE} {...laneProps} />
@@ -342,7 +343,7 @@ function GameMobile(p) {
 
           <MHandRow side={0} tone="amber" g={g} sel={sel} setSel={setSel} disabled={disabled} onZoom={zoomHand}
             onResetPlan={planning ? resetPlan : null}
-            online={online} isOpp={false} oppHand={oppHand} />
+            online={online} isOpp={false} oppHand={oppHand} hideSide={hideSide} />
         </>
       )}
 
