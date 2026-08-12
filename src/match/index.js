@@ -684,7 +684,7 @@ const ACTIONS = {
     else if (w[1] > w[0]) { s.priority = 1; s.priorityReason = `Lado B lidera ${w[1]} via(s)`; }
     else { s.priority = coinR(rng); s.priorityReason = "empate → sorteio"; }
     transitionPhase(s, PHASE.PLAN); s.queue = []; s.awaitingAim = null;
-    const eMsg = (eBonus[0] || eBonus[1]) ? ` Energia: A ${s.energy[0]}, B ${s.energy[1]} (bônus Bennu).` : ` ${s.round} de energia.`;
+    const eMsg = (eBonus[0] || eBonus[1]) ? ` Energia: A ${s.energy[0]}, B ${s.energy[1]} (energia extra reservada).` : ` ${s.round} de energia.`;
     pushLog(s, `— Rodada ${s.round} —${eMsg} Compra 1. Prioridade: ${SIDE_NAME[s.priority]} (${s.priorityReason}).`);
     aplicarUlceras(s);   // início de rodada: cada carta ulcerada perde 1 de Poder
     aplicarVeneno(s);    // início de rodada: cada carta envenenada perde seu nível de veneno

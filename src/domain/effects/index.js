@@ -10,6 +10,7 @@ import {
 import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
 import { registrarTechCards } from "../cards/tech-cards.js";
 import { registrarSekhem } from "../cards/sekhem.js";
+import { registrarLadraoDeKa } from "../cards/ladrao-de-ka.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
@@ -18,6 +19,7 @@ import { registrarSekhem } from "../cards/sekhem.js";
 registrarLaminaOferenda(CARDS, byKey);
 registrarTechCards(CARDS, byKey);
 registrarSekhem(CARDS, byKey);
+registrarLadraoDeKa(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -76,6 +78,21 @@ registerEffect("armNextOwnSacrifice", {
     source.sacrificioArmadoEmPlays = source.entryPlays ?? state.plays[source.owner];
     pushLog(state, `${definition.nome}: a próxima carta jogada por ${source.owner === 0 ? "Lado A" : "Lado B"} será oferecida.`);
     return { uid: source.uid, text: "☥ próxima", kind: "sac", seq: state.effectSeq };
+  },
+});
+
+/* LADRÃO DE KA — reserva energia extra para o PRÓXIMO TURNO (não a rodada
+   atual). Reusa `state.pendingEnergy[owner]`, o mesmo acumulador do Bennu
+   (`rebirthOnDeath`/`nextEnergy`), consumido em `nextRound` (match/index.js):
+   `s.energy[side] = s.round + s.pendingEnergy[side]`. Nenhuma mudança em
+   match/ foi necessária — é só mais uma fonte somando no mesmo acumulador. */
+registerEffect("grantNextRoundEnergy", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition, params }) => {
+    const val = params?.value ?? 1;
+    state.pendingEnergy[source.owner] += val;
+    pushLog(state, `${definition.nome}: +${val} de energia reservado para o próximo turno.`);
+    return { uid: source.uid, text: `⚡+${val}→`, kind: "buff", seq: state.effectSeq };
   },
 });
 
