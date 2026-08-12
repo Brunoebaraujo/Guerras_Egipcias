@@ -9,6 +9,7 @@ import {
 } from "../engine.js";
 import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
 import { registrarTechCards } from "../cards/tech-cards.js";
+import { registrarSekhem } from "../cards/sekhem.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
@@ -16,6 +17,7 @@ import { registrarTechCards } from "../cards/tech-cards.js";
    recebem a definição antes de qualquer partida ou validação. */
 registrarLaminaOferenda(CARDS, byKey);
 registrarTechCards(CARDS, byKey);
+registrarSekhem(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -213,6 +215,10 @@ for (const [id, phase] of [
   // `debuffsSuspensosPara()` em engine.js. Ver src/domain/cards/tech-cards.js.
   ["suspendPowerDebuffs", "continuous"],
   ["suppressAuraInLane", "continuous"],
+  // Sekhem — ver src/domain/cards/sekhem.js e o handler "sekhem-mirror" em
+  // engine.js (continuousPower). Comportamento real fora do resolver, como
+  // as demais fontes de aura.
+  ["mirrorOwnPowerToAllies", "continuous"],
 ]) {
   registerEffect(id, { phase, resolver: () => null });
 }

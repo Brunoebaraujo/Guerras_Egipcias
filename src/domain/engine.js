@@ -656,9 +656,13 @@ export function hinosPara(board, card) {
 
 // Decompoe o poder em parcelas nomeadas. O power() abaixo e a SOMA disto, para
 // que o numero exibido e a explicacao nunca possam divergir.
-export function decomporPartes(card, ctx) {
+// Parcelas ESTÁTICAS de uma carta: base/julgado, Faixa acumulada e mods
+// (bênçãos/maldições). Deliberadamente SEM as parcelas de `continuousPower`
+// (auras, hinos etc.) — é o que permite a `staticPower()` abaixo alimentar
+// uma aura que espelha o próprio Poder (Sekhem) sem entrar em dependência
+// circular com outras auras contínuas.
+function partesEstaticas(card, ctx) {
   const { board } = ctx;
-  // Anúbis grava card.judged: o base foi nivelado e os buffs permanentes caíram.
   const julgado = typeof card.judged === "number";
   const base = julgado ? card.judged : card.printed;
   const partes = [{ label: julgado ? "Base (julgado por Anúbis)" : "Impresso", val: base, tipo: julgado ? "julgado" : "base" }];
@@ -683,13 +687,25 @@ export function decomporPartes(card, ctx) {
       ...(suspenso ? { origVal: m.val } : {}),
     });
   }
+  return partes;
+}
 
+export function decomporPartes(card, ctx) {
+  const partes = partesEstaticas(card, ctx);
+  if (laneHasMaat(ctx.board, card.lane)) return partes; // Maat já zera a leitura; auras não se aplicam.
   partes.push(...collectEvent("continuousPower", { card, ctx }));
   return partes;
 }
 
 export function power(card, ctx) {
   return decomporPartes(card, ctx).reduce((t, p) => t + p.val, 0);
+}
+
+// Poder ESTÁTICO (sem auras contínuas) — usado por fontes de aura cujo valor
+// concedido é o próprio Poder da fonte (Sekhem), para nunca depender de
+// collectEvent("continuousPower") e evitar recursão.
+export function staticPower(card, ctx) {
+  return partesEstaticas(card, ctx).reduce((t, p) => t + p.val, 0);
 }
 
 export const laneScore = (ctx, lane, side) =>
@@ -2049,6 +2065,20 @@ registerEventHandler("continuousPower", {
       return total + effect.value;
     }, 0);
     return value ? { label: "Amon", val: value, tipo: "continuo" } : null;
+  },
+});
+
+registerEventHandler("continuousPower", {
+  id: "sekhem-mirror", priority: 15,
+  handle: ({ card, ctx }) => {
+    const partes = ctx.board.reduce((total, source) => {
+      const effect = efeitoDe(byKey[source.key], "mirrorOwnPowerToAllies");
+      if (!effect || source.owner !== card.owner || source.lane !== card.lane) return total;
+      if (!source.revealed || source.dying || source.uid === card.uid) return total;
+      if (auraSuprimida(ctx.board, source)) return total;
+      return total + staticPower(source, ctx);
+    }, 0);
+    return partes ? { label: "Sekhem", val: partes, tipo: "continuo" } : null;
   },
 });
 
