@@ -387,26 +387,27 @@ function PresetEditorModal({ presets, api, onClose }) {
         width: "100%", maxWidth: 560, maxHeight: "88vh", display: "flex", flexDirection: "column",
         background: "#0c0a09", border: `1px solid ${accent}`, borderRadius: 14, overflow: "hidden",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid #292524" }}>
+        <div style={{ flexShrink: 0, display: "flex", alignItems: "center", gap: 8, padding: "12px 14px", borderBottom: "1px solid #292524" }}>
           <span style={{ fontWeight: 800, color: accent, fontSize: 15 }}>✎ Editar presets</span>
           <button onClick={onClose} aria-label="Fechar" style={{ marginLeft: "auto", ...chip, padding: "4px 11px", fontSize: 18, lineHeight: 1 }}>✕</button>
         </div>
 
-        {/* escolha de preset */}
-        <div style={{ display: "flex", gap: 5, padding: "10px 14px 6px", overflowX: "auto", borderBottom: "1px solid #1c1917" }}>
+        {/* escolha de preset — flexShrink:0 pra não colapsar quando a grade
+            de cartas abaixo pede mais altura do que sobra no modal. */}
+        <div style={{ flexShrink: 0, display: "flex", gap: 8, padding: "14px 14px 10px", overflowX: "auto", borderBottom: "1px solid #1c1917" }}>
           {nomes.map((n) => (
             <button key={n} onClick={() => trocarPreset(n)} style={{
-              ...chip, whiteSpace: "nowrap",
+              ...chip, whiteSpace: "nowrap", padding: "9px 14px", fontSize: 14,
               border: n === nome ? `1.5px solid ${accent}` : chip.border,
               color: n === nome ? accent : chip.color,
-              fontWeight: n === nome ? 700 : 400,
+              fontWeight: n === nome ? 700 : 500,
             }}>{n}{api.hasOverride(n) ? " ✎" : ""}</button>
           ))}
         </div>
 
         {nome && (
           <>
-            <div style={{ padding: "8px 14px 4px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <div style={{ flexShrink: 0, padding: "8px 14px 4px", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={{ fontSize: 13, color: "#e7e5e4" }}>{nome}</span>
               <span style={{ fontSize: 12.5, fontWeight: 700, color: working.length === DECK_SIZE ? "#34d399" : working.length > DECK_SIZE ? "#fb7185" : "#a8a29e" }}>{working.length}/{DECK_SIZE}</span>
               {overridden && estado === "ok" && <span style={{ fontSize: 10.5, color: accent }} title="Este preset foi editado — vale a versão salva">✎ editado</span>}
@@ -417,9 +418,9 @@ function PresetEditorModal({ presets, api, onClose }) {
 
             <GradeSelecaoCartas selecionadas={working} accent={accent} colunas={COLUNAS.online} onEscolher={toggle} />
 
-            {aviso && <div style={{ margin: "0 14px 8px", padding: "6px 9px", borderRadius: 8, background: "#1c1917", border: "1px solid #44403c", color: "#fcd34d", fontSize: 12 }}>{aviso}</div>}
+            {aviso && <div style={{ flexShrink: 0, margin: "0 14px 8px", padding: "6px 9px", borderRadius: 8, background: "#1c1917", border: "1px solid #44403c", color: "#fcd34d", fontSize: 12 }}>{aviso}</div>}
 
-            <div style={{ display: "flex", gap: 8, padding: "10px 14px", borderTop: "1px solid #292524" }}>
+            <div style={{ flexShrink: 0, display: "flex", gap: 8, padding: "10px 14px", borderTop: "1px solid #292524" }}>
               <button onClick={restaurar} disabled={!overridden} style={overridden ? { ...chip, color: "#fda4af", borderColor: "#7f1d1d" } : chipOff}>↺ Restaurar padrão</button>
               <button onClick={salvar} disabled={!pronto} style={pronto ? { ...chip, marginLeft: "auto", background: "#059669", color: "#0c0a09", border: "none", fontWeight: 700 } : { ...chipOff, marginLeft: "auto" }}>💾 Salvar preset</button>
             </div>
@@ -463,7 +464,8 @@ function DeckMobile({
       <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 10px", borderBottom: "1px solid #292524", position: "sticky", top: 0, background: "#0c0a09", zIndex: 20 }}>
         <span style={{ fontWeight: 800, letterSpacing: 0.5, color: "#fde68a", fontSize: 14, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>𓂀 Guerras Egípcias</span>
         <span style={{ fontSize: 11, color: "#78716c", flex: "0 0 auto" }}>Decks</span>
-        <button onClick={() => setForceView("desktop")} style={{ ...chip, marginLeft: "auto" }} title="Ver a interface desktop">🖥</button>
+        <button onClick={() => setScreen("mpdeck")} style={{ ...chip, marginLeft: "auto", background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }} title="Multiplayer online">⚔ Online</button>
+        <button onClick={() => setForceView("desktop")} style={chip} title="Ver a interface desktop">🖥</button>
       </div>
 
       {/* abas de lado */}
@@ -502,46 +504,44 @@ function DeckMobile({
           <button onClick={() => setPresetEditor(true)} style={{ ...chip, flex: 1, background: "#78350f", color: "#fde68a", border: "1px solid #92400e" }}>✎ Editar presets</button>
         )}
       </div>
-      {bot && (
+      {/* painel do Bot — o botão que abre/fecha isso agora mora no rodapé
+          (canto direito), mas o conteúdo continua aparecendo aqui em cima
+          da grade, do mesmo jeito de antes. */}
+      {bot && botPanel && (
         <div style={{ padding: "0 10px 6px" }}>
-          <button onClick={() => setBotPanel((v) => !v)} style={{
-            ...chip, width: "100%", background: botPanel ? "#86198f" : "#3b0764", color: "#f5d0fe", border: "1px solid #86198f",
-          }}>🤖 vs Bot{botPanel ? " ▲" : " ▼"}</button>
-          {botPanel && (
-            <div style={{ marginTop: 6, padding: 8, borderRadius: 9, background: "#1c0a24", border: "1px solid #581c87" }}>
-              <div style={{ fontSize: 11, color: "#e9d5ff", marginBottom: 6 }}>O Lado B ({SIDE_NAME[1]}) vira controlado pela máquina.</div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
-                {bot.order.map((lvl) => {
-                  const info = bot.levels[lvl];
-                  const active = bot.level === lvl;
-                  return (
-                    <button key={lvl} onClick={() => info.disponivel && bot.setLevel(lvl)} disabled={!info.disponivel} style={{
-                      ...chip,
-                      background: !info.disponivel ? "#292524" : active ? "#c026d3" : "#292524",
-                      color: !info.disponivel ? "#57534e" : active ? "#fdf4ff" : "#d6d3d1",
-                      cursor: info.disponivel ? "pointer" : "not-allowed",
-                      fontWeight: active ? 700 : 400,
-                    }}>{info.label}{!info.disponivel ? " (em breve)" : ""}</button>
-                  );
-                })}
-              </div>
-              <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
-                <button onClick={() => bot.setDeckChoice("aleatorio")} style={{
-                  ...chip, background: bot.deckChoice === "aleatorio" ? "#c026d3" : "#292524", color: bot.deckChoice === "aleatorio" ? "#fdf4ff" : "#d6d3d1",
-                }}>🎲 Aleatório</button>
-                {Object.keys(presets).map((name) => (
-                  <button key={name} onClick={() => bot.setDeckChoice(name)} style={{
-                    ...chip, background: bot.deckChoice === name ? "#c026d3" : "#292524", color: bot.deckChoice === name ? "#fdf4ff" : "#d6d3d1",
-                  }}>{name}</button>
-                ))}
-              </div>
-              <button onClick={bot.start} disabled={!readyBot} style={{
-                width: "100%", padding: "10px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 13,
-                background: readyBot ? "#c026d3" : "#292524", color: readyBot ? "#fdf4ff" : "#78716c", cursor: readyBot ? "pointer" : "not-allowed",
-              }}>Iniciar contra Bot</button>
-              {!readyBot && <div style={{ fontSize: 10.5, color: "#a8a29e", marginTop: 5 }}>Complete o deck do {SIDE_NAME[0]} primeiro.</div>}
+          <div style={{ padding: 8, borderRadius: 9, background: "#1c0a24", border: "1px solid #581c87" }}>
+            <div style={{ fontSize: 11, color: "#e9d5ff", marginBottom: 6 }}>O Lado B ({SIDE_NAME[1]}) vira controlado pela máquina.</div>
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 6 }}>
+              {bot.order.map((lvl) => {
+                const info = bot.levels[lvl];
+                const active = bot.level === lvl;
+                return (
+                  <button key={lvl} onClick={() => info.disponivel && bot.setLevel(lvl)} disabled={!info.disponivel} style={{
+                    ...chip,
+                    background: !info.disponivel ? "#292524" : active ? "#c026d3" : "#292524",
+                    color: !info.disponivel ? "#57534e" : active ? "#fdf4ff" : "#d6d3d1",
+                    cursor: info.disponivel ? "pointer" : "not-allowed",
+                    fontWeight: active ? 700 : 400,
+                  }}>{info.label}{!info.disponivel ? " (em breve)" : ""}</button>
+                );
+              })}
             </div>
-          )}
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 8 }}>
+              <button onClick={() => bot.setDeckChoice("aleatorio")} style={{
+                ...chip, background: bot.deckChoice === "aleatorio" ? "#c026d3" : "#292524", color: bot.deckChoice === "aleatorio" ? "#fdf4ff" : "#d6d3d1",
+              }}>🎲 Aleatório</button>
+              {Object.keys(presets).map((name) => (
+                <button key={name} onClick={() => bot.setDeckChoice(name)} style={{
+                  ...chip, background: bot.deckChoice === name ? "#c026d3" : "#292524", color: bot.deckChoice === name ? "#fdf4ff" : "#d6d3d1",
+                }}>{name}</button>
+              ))}
+            </div>
+            <button onClick={bot.start} disabled={!readyBot} style={{
+              width: "100%", padding: "10px 8px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 13,
+              background: readyBot ? "#c026d3" : "#292524", color: readyBot ? "#fdf4ff" : "#78716c", cursor: readyBot ? "pointer" : "not-allowed",
+            }}>Iniciar contra Bot</button>
+            {!readyBot && <div style={{ fontSize: 10.5, color: "#a8a29e", marginTop: 5 }}>Complete o deck do {SIDE_NAME[0]} primeiro.</div>}
+          </div>
         </div>
       )}
       <AvisoOutorga deck={cur} estilo="mobile" />
@@ -551,14 +551,20 @@ function DeckMobile({
       {/* grade de cartas — tocar abre a carta ampliada (não alterna) */}
       <GradeSelecaoCartas selecionadas={cur} accent={accent} colunas={COLUNAS.solo} onEscolher={setDetail} />
 
-      {/* rodapé */}
+      {/* rodapé: Galeria no canto esquerdo, Hotseat (embaralhar e iniciar)
+          ocupando o meio, e VS Bot no canto direito — abre o painel acima. */}
       <div style={{ display: "flex", gap: 6, padding: "8px 10px", borderTop: "1px solid #292524", position: "sticky", bottom: 0, background: "#0c0a09", zIndex: 20 }}>
         <button onClick={() => setScreen("galeria")} style={{ ...chip, padding: "11px 12px" }}>Galeria</button>
-        <button onClick={() => setScreen("mpdeck")} style={{ ...chip, padding: "11px 12px", background: "#3730a3", color: "#e0e7ff", border: "1px solid #4f46e5" }}>⚔ Online</button>
         <button onClick={startMatch} disabled={!ready} style={{
           flex: "1 1 auto", padding: "11px 10px", borderRadius: 9, border: "none", fontWeight: 700, fontSize: 14,
           background: ready ? "#059669" : "#292524", color: ready ? "#0c0a09" : "#78716c", cursor: ready ? "pointer" : "not-allowed",
-        }}>Embaralhar e iniciar</button>
+        }}>Hotseat</button>
+        {bot && (
+          <button onClick={() => setBotPanel((v) => !v)} style={{
+            ...chip, padding: "11px 12px", fontWeight: 700,
+            background: botPanel ? "#86198f" : "#3b0764", color: "#f5d0fe", border: "1px solid #86198f",
+          }}>🤖 VS Bot</button>
+        )}
       </div>
 
       {/* carta ampliada */}

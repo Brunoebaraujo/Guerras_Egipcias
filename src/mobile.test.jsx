@@ -59,7 +59,7 @@ describe("DeckMobile smoke", () => {
   };
   it("renderiza a grade de montagem de deck sem estourar", () => {
     const html = renderToString(<DeckMobile {...baseProps} />);
-    expect(html).toContain("Embaralhar e iniciar");
+    expect(html).toContain("Hotseat");
     expect(html).toContain("Lado A");
     // ao menos uma carta da coleção na grade
     expect(html).toContain(CARDS[0].nome);

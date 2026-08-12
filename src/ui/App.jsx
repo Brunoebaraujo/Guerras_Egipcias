@@ -287,7 +287,24 @@ export default function App() {
     setSel(null); setMoving(null);
     dispatch({ t: "nextRound" });
   }
-  function reset() { resetUid(); setSel(null); setMoving(null); setZoom(null); setMsg(""); setFast(false); botActedRef.current = { round: 0, phase: null }; setG(freshState(chosen)); }
+  /* Reiniciar: contra Bot, sorteia um preset NOVO para o Lado B a cada
+     reinício — em vez de repetir sempre o mesmo `chosen[1]` da partida
+     original. O deck do jogador (chosen[0]) não muda. Hotseat/online
+     seguem exatamente como antes (mesmo `chosen`). */
+  function reset() {
+    resetUid(); setSel(null); setMoving(null); setZoom(null); setMsg(""); setFast(false);
+    botActedRef.current = { round: 0, phase: null };
+    let lists = chosen;
+    if (vsBot) {
+      const nomes = Object.keys(presets);
+      const nomeEscolhido = nomes[Math.floor(Math.random() * nomes.length)];
+      const novoLadoB = (presets[nomeEscolhido] || presets[nomes[0]]).slice();
+      lists = [chosen[0].slice(), novoLadoB];
+      setChosen(lists);
+      setVsBot((v) => (v ? { ...v, deckName: nomeEscolhido } : v));
+    }
+    setG(freshState(lists));
+  }
 
   // ---------------------------- SELEÇÃO DE DECK ----------------------------
   const setDeck = (side, arr) => setBuild((b) => { const n = [b[0].slice(), b[1].slice()]; n[side] = arr; return n; });
