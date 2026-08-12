@@ -24,6 +24,7 @@ export const SEKHEM = {
   poder: 1,
   arch: "buff",
   arte: "sekhem",
+  arteFoco: "center 0%", // chifres/disco solar tocam o topo do quadro
   trigger: "continuo",
   efeitos: [{ id: "mirrorOwnPowerToAllies" }],
   texto: "Contínuo: os demais aliados nesta via recebem Poder igual ao Poder (base + bênçãos) de Sekhem.",
