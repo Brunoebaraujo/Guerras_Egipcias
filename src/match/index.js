@@ -501,45 +501,55 @@ const ACTIONS = {
       pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
     }
 
-    /* HU — Mecânica Ativar: se há uma carta Hu no lado DO CARD aguardando próxima
-       e ainda não foi usada, calcula o poder atual de Hu (incluindo auras) e buffa
-       a carta que está entrando. Hu então volta ao estado inativo e marca que foi
-       usada (jaBufou).
+    /* TRANSFERÊNCIA DE PODER (Hu / Sia) — genérico: se há QUALQUER carta do lado
+       DO CARD aguardando próxima (`aguardandoProxima`) e ainda não usada
+       (`jaBufou`), calcula o poder atual dessa fonte (incluindo auras) e buffa a
+       carta que está entrando. A fonte então volta ao estado inativo e marca que
+       foi usada.
 
-       ORDEM DA JOGADA: só buffa a carta posicionada DEPOIS da ativação. O carimbo
-       `ativadoEmPlays` (gravado no toggleActivate) guarda o valor de `plays` do
-       lado no instante da ativação; a candidata só é válida se seu `entryPlays`
-       for MAIOR — isto é, se foi jogada depois. Sem essa comparação, o Hu agarrava
-       a primeira carta a ser REVELADA (que pode ter sido posicionada antes da
-       ativação, como a Hathor no combo Hathor→ativar→Renenutet). */
-    const huAguardando = s.board.find((c) => 
-      c.owner === card.owner && 
-      c.key === "hu" && 
-      c.aguardandoProxima && 
-      !c.jaBufou && 
+       Generalizado a partir do mecanismo original do Hu (que checava
+       `c.key === "hu"` explicitamente) para também atender Sia, que se arma
+       sozinha "Ao Entrar" em vez de via `toggleActivate`. Qualquer carta nova
+       que precise do mesmo comportamento só precisa setar
+       `aguardandoProxima`/`ativadoEmPlays` em seu resolver — nada aqui muda.
+
+       ORDEM DA JOGADA: só buffa a carta posicionada DEPOIS de a fonte se armar.
+       O carimbo `ativadoEmPlays` guarda o valor de `plays` do lado nesse
+       instante; a candidata só é válida se seu `entryPlays` for MAIOR — isto é,
+       se foi jogada depois. Sem essa comparação, a fonte agarraria a primeira
+       carta a ser REVELADA (que pode ter sido posicionada antes de a fonte se
+       armar, como a Hathor no combo Hathor→ativar Hu→Renenutet).
+
+       GUARDA DE ESPÉCIE: uma fonte não buffa outra carta do MESMO key aguardando
+       o próprio turno de armar (ex.: Hu não buffa outro Hu) — preserva o
+       comportamento original. Fontes de keys diferentes (Hu → Sia, Sia → Hu)
+       podem se encadear normalmente. */
+    const fonteAguardando = s.board.find((c) =>
+      c.owner === card.owner &&
+      c.aguardandoProxima &&
+      !c.jaBufou &&
       c.uid !== card.uid &&
       !c.dying &&
       (c.ativadoEmPlays == null || (card.entryPlays || 0) > c.ativadoEmPlays)
     );
-    if (huAguardando && card.key !== "hu") {
+    if (fonteAguardando && card.key !== fonteAguardando.key) {
       const ctx = ctxOf(s);
-      const poderHu = power(huAguardando, ctx);
-      if (poderHu > 0) {
-        /* O buff do Hu é uma BÊNÇÃO PERMANENTE, não um mod cru. Precisa passar por
-           aplicarBencao (val > 0, não-inerte) para que a carta buffada dispare seus
+      const poderFonte = power(fonteAguardando, ctx);
+      if (poderFonte > 0) {
+        /* O buff é uma BÊNÇÃO PERMANENTE, não um mod cru. Precisa passar por
+           aplicarBencao (val > 0, não-inerte) para que a carta buffada dispare os
            próprios encadeamentos — em especial a Renenutet, que espalha +2 por via
-           ao RECEBER uma bênção permanente. Empurrar direto em `card.mods` (como era
-           antes) contornava esse gatilho e quebrava o combo Hathor→Hu→Renenutet.
-           Todas as fontes de bênção do projeto roteiam por aplicarBencao; o Hu não
-           era exceção — foi um bug meu. */
+           ao RECEBER uma bênção permanente. Empurrar direto em `card.mods`
+           contornava esse gatilho e quebrava o combo Hathor→Hu→Renenutet. Todas as
+           fontes de bênção do projeto roteiam por aplicarBencao. */
         s.blessings = s.blessings || [];
-        aplicarBencao(s, card, poderHu, byKey[huAguardando.key].nome, { rng });
-        s.effect = { uid: card.uid, text: `+${poderHu}`, kind: "buff", seq: s.effectSeq };
-        pushLog(s, `✦ ${byKey[card.key].nome} recebeu +${poderHu} de Poder de ${byKey[huAguardando.key].nome}.`);
+        aplicarBencao(s, card, poderFonte, byKey[fonteAguardando.key].nome, { rng });
+        s.effect = { uid: card.uid, text: `+${poderFonte}`, kind: "buff", seq: s.effectSeq };
+        pushLog(s, `✦ ${byKey[card.key].nome} recebeu +${poderFonte} de Poder de ${byKey[fonteAguardando.key].nome}.`);
       }
-      huAguardando.aguardandoProxima = false;
-      huAguardando.jaBufou = true;
-      pushLog(s, `${byKey[huAguardando.key].nome} completou sua ativação.`);
+      fonteAguardando.aguardandoProxima = false;
+      fonteAguardando.jaBufou = true;
+      pushLog(s, `${byKey[fonteAguardando.key].nome} completou sua ativação.`);
     }
 
     const def = byKey[card.key];
