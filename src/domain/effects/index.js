@@ -1,6 +1,6 @@
 import { getEffect, registerEffect, resolveEffectPhase, listEffects, temEfeitoDeFase } from "./registry.js";
 import {
-  aplicarBencao, byKey, CARDS, descarregarPendentes, pushLog,
+  aplicarBencao, byKey, CARDS, TOKENS, descarregarPendentes, pushLog,
   resolveAnubis, resolveArmadura, resolveAssassino, resolveConselheiro,
   resolveDestroyAllOfTypeInLane, resolveDestroyOwnLane, resolveDestroyAllOwnLanes, resolveEscriba,
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
@@ -12,6 +12,7 @@ import { registrarTechCards } from "../cards/tech-cards.js";
 import { registrarSekhem } from "../cards/sekhem.js";
 import { registrarLadraoDeKa } from "../cards/ladrao-de-ka.js";
 import { registrarSia } from "../cards/sia.js";
+import { registrarAmmitDevoradora } from "../cards/ammit-devoradora.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
@@ -22,6 +23,7 @@ registrarTechCards(CARDS, byKey);
 registrarSekhem(CARDS, byKey);
 registrarLadraoDeKa(CARDS, byKey);
 registrarSia(CARDS, byKey);
+registrarAmmitDevoradora(CARDS, TOKENS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -117,6 +119,18 @@ registerEffect("sacrificeAllLanes", {
   phase: "enter", priority: 100,
   resolver: ({ state, source, definition, params }) => 
     resolveDestroyAllOwnLanes(state, source, params.absorb, definition),
+});
+
+/* AMMIT, A DEVORADORA — consome (destrói) todos os outros aliados na via ao
+   entrar. Chama resolveDestroyOwnLane() direto com absorb=false: destrói e
+   não toca em Poder (Ammit fica fixa em 0/4, não escala com o que devora).
+   Não reusa "sacrificeLane" porque, sem absorb, aquele efeito despacha para
+   resolveSobek() — que soma +1 de Poder por vítima e rotula o ganho como
+   "Sobek", nem um nem outro fazendo sentido pra Ammit. Ver
+   cards/ammit-devoradora.js para o combo completo com o Ovo de Ammit. */
+registerEffect("consumeOwnLane", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition }) => resolveDestroyOwnLane(state, source, false, definition),
 });
 
 registerEffect("summonSwarm", {
@@ -234,6 +248,9 @@ for (const [id, phase] of [
   ["moveOnceNextRound", "passive"],
   ["growPerLaterPlay", "continuous"],
   ["rebirthOnDeath", "death"],
+  // Ovo de Ammit — comportamento real no handler "ovo-ammit-transform"
+  // (beforeDeath, engine.js), mesmo padrão de returnToHandOnDeath/rebirthOnDeath.
+  ["transformToHandOnDeath", "death"],
   ["absorbDestroyedPower", "continuous"],
   ["protectLaneFromTargets", "continuous"],
   ["protectCostOneFromDestruction", "continuous"],

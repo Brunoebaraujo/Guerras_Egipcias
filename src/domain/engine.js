@@ -877,16 +877,26 @@ export function destroyList(s, victims) {
   const voltaram = [];
   for (const r of mumias) {
     const mao = (s.hand[r.owner] ||= []);
+    /* `key` é opcional: por padrão (Múmia) o retorno é sempre uma Múmia comum.
+       O Ovo de Ammit usa o mesmo canal (`transformToHandOnDeath`) mas devolve
+       uma carta DIFERENTE — `r.key` sobrescreve o alvo, ver
+       cards/ammit-devoradora.js e o handler "ovo-ammit-transform" abaixo. */
+    const targetKey = r.key || "mumia";
+    const nomeAlvo = byKey[targetKey].nome;
     if (mao.length >= MAO_MAX) {
-      pushLog(s, `✋ ${SIDE_NAME[r.owner]}: mão cheia (${MAO_MAX}) — a Múmia ficou na pilha de destruídas.`);
+      pushLog(s, `✋ ${SIDE_NAME[r.owner]}: mão cheia (${MAO_MAX}) — a ${nomeAlvo} ficou na pilha de destruídas.`);
       continue;
     }
-    /* `printed` sai da DEFINIÇÃO, não de um literal: a carta que volta é uma
-       Múmia comum, e o excedente vira Faixa. Se o Poder impresso mudar de novo,
-       nada aqui precisa ser tocado — antes havia um 2 fixo aqui que teria
-       silenciosamente divergido da coleção. */
-    const impresso = byKey["mumia"].poder;
-    mao.push({ hid: nextUid(s), key: "mumia", printed: impresso, baked: Math.max(0, r.val - impresso), venenos: r.venenos || [] });
+    /* `printed` sai da DEFINIÇÃO, não de um literal: a carta que volta usa o
+       Poder impresso real da chave-alvo, e o excedente vira Faixa. Se o Poder
+       impresso mudar de novo, nada aqui precisa ser tocado — antes havia um 2
+       fixo aqui que teria silenciosamente divergido da coleção.
+       `r.fixedBaked`, quando presente, pula esse cálculo por completo — é o
+       caso do Ovo de Ammit, cuja ficha de retorno tem Poder fixo (0), não
+       escalado pelo Poder do Ovo no momento da morte. */
+    const impresso = byKey[targetKey].poder;
+    const baked = r.fixedBaked !== undefined ? r.fixedBaked : Math.max(0, r.val - impresso);
+    mao.push({ hid: nextUid(s), key: targetKey, printed: impresso, baked, venenos: r.venenos || [] });
     voltaram.push(r);
   }
   return voltaram;
@@ -2044,6 +2054,15 @@ registerEventHandler("beforeDeath", {
   handle: ({ card, powerAtDeath, returns }) => {
     const effect = efeitoDe(byKey[card.key], "returnToHandOnDeath");
     returns.push({ owner: card.owner, val: powerAtDeath * effect.multiplier, venenos: (card.venenos || []).slice() });
+  },
+});
+
+registerEventHandler("beforeDeath", {
+  id: "ovo-ammit-transform", priority: 15,
+  when: ({ card }) => cartaTemEfeito(card, "transformToHandOnDeath"),
+  handle: ({ card, returns }) => {
+    const effect = efeitoDe(byKey[card.key], "transformToHandOnDeath");
+    returns.push({ owner: card.owner, key: effect.into, fixedBaked: 0, venenos: (card.venenos || []).slice() });
   },
 });
 

@@ -215,8 +215,10 @@ describe("TOKENS", () => {
     expect(byKey["token-mosca"].poder).toBe(0);
   });
 
-  it("ambos são do tipo Animal, alvo da Peste nos Animais", () => {
-    for (const t of TOKENS) expect(temTipo(t, "Animal"), t.key).toBe(true);
+  it("tokens de fauna são do tipo Animal, alvo da Peste nos Animais (Ammit é a exceção deliberada — Criatura)", () => {
+    const fauna = TOKENS.filter((t) => t.key !== "ammit");
+    for (const t of fauna) expect(temTipo(t, "Animal"), t.key).toBe(true);
+    expect(temTipo(byKey["ammit"], "Animal")).toBe(false);
   });
 
   it("nenhuma chave de token colide com a coleção", () => {
