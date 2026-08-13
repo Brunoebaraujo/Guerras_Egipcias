@@ -47,7 +47,7 @@ import { byKey } from "./engine.js";
 const DECK_A = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general",
                 "colosso", "servo-mel", "purificacao", "amon", "sobek", "osiris"];
 const DECK_B = ["mumia", "enxame", "assassino-medjay", "selo", "montu", "armadura",
-                "escaravelho", "ammit", "sekhmet", "moises", "servo-mel", "purificacao"];
+                "escaravelho", "heh", "sekhmet", "moises", "servo-mel", "purificacao"];
 
 const SEMENTES = Number(process.env.ARNES_SEMENTES) || 8;
 /* Larguras alternadas por semente: abaixo de 820 o OnlineGame usa o tabuleiro

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { applyAction, autoReveal, freshMatch } from "./match.js";
 import { byKey } from "./engine.js";
 
-const deck = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "ammit", "mumia", "sobek"];
+const deck = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "heh", "mumia", "sobek"];
 
 function executar(seed) {
   let state = freshMatch([deck, deck], { seed });

@@ -46,7 +46,7 @@ describe("freshMatch", () => {
   });
 
   it("é reproduzível com o mesmo rng semeado", () => {
-    const lista = ["servo", "arqueiro", "lanceiro", "hathor", "montu", "carruagem", "guardareal", "sobek", "mumia", "set", "selo", "ammit"];
+    const lista = ["servo", "arqueiro", "lanceiro", "hathor", "montu", "carruagem", "guardareal", "sobek", "mumia", "set", "selo", "heh"];
     resetUid();
     const a = freshMatch([lista, lista], { rng: seeded(42) });
     resetUid();

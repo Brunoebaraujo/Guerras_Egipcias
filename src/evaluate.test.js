@@ -3,7 +3,7 @@ import { freshMatch } from "./match.js";
 import { avaliarOpcao } from "./domain/bots/evaluate.js";
 import { legalPlacements } from "./domain/bots/decide.js";
 
-const deckA = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "ammit", "mumia", "sobek"];
+const deckA = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "heh", "mumia", "sobek"];
 const deckB = ["cao", "cabra-nilo", "ganso", "gato", "macaco", "hiena", "garca", "rebanho", "domador", "apis", "amon", "escaravelho"];
 
 /* Instância de tabuleiro já revelada — mesma forma que o motor usa. */

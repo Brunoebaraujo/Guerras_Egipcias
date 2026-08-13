@@ -13,7 +13,7 @@ const byKeyPraga = (k) => PRAGA_KEYS.includes(k);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = 8199;
-const DECK = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "ammit", "mumia", "sobek"];
+const DECK = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "heh", "mumia", "sobek"];
 
 let passed = 0, failed = 0;
 const check = (cond, label) => { if (cond) { passed++; } else { failed++; console.error("  ✗ " + label); } };

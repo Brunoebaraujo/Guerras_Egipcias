@@ -6,7 +6,7 @@ import { runBotPlanning } from "./match/bots/controller.js";
 import { createRng } from "./domain/rng.js";
 import { BOT_LEVELS, BOT_LEVEL_ORDER } from "./domain/bots/index.js";
 
-const deckA = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "ammit", "mumia", "sobek"];
+const deckA = ["servo", "arqueiro", "lanceiro", "carruagem", "guardareal", "general", "montu", "hathor", "escaravelho", "heh", "mumia", "sobek"];
 const deckB = ["cao", "cabra-nilo", "ganso", "gato", "macaco", "hiena", "garca", "rebanho", "domador", "apis", "amon", "escaravelho"];
 
 describe("domain/bots/decide — legalidade", () => {

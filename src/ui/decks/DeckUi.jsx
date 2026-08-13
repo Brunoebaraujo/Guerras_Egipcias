@@ -13,7 +13,7 @@ export const LIB_API_STUB = {
 
 export const DECK_LIST = [
   "montu", "carruagem", "guardareal",
-  "armadura", "escaravelho", "ammit", "enxame",
+  "armadura", "escaravelho", "heh", "enxame",
   "mumia", "sobek", "hathor", "set", "selo",
 ];
 /* Nomes fixos no código — a fonte de verdade de CADA preset é a sobrescrita do
@@ -21,7 +21,7 @@ export const DECK_LIST = [
    cai aqui. Renomear ou remover uma chave de `DEFAULT_PRESETS` é seguro: uma
    sobrescrita órfã simplesmente para de aparecer (`effectivePresets`). */
 export const DEFAULT_PRESETS = {
-  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "ammit", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
+  "Padrão":     ["montu", "carruagem", "guardareal", "armadura", "escaravelho", "heh", "enxame", "mumia", "sobek", "hathor", "set", "selo"],
   "Exército":   ["servo", "arqueiro", "escaravelho", "heka", "lanceiro", "carruagem", "enxame", "montu", "guardareal", "amon", "general", "colosso"],
   "Sacrifício": ["servo", "bennu", "mumia", "armadura", "heka", "sobek", "enxame", "sekhmet", "apofis", "osiris", "diluvio", "amheh"],
   "Controle":   ["anubis", "maat", "selo", "sekhmet", "amon", "hathor", "montu", "osiris", "guardareal", "colosso", "general", "set"],
