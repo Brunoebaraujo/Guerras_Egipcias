@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Carta from "../Carta.jsx";
 import MainMenu from "../MainMenu.jsx";
 import {
-  CARDS, PRAGAS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
+  CARDS, PRAGAS, TOKENS, byKey, GLYPH, ARCH_COLOR, SIDE_NAME, custoDe,
   resetUid, shuffled, ctxOf,
   power, laneWins,
   montarLogPartida, decomporPartes,
@@ -28,7 +28,7 @@ import { DUAT_KEYFRAMES } from "./game/animations.js";
 import { Lobby } from "./multiplayer/Multiplayer.jsx";
 import {
   AvisoOutorga, COLLECTION, DECK_LIST, DeckLibraryModal, DeckMobile, MpDeck,
-  PRAGAS_ORDENADAS, DEFAULT_PRESETS, PresetEditorModal,
+  PRAGAS_ORDENADAS, TOKENS_ORDENADOS, DEFAULT_PRESETS, PresetEditorModal,
 } from "./decks/DeckUi.jsx";
 import {
   DIMENSOES_FILTRO, FILTROS_VAZIOS, FiltrosGaleria, GradeGaleria,
@@ -132,7 +132,7 @@ export default function App() {
     if (!showcase) setZoom((z) => (z?.isPlagueShowcase ? null : z));
   }, [showcase]);
   const [fast, setFast] = useState(false);
-  const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas"
+  const [galeriaAba, setGaleriaAba] = useState("colecao");      // "colecao" | "pragas" | "tokens"
   const [filtros, setFiltros] = useState(FILTROS_VAZIOS);
   const [cartaAmpliada, setCartaAmpliada] = useState(null);    // def da carta no zoom da Galeria
   const flashRef = useRef(null);
@@ -452,7 +452,7 @@ export default function App() {
 
   // ============================ TELA: GALERIA ==============================
   if (screen === "galeria") {
-    const baseAba = galeriaAba === "colecao" ? COLLECTION : PRAGAS_ORDENADAS;
+    const baseAba = galeriaAba === "colecao" ? COLLECTION : galeriaAba === "pragas" ? PRAGAS_ORDENADAS : TOKENS_ORDENADOS;
     const visiveis = baseAba.filter((c) =>
       DIMENSOES_FILTRO.every((d) => filtros[d.id].length === 0 || filtros[d.id].includes(d.de(c))));
     const alternarFiltro = (id, v) => setFiltros((f) => ({
@@ -468,12 +468,14 @@ export default function App() {
               <p className="text-xs text-stone-400">
                 {galeriaAba === "colecao"
                   ? `${COLLECTION.length} cartas escolhíveis, ordenadas por custo.`
-                  : `${PRAGAS.length} Pragas — não se escolhem: vêm de brinde com o Moisés e entram embaralhadas no deck.`}
+                  : galeriaAba === "pragas"
+                  ? `${PRAGAS.length} Pragas — não se escolhem: vêm de brinde com o Moisés e entram embaralhadas no deck.`
+                  : `${TOKENS.length} Tokens — não se escolhem: nascem de efeitos de outras cartas durante a partida.`}
               </p>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex rounded-md overflow-hidden border border-stone-700">
-                {[["colecao", "Coleção"], ["pragas", "Pragas"]].map(([id, rotulo]) => (
+                {[["colecao", "Coleção"], ["pragas", "Pragas"], ["tokens", "Tokens"]].map(([id, rotulo]) => (
                   <button key={id} onClick={() => trocarAba(id)}
                     className={`px-3 py-2 text-sm ${galeriaAba === id ? "bg-amber-700 text-amber-100" : "bg-stone-800 hover:bg-stone-700 text-stone-300"}`}>{rotulo}</button>
                 ))}
@@ -487,6 +489,14 @@ export default function App() {
               Ao colocar <strong>Moisés, Portador das Pragas</strong> no seu deck de 12, as 10 entram automaticamente no
               início da partida e o deck passa a ter 22 cartas embaralhadas. Cada Praga resolve seu efeito e deixa o
               campo sem ocupar espaço.
+            </div>
+          )}
+          {galeriaAba === "tokens" && (
+            <div className="mb-4 rounded-md border border-amber-800/60 bg-amber-950/30 p-3 text-xs text-amber-200/90">
+              Tokens são <strong>fichas criadas por efeitos de outras cartas</strong>: não ocupam vaga no deck e não
+              podem ser escolhidas aqui. Elas só entram em jogo quando uma carta do seu deck as cria — por exemplo,
+              Ammit, a Devoradora nasce do Ovo de Ammit, e Rã, Ganso, Cabra e Mosca aparecem por efeitos de outras
+              cartas ou de Pragas.
             </div>
           )}
           <FiltrosGaleria lista={baseAba} filtros={filtros} visiveis={visiveis.length}

@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef, useState } from "react";
 import Carta from "../../Carta.jsx";
-import { ARCH_COLOR, CARDS, GLYPH, OUTORGAS, PRAGAS, SIDE_NAME, byKey, shuffled } from "../../engine.js";
+import { ARCH_COLOR, CARDS, GLYPH, OUTORGAS, PRAGAS, TOKENS, SIDE_NAME, byKey, shuffled } from "../../engine.js";
 import { MAX_DECKS, NAME_MAX, estadoDoDeck } from "../../deckLibrary.js";
 import { DECK_SIZE } from "../../rules.js";
 import { calcularJanela, fatiar, mesmaJanela } from "../janela.js";
@@ -201,6 +201,10 @@ export function AvisoOutorga({ deck, estilo = "web" }) {
   return <div style={{ fontSize: 11, color: "#fcd34d", padding: "0 10px 6px" }}>{txt}</div>;
 }
 export const PRAGAS_ORDENADAS = [...PRAGAS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
+/* Fichas (tokens) nunca aparecem em CARDS nem no deckbuilder — só existem
+   porque um efeito as criou. A Galeria as mostra à parte (aba "Tokens"),
+   mesmo padrão de "Pragas": lista de leitura, sem seleção. */
+export const TOKENS_ORDENADOS = [...TOKENS].sort((a, b) => a.custo - b.custo || a.nome.localeCompare(b.nome));
 
 /* ==========================================================================
    BIBLIOTECA DE DECKS — modal reutilizável (desktop e mobile).
