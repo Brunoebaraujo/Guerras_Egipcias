@@ -94,9 +94,17 @@ export const CARDS = [
     efeitos: [{ id: "moveOnceNextRound" }], arte: "escaravelho", arteFoco: "center 0%",
     lore: "Khepri empurra o sol pelo céu a cada amanhecer, e assim o mundo se refaz. O escaravelho não pertence a lugar nenhum: alça voo, muda de rumo e recomeça onde for preciso — o Egito o gravava em amuletos justamente por essa promessa de eterno movimento.",
     texto: "Pode mover-se para outra via uma vez, a partir da rodada seguinte à sua entrada." },
-  { key: "ammit", nome: "Ammit, a Devoradora", tipo: "Criatura", custo: 3, poder: 1, arch: "crescimento",
-    trigger: "continuo", efeitos: [{ id: "growPerLaterPlay", value: 1 }], arte: "ammit",
-    lore: "À sombra da balança, Ammit aguardava o veredito: todo coração mais pesado que a pena de Maat era seu. Crocodilo, leão e hipopótamo num só corpo, sua fome jamais se saciava — quanto mais devorava, mais faminta e vasta se tornava.",
+  /* Antes "Ammit, a Devoradora" — a chave, arte e lore de Ammit migraram para
+     a ficha "Ammit, a Devoradora" (módulo cards/ammit-devoradora.js), que
+     nasce do Ovo de Ammit e consome a via ao entrar. Esta carta manteve a
+     mecânica de crescimento intocada (só nome/tipo/arte/lore mudaram) e
+     ganhou identidade própria: Heh, deus egípcio do infinito e das "milhões
+     de anos", cuja iconografia (nervuras de palmeira erguidas, uma marca por
+     ano contado) já era a metáfora certa para "+1 a cada carta jogada depois
+     dela" — Ammit nunca teve relação temática direta com esse efeito. */
+  { key: "heh", nome: "Heh, o Infinito", tipo: "Divindade", custo: 3, poder: 1, arch: "crescimento",
+    trigger: "continuo", efeitos: [{ id: "growPerLaterPlay", value: 1 }], arte: "heh",
+    lore: "Antes dos deuses terem nome, Heh já contava. Ajoelhado no vazio dourado, segura em cada mão uma nervura de palmeira entalhada — uma marca por ano, sem início nem fim. Ele não governa o tempo: é o tempo, acumulando-se em silêncio enquanto o mundo se enche ao seu redor.",
     texto: "Contínuo: +1 de Poder para cada carta que você colocar em jogo depois dela." },
   { key: "sekhmet", nome: "Sekhmet", tipo: "Divindade", custo: 3, poder: 4, arch: "debuff",
     trigger: "entrar", efeitos: [{ id: "destroyGlobalCost", cost: 1 }], arte: "sekhmet", arteFoco: "center 0%",
@@ -403,8 +411,11 @@ const NOME_CURTO = {
   sicario: "Sicário", senti: "Senti", hemsu: "Hemsu", semerj: "Semerj", akhu: "Akhu", "seqer-mau": "Seqer-Mau",
   // Divindades de nome composto
   amheh: "Am-heh", moises: "Moisés", khnum: "Khnum", hu: "Hu", isfet: "Isfet", "escudo-anubis": "Escudo",
-  // Criaturas e demais
-  escaravelho: "Escaravelho", ammit: "Ammit", armadura: "Armadura",
+  heh: "Heh",
+  // Criaturas e demais — "ammit" saiu daqui: agora é ficha modular
+  // (cards/ammit-devoradora.js), registrada depois deste laço, e por isso
+  // seta nomeCurto direto no objeto (mesmo padrão de ladrao-de-ka.js).
+  escaravelho: "Escaravelho", armadura: "Armadura",
   selo: "Silêncio", diluvio: "Dilúvio", "ka-errante": "Ka",
   // Humanos
   escriba: "Escriba", conselheiro: "Conselheiro",

@@ -396,14 +396,14 @@ describe("Praga das Rãs", () => {
     expect(s.board.find((c) => c.key === "token-ra")).toBeUndefined();
   });
 
-  it("incrementa plays do adversário — alimenta a Ammit dele (decisão de projeto)", () => {
+  it("incrementa plays do adversário — alimenta o Heh dele (decisão de projeto)", () => {
     const praga = mk("ras", { owner: 0 });
-    const ammit = mk("ammit", { owner: 1, lane: 1, entryPlays: 0 });
-    const s = mkState([praga, ammit], { plays: [0, 0] });
-    expect(power(ammit, ctxOf(s))).toBe(1);
+    const heh = mk("heh", { owner: 1, lane: 1, entryPlays: 0 });
+    const s = mkState([praga, heh], { plays: [0, 0] });
+    expect(power(heh, ctxOf(s))).toBe(1);
     resolvePraga(s, praga, primeiro);
     expect(s.plays[1]).toBe(1);
-    expect(power(ammit, ctxOf(s))).toBe(2);
+    expect(power(heh, ctxOf(s))).toBe(2);
   });
 
   it("a Rã é Animal e custo 1: cai para a Peste e para a Sekhmet", () => {

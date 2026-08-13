@@ -54,11 +54,11 @@ describe("power()", () => {
     expect(power(s.board[0], ctxOf(s))).toBe(10);     // 4 + 2*(2+1)
   });
 
-  it("Ammit cresce +1 por carta jogada depois dela", () => {
-    const ammit = mk("ammit", { entryPlays: 2 });
-    const s = mkState([ammit]);
+  it("Heh cresce +1 por carta jogada depois dela", () => {
+    const heh = mk("heh", { entryPlays: 2 });
+    const s = mkState([heh]);
     s.plays[0] = 5;
-    expect(power(ammit, ctxOf(s))).toBe(4);           // 1 + (5-2)
+    expect(power(heh, ctxOf(s))).toBe(4);             // 1 + (5-2)
   });
 
   it("cartas com dying não contam no placar da via", () => {
