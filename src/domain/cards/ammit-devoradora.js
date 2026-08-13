@@ -11,19 +11,17 @@
       resolvido no mesmo canal `beforeDeath` que já atende Múmia/Bennu (ver
       handler "ovo-ammit-transform" e o loop generalizado em `destroyList()`,
       ambos em engine.js).
-   3. Ammit, a Devoradora (4/0, custo 4) é uma FICHA — nunca aparece em deck
+   3. Ammit, a Devoradora (0/4, custo 4) é uma FICHA — nunca aparece em deck
       nem na Galeria, só nasce do Ovo. Ao entrar, destrói todos os OUTROS
-      aliados na via (`consumeOwnLane`, que reaproveita `resolveDestroyOwnLane`
-      sem absorção de Poder — o Poder da Ammit fica fixo em 0, ela não escala
-      com o que devora). Cada aliado destruído dispara seu próprio efeito de
-      morte, o que faz da Ammit o gatilho que ativa vários sacrifícios
-      pendentes de uma vez — o "botão de detonar" do arquétipo.
-
-   Por que NÃO reusar o efeito "sacrificeLane" (Sobek/Apófis) para a Ammit:
-   sem `absorb`, esse efeito despacha para `resolveSobek()`, que empilha
-   +1 de Poder por vítima rotulado "Sobek" — nem o rótulo nem o ganho de
-   Poder fazem sentido aqui. `consumeOwnLane` chama `resolveDestroyOwnLane()`
-   direto, com `absorb: false`, que só destrói e não toca em Poder nenhum.
+      aliados na via e ABSORVE o Poder total deles — reaproveita
+      `{ id: "sacrificeLane", absorb: true }`, o MESMO efeito que a Apófis já
+      usa (`resolveDestroyOwnLane` com `absorb: true`; rótulo genérico
+      "Absorção", sem acoplamento a Sobek). Cada aliado devorado ainda dispara
+      o próprio efeito de morte antes de ser contado na absorção, o que faz
+      da Ammit o gatilho que ativa vários sacrifícios pendentes de uma vez —
+      o "botão de detonar" do arquétipo — e sai da via mais forte quanto mais
+      fundo o combo for, exatamente como a lore already promete ("quanto mais
+      devorava, mais faminta e vasta se tornava").
 
    CONVENÇÕES QUEBRADAS DE PROPÓSITO, E POR QUÊ:
    - `key: "ammit"` não tem o prefixo `token-` usado pelas demais fichas: ela
@@ -61,8 +59,8 @@ export const AMMIT_DEVORADORA = {
   arte: "ammit",
   token: true,
   trigger: "entrar",
-  efeitos: [{ id: "consumeOwnLane" }],
-  texto: "Ao Entrar: destrói todos os outros aliados nesta via.",
+  efeitos: [{ id: "sacrificeLane", absorb: true }],
+  texto: "Ao Entrar: destrói todos os outros aliados nesta via e ganha o Poder total deles.",
   lore: "À sombra da balança, Ammit aguardava o veredito: todo coração mais pesado que a pena de Maat era seu. Crocodilo, leão e hipopótamo num só corpo, sua fome jamais se saciava — quanto mais devorava, mais faminta e vasta se tornava.",
 };
 

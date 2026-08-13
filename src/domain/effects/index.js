@@ -121,18 +121,6 @@ registerEffect("sacrificeAllLanes", {
     resolveDestroyAllOwnLanes(state, source, params.absorb, definition),
 });
 
-/* AMMIT, A DEVORADORA — consome (destrói) todos os outros aliados na via ao
-   entrar. Chama resolveDestroyOwnLane() direto com absorb=false: destrói e
-   não toca em Poder (Ammit fica fixa em 0/4, não escala com o que devora).
-   Não reusa "sacrificeLane" porque, sem absorb, aquele efeito despacha para
-   resolveSobek() — que soma +1 de Poder por vítima e rotula o ganho como
-   "Sobek", nem um nem outro fazendo sentido pra Ammit. Ver
-   cards/ammit-devoradora.js para o combo completo com o Ovo de Ammit. */
-registerEffect("consumeOwnLane", {
-  phase: "enter", priority: 100,
-  resolver: ({ state, source, definition }) => resolveDestroyOwnLane(state, source, false, definition),
-});
-
 registerEffect("summonSwarm", {
   phase: "enter", priority: 100,
   resolver: ({ state, source, definition }) => resolveDestroyOwnLane(state, source, true, definition),

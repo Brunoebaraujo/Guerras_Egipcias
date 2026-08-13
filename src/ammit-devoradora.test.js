@@ -87,10 +87,10 @@ describe("Ovo de Ammit (Ao Morrer)", () => {
 });
 
 describe("Ammit, a Devoradora (Ao Entrar)", () => {
-  it("destrói todos os OUTROS aliados na mesma via, sem ganhar Poder", () => {
+  it("destrói todos os OUTROS aliados na mesma via e absorve o Poder deles", () => {
     const ammit = mk("ammit", { lane: 0 });
-    const aliado1 = mk("servo", { lane: 0 });
-    const aliado2 = mk("servo", { lane: 0 });
+    const aliado1 = mk("servo", { lane: 0 }); // poder 1
+    const aliado2 = mk("servo", { lane: 0, mods: [{ src: "Hathor", val: 2 }] }); // poder 1+2=3
     const outraVia = mk("servo", { lane: 1 }); // mesma dona, outra via — poupada
     const inimigo = mk("servo", { owner: 1, lane: 0 }); // via certa, dono errado — poupado
     const s = mkState([ammit, aliado1, aliado2, outraVia, inimigo]);
@@ -100,7 +100,9 @@ describe("Ammit, a Devoradora (Ao Entrar)", () => {
     expect(aliado2.dying).toBeTruthy();
     expect(outraVia.dying).toBeFalsy();
     expect(inimigo.dying).toBeFalsy();
-    expect(power(ammit, ctxOf(s))).toBe(0); // não absorve Poder das vítimas
+    // Absorve o Poder ATUAL das vítimas (impresso + bênçãos), não só o impresso:
+    // 1 (aliado1) + 3 (aliado2, já com +2 de Hathor) = 4.
+    expect(power(ammit, ctxOf(s))).toBe(4);
   });
 
   it("sozinha na via: efeito bloqueia sem quebrar nada", () => {
