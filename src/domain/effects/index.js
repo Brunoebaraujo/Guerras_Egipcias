@@ -11,6 +11,7 @@ import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
 import { registrarTechCards } from "../cards/tech-cards.js";
 import { registrarSekhem } from "../cards/sekhem.js";
 import { registrarLadraoDeKa } from "../cards/ladrao-de-ka.js";
+import { registrarSia } from "../cards/sia.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
@@ -20,6 +21,7 @@ registrarLaminaOferenda(CARDS, byKey);
 registrarTechCards(CARDS, byKey);
 registrarSekhem(CARDS, byKey);
 registrarLadraoDeKa(CARDS, byKey);
+registrarSia(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -206,6 +208,20 @@ registerEffect("endRoundSummonPerIdleSide", {
 registerEffect("growPerBoardAnimal", {
   phase: "enter", priority: 100,
   resolver: ({ state, source, definition }) => resolveApis(state, source, definition),
+});
+
+/* Sia — versão automática do "armar" do Hu. Só marca o estado de espera;
+   a entrega do Poder para a próxima carta jogada acontece na revelação
+   seguinte, na mesma rotina generalizada que atende Hu (ver match/index.js,
+   busca por `aguardandoProxima` dentro de `resolveCurrentCard`). */
+registerEffect("autoTransferPowerNext", {
+  phase: "enter", priority: 100,
+  resolver: ({ state, source, definition }) => {
+    source.aguardandoProxima = true;
+    source.ativadoEmPlays = state.plays[source.owner];
+    pushLog(state, `${definition.nome} guardou seu Poder para a próxima carta jogada.`);
+    return null;
+  },
 });
 
 for (const [id, phase] of [
