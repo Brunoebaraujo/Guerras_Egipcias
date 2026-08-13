@@ -32,12 +32,7 @@
      engine.js). Trocar a chave quebraria essa herança sem ganho nenhum.
    - Custo 4, não 1: assim como o token-gafanhoto (custo 3), fichas com efeito
      forte na entrada não seguem a convenção de custo 1 (alcance de Sekhmet /
-     bênção de Nut) — aqui o design é deliberadamente caro e definitivo.
-
-   PENDÊNCIA: Ovo de Ammit ainda não tem arte própria — o campo `arte` fica
-   omitido de propósito até a arte ser gerada (evita referenciar um .webp que
-   não existe). Adicionar `arte: "ovo-ammit"` quando o arquivo existir em
-   public/cartas/. */
+     bênção de Nut) — aqui o design é deliberadamente caro e definitivo. */
 
 export const OVO_DE_AMMIT = {
   key: "ovo-ammit",
@@ -47,6 +42,8 @@ export const OVO_DE_AMMIT = {
   custo: 1,
   poder: 1,
   arch: "renascimento",
+  arte: "ovo-ammit",
+  arteFoco: "center 0%", // o brilho do topo da casca chega perto do corte
   trigger: "morrer",
   efeitos: [{ id: "transformToHandOnDeath", into: "ammit" }],
   texto: "Ao Morrer: volta para sua mão como Ammit, a Devoradora.",
