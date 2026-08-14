@@ -416,3 +416,100 @@ describe("o eco se comporta como um Ao Entrar comum", () => {
     expect(s.destroyedPower[0]).toBe(2);        // dois Servos de 1
   });
 });
+
+/* ==========================================================================
+   ECO DE SIA/HU — TRANSFERÊNCIA DE PODER
+   Bug relatado por Bruno em partida real: Sia (armada numa rodada) ficava
+   pendurada e acabava caindo na carta ERRADA quando um Hu era ativado numa
+   rodada seguinte antes do Ka revelar — só a PRIMEIRA fonte encontrada no
+   array do board era consumida. Além disso, Sia perdeu `trigger: "entrar"`
+   num refactor anterior (arma no `place()`, não na revelação), o que fazia
+   o Ka Errante nunca conseguir ecoá-la.
+
+   Comportamento correto, com os dois problemas corrigidos:
+     1. TODAS as fontes armadas e ainda não consumidas que precedem a carta
+        que entra contribuem para ela (não só a primeira do array).
+     2. O Ka Errante PODE ecoar Sia/Hu: ele se arma como nova fonte, guardando
+        o PRÓPRIO Poder (já somando o que acabou de receber) para a PRÓXIMA
+        carta que o mesmo lado jogar.
+   ========================================================================== */
+describe("eco de Sia/Hu (transferência de poder)", () => {
+  // Constrói uma carta diretamente no board (mesmo padrão de hu.test.js),
+  // para simular cartas já reveladas em rodadas anteriores sem precisar
+  // reproduzir a partida inteira rodada a rodada.
+  function noBoard(s, key, owner, lane, revealed, entryPlays, extra = {}) {
+    const card = {
+      uid: nextUid(), key, owner, lane,
+      printed: byKey[key].poder, baked: 0, mods: [], dying: false,
+      revealed, pendentes: 0, custoMod: 0, venenos: [],
+      entryPlays, enteredRound: 1, moved: false,
+      aguardandoProxima: false, jaBufou: false,
+      ...extra,
+    };
+    if (revealed) { s.effectSeq = (s.effectSeq || 0) + 1; card.revealSeq = s.effectSeq; }
+    s.board.push(card);
+    return card;
+  }
+
+  it("bug real: Ka recebe Hu E Sia (não só a primeira fonte no array) e repassa o total adiante", () => {
+    const s = freshMatch([
+      ["hu", "sia", "ka-errante", "renenutet", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo"],
+      ["servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo"],
+    ], { rng: () => 0.5 });
+
+    // Hu revelado numa rodada anterior (revealSeq mais baixo — jogado antes).
+    const hu = noBoard(s, "hu", 0, 0, true, 1, { enteredRound: 0 });
+    // Sia revelada DEPOIS do Hu, já armada e nunca consumida — fica pendurada.
+    const sia = noBoard(s, "sia", 0, 1, true, 2, { aguardandoProxima: true, ativadoEmPlays: 2, enteredRound: 0 });
+    s.plays[0] = 2;
+
+    // Ativa o Hu nesta rodada.
+    let r = applyAction(s, { t: "toggleActivate", side: 0, uid: hu.uid });
+    expect(r.error).toBeUndefined();
+    let state = r.state;
+    expect(state.board.find((c) => c.uid === hu.uid).aguardandoProxima).toBe(true);
+
+    // Ka Errante e Renenutet são jogados nesta rodada, nessa ordem.
+    state.plays[0] = 3;
+    const ka = noBoard(state, "ka-errante", 0, 2, false, 3);
+    state.plays[0] = 4;
+    const ren = noBoard(state, "renenutet", 0, 2, false, 4);
+    state.queue = [ka.uid, ren.uid];
+    state.phase = "revealing";
+
+    // Revela o Ka: deve receber o Hu (3) E a Sia (2) — 3 (próprio) + 3 + 2 = 8.
+    r = applyAction(state, { t: "step" }, { rng: () => 0 });
+    const kaAfter = r.state.board.find((c) => c.uid === ka.uid);
+    expect(power(kaAfter, ctxOf(r.state))).toBe(8);
+    expect(kaAfter.mods.some((m) => m.src === "Hu")).toBe(true);
+    expect(kaAfter.mods.some((m) => m.src === "Sia")).toBe(true);
+    // As duas fontes foram consumidas — nenhuma sobra pendurada pra Renenutet.
+    expect(r.state.board.find((c) => c.uid === hu.uid).aguardandoProxima).toBe(false);
+    expect(r.state.board.find((c) => c.uid === sia.uid).aguardandoProxima).toBe(false);
+    // O eco copiou a habilidade de transferência: o próprio Ka se armou.
+    expect(kaAfter.aguardandoProxima).toBe(true);
+    expect(kaAfter.jaBufou).toBeFalsy();
+
+    // Revela a Renenutet: recebe o total do Ka (8), não os 2 originais da Sia.
+    r = applyAction(r.state, { t: "step" }, { rng: () => 0 });
+    const renAfter = r.state.board.find((c) => c.uid === ren.uid);
+    expect(renAfter.mods.some((m) => m.src === "Ka Errante" && m.val === 8)).toBe(true);
+    expect(r.state.board.find((c) => c.uid === ka.uid).aguardandoProxima).toBe(false);
+  });
+
+  it("temEntradaCopiavel reconhece Sia e Hu mesmo sem trigger:\"entrar\"", () => {
+    expect(temEntradaCopiavel(byKey["sia"])).toBe(true);
+    expect(temEntradaCopiavel(byKey["hu"])).toBe(true);
+  });
+
+  it("Ka ecoando Sia sozinha (sem Hu em campo) se arma normalmente", () => {
+    const { state: s } = revelar([["sia", 1], ["ka-errante", 1]]);
+    const sia = s.board.find((c) => c.key === "sia");
+    // Sia é a última própria revelada: o eco a alcança.
+    expect(trilha(s)).toContain("ecoa o Ao Entrar de Sia");
+    expect(trilha(s)).toContain("Ka Errante guardou seu Poder para a próxima carta jogada");
+    const ka = s.board.find((c) => c.key === "ka-errante");
+    expect(ka.aguardandoProxima).toBe(true);
+    expect(sia.aguardandoProxima).toBeFalsy();   // Sia nunca foi ativada — nada a limpar
+  });
+});

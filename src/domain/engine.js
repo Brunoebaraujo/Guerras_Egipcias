@@ -793,10 +793,21 @@ export function acharEcoAlvo(s, ka) {
 /* O que É um "efeito de Entrada" para fins de cópia. Fora daqui ficam, por
    construção e não por lista: Contínuo (aura), Ao Morrer, e as cartas sem
    gatilho nenhum. E fica também o próprio Eco: dois Ka Errantes em campo se
-   ecoariam em círculo, então o segundo encontra o primeiro e não copia nada. */
+   ecoariam em círculo, então o segundo encontra o primeiro e não copia nada.
+
+   Sia e Hu são um CASO ESPECIAL: não têm `trigger: "entrar"` (Sia se arma no
+   `place()`, Hu no `toggleActivate()`), mas a habilidade delas — "guardar o
+   próprio Poder para a próxima carta jogada" — é claramente algo que o Ka
+   Errante deve poder copiar. `resolverEco` (`match/index.js`) trata esse caso
+   à parte: em vez de rodar o resolver registrado (que é no-op de propósito),
+   arma o PRÓPRIO Ka como nova fonte, exatamente como Sia se armaria. */
 export const temEntradaCopiavel = (def) =>
-  !!def && def.trigger === "entrar"
-  && def.efeitos?.some((effect) => effect.id !== "resolvePlague" && effect.id !== "echoLastEntry");
+  !!def && (
+    (def.trigger === "entrar"
+      && def.efeitos?.some((effect) => effect.id !== "resolvePlague" && effect.id !== "echoLastEntry"))
+    || cartaTemEfeito(def, "autoTransferPowerNext")
+    || cartaTemEfeito(def, "activateTransferPower")
+  );
 
 export const onEnterBlocked = (card, board) =>
   board.some((b) => b.revealed && !b.dying && cartaTemEfeito(b, "blockEnemyEntryInLane") && b.lane === card.lane && b.owner !== card.owner);

@@ -264,11 +264,13 @@ function resolverEntrada(s, card, def, rng) {
    Ka Errante. Acha a última carta revelada que ainda esteja em campo e reexecuta
    o Ao Entrar dela a partir da posição do Ka.
 
-   Três desfechos, e todos os três são "entrou normalmente":
+   Quatro desfechos, e todos são "entrou normalmente":
      1. não há candidata em campo          -> sem habilidade
      2. a candidata não tem Ao Entrar      -> sem habilidade (Contínuo, Ao
         Morrer, carta baunilha, ou outro Ka Errante)
-     3. tem                                -> resolverEntrada com a def dela
+     3. a candidata é Sia/Hu (transferência de poder) -> o Ka se ARMA como
+        nova fonte (ver abaixo)
+     4. tem Ao Entrar comum                -> resolverEntrada com a def dela
 
    A candidata é sempre do PRÓPRIO DONO. O que o adversário revelou não é eco e
    nem atrapalha: o Ka passa por cima e segue procurando o último efeito DELE,
@@ -285,6 +287,23 @@ function resolverEco(s, ka, rng) {
   if (!temEntradaCopiavel(alvoDef)) return semEco(`${alvoDef.nome} não tem efeito de Entrada para ecoar`);
 
   pushLog(s, `⟳ ${nome} ecoa o Ao Entrar de ${alvoDef.nome} (${SIDE_NAME[alvo.owner]}, Via ${alvo.lane + 1}).`);
+
+  /* Sia/Hu não têm um resolver de "entrada" de verdade — a entrega real
+     acontece na revelação da carta SEGUINTE, via `aguardandoProxima` (ver
+     `resolveCurrentCard`). Copiar essa habilidade não significa reexecutar
+     um resolver (que aqui seria no-op): significa o próprio Ka se ARMAR como
+     nova fonte, guardando o PRÓPRIO Poder atual — que, nesta altura da
+     revelação, já inclui qualquer transferência que o Ka tenha recebido
+     alguns instantes antes (Hu/Sia diretos resolvem ANTES do eco, ver ordem
+     em `resolveCurrentCard`) — para a PRÓXIMA carta que o mesmo dono jogar. */
+  if (cartaTemEfeito(alvoDef, "autoTransferPowerNext") || cartaTemEfeito(alvoDef, "activateTransferPower")) {
+    ka.aguardandoProxima = true;
+    ka.ativadoEmPlays = ka.entryPlays;
+    pushLog(s, `${nome} guardou seu Poder para a próxima carta jogada.`);
+    if (!s.effect) s.effect = { uid: ka.uid, text: `⟳ ${alvoDef.nomeCurto}`, kind: "buff", seq: s.effectSeq };
+    return;
+  }
+
   resolverEntrada(s, ka, alvoDef, rng);
   // Sem badge próprio (e sem mira pendente): o olho ainda precisa ver que o eco
   // aconteceu, então o nome da carta ecoada vira o badge.
@@ -518,11 +537,19 @@ const ACTIONS = {
       pushLog(s, `☀ ${byKey[card.key].nome} entrou com +${ganho} de Heka.`);
     }
 
-    /* TRANSFERÊNCIA DE PODER (Hu / Sia) — genérico: se há QUALQUER carta do lado
-       DO CARD aguardando próxima (`aguardandoProxima`) e ainda não usada
-       (`jaBufou`), calcula o poder atual dessa fonte (incluindo auras) e buffa a
-       carta que está entrando. A fonte então volta ao estado inativo e marca que
-       foi usada.
+    /* TRANSFERÊNCIA DE PODER (Hu / Sia) — genérico: TODA carta do lado DO CARD
+       que esteja aguardando próxima (`aguardandoProxima`) e ainda não usada
+       (`jaBufou`) e cujo carimbo seja anterior à jogada desta carta contribui
+       — não só a primeira encontrada. Cada fonte lê o PRÓPRIO poder (com
+       auras) de forma independente, então múltiplas fontes simultâneas apenas
+       se somam na carta que entra; a ordem entre elas não muda o total.
+
+       Bug corrigido: com `.find()` (só a primeira fonte no array), uma Sia
+       armada numa rodada e ainda não consumida perdia a vez para um Hu
+       ativado na rodada seguinte — mesmo quando a carta que entrava era,
+       para as duas fontes, legitimamente "a próxima jogada depois de mim".
+       A Sia ficava pendurada e acabava caindo, por acidente de ordem no
+       array, na carta seguinte (que não era quem ela deveria ter alcançado).
 
        Generalizado a partir do mecanismo original do Hu (que checava
        `c.key === "hu"` explicitamente) para também atender Sia, que se arma
@@ -541,15 +568,16 @@ const ACTIONS = {
        o próprio turno de armar (ex.: Hu não buffa outro Hu) — preserva o
        comportamento original. Fontes de keys diferentes (Hu → Sia, Sia → Hu)
        podem se encadear normalmente. */
-    const fonteAguardando = s.board.find((c) =>
+    const fontesAguardando = s.board.filter((c) =>
       c.owner === card.owner &&
       c.aguardandoProxima &&
       !c.jaBufou &&
       c.uid !== card.uid &&
       !c.dying &&
+      c.key !== card.key &&
       (c.ativadoEmPlays == null || (card.entryPlays || 0) > c.ativadoEmPlays)
     );
-    if (fonteAguardando && card.key !== fonteAguardando.key) {
+    for (const fonteAguardando of fontesAguardando) {
       const ctx = ctxOf(s);
       const poderFonte = power(fonteAguardando, ctx);
       if (poderFonte > 0) {
