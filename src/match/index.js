@@ -39,7 +39,8 @@ import {
   laneWins, matchResult, snapshotTabuleiro, buildRevealQueue,
   resolveBennuRebirth, applyPendingBuff, onEnterBlocked, aplicarBencao,
   viaCheia, podeSerAlvo, acharEcoAlvo, temEntradaCopiavel, emJogo, aplicarVeneno,
-  power, ctxOf, cartaTemEfeito, marcarJogadaNaVia, jogouNaVia,
+  power, ctxOf, cartaTemEfeito, efeitoDe, marcarJogadaNaVia, jogouNaVia,
+  aplicarReacaoAliadoNaVia,
 } from "../domain/engine.js";
 import { createRng, defaultRng, randomSeed, shuffleWithRng } from "../domain/rng.js";
 import { resolveEffectPhase, temEfeitoDeFase } from "../domain/effects/index.js";
@@ -323,6 +324,12 @@ const ACTIONS = {
     const custo = custoDe(h);   // impresso + agravos (Piolhos, Granizo)
     if (g.energy[side] < custo) return err(g, `Sem energia: ${def.nome} custa ${custo}.`);
     if (viaCheia(g.board, side, lane)) return err(g, `Via ${lane + 1} cheia (4/4).`);
+    // Janela de jogabilidade (Apep): depois da rodada-limite, a carta não sai
+    // mais da mão — fica como carta morta, mas nunca chega a ser posicionada.
+    const restricaoRodada = efeitoDe(def, "restrictPlayUntilRound");
+    if (restricaoRodada && g.round > restricaoRodada.value) {
+      return err(g, `${def.nome} só pode ser jogada até a Rodada ${restricaoRodada.value}.`);
+    }
     const s = clone(g);
     s.plays[side] += 1;
     marcarJogadaNaVia(s, side, lane, +1);
@@ -514,6 +521,16 @@ const ACTIONS = {
           revealedCard.revealSeq = state.effectSeq;
           state.lastReveal = { uid: revealedCard.uid, seq: state.effectSeq };
           state.effect = null;
+        },
+      },
+      {
+        // Apep e qualquer futura carta com "debuffSelfOnAllyEnter": reage a
+        // QUALQUER aliado revelado na mesma via, não só aos que têm "Ao
+        // Entrar" — por isso é um estágio próprio, e não parte do despacho
+        // de `resolveCurrentCard` (que só roda para def.trigger === "entrar").
+        name: "reagir-aliados-na-via",
+        run: ({ state, card: revealedCard }) => {
+          aplicarReacaoAliadoNaVia(state, revealedCard);
         },
       },
     ]);

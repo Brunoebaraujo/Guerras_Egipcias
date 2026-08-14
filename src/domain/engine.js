@@ -957,6 +957,30 @@ export function aplicarBencao(s, alvo, val, srcNome, { inert = false, rng = defa
   return espalharSeAbencoada(s, alvo, rng);
 }
 
+/* ===================== REAÇÃO DE VIA (Apep) ==============================
+   Chamada em CADA revelação (match/index.js, step()), para QUALQUER carta
+   revelada — não só as com "Ao Entrar". Varre a via da carta recém-revelada
+   procurando aliados JÁ EM JOGO com "debuffSelfOnAllyEnter" e aplica -1
+   (× `value` do efeito) em cada um, via aplicarBencao — é bênção (maldição)
+   PERMANENTE, gravada em `mods`: se o aliado que causou o desconto morrer
+   depois, o desconto em Apep continua valendo, porque ele já entrou.
+
+   `c.uid !== revelada.uid` exclui a própria carta reagente: ela não se
+   penaliza ao entrar, só reage à COMPANHIA que chega depois dela — e
+   `emJogo(c)` garante que ela precisa já estar revelada para reagir (a
+   exceção de `ocupacaoDaVia` não se aplica aqui). Times diferentes nunca se
+   cruzam porque `c.owner === revelada.owner` só deixa passar aliados. */
+export function aplicarReacaoAliadoNaVia(s, revelada) {
+  const reagentes = s.board.filter((c) =>
+    c.uid !== revelada.uid && c.owner === revelada.owner && c.lane === revelada.lane
+    && emJogo(c) && cartaTemEfeito(c, "debuffSelfOnAllyEnter"),
+  );
+  for (const reagente of reagentes) {
+    const effect = efeitoDe(byKey[reagente.key], "debuffSelfOnAllyEnter");
+    aplicarBencao(s, reagente, -(effect?.value ?? 1), `${byKey[reagente.key].nome} — reforço na via`);
+  }
+}
+
 // Sorteia `n` alvos distintos entre as cartas do dono, em jogo, exceto a fonte.
 function sortearAlvos(s, fonte, n, rng) {
   const pool = s.board.filter(

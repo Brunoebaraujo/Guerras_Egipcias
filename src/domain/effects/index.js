@@ -13,6 +13,7 @@ import { registrarSekhem } from "../cards/sekhem.js";
 import { registrarLadraoDeKa } from "../cards/ladrao-de-ka.js";
 import { registrarSia } from "../cards/sia.js";
 import { registrarAmmitDevoradora } from "../cards/ammit-devoradora.js";
+import { registrarApep } from "../cards/apep.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
@@ -24,6 +25,7 @@ registrarSekhem(CARDS, byKey);
 registrarLadraoDeKa(CARDS, byKey);
 registrarSia(CARDS, byKey);
 registrarAmmitDevoradora(CARDS, TOKENS, byKey);
+registrarApep(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -259,6 +261,12 @@ for (const [id, phase] of [
   // engine.js (continuousPower). Comportamento real fora do resolver, como
   // as demais fontes de aura.
   ["mirrorOwnPowerToAllies", "continuous"],
+  // Apep — ver src/domain/cards/apep.js. "debuffSelfOnAllyEnter" é entregue
+  // por aplicarReacaoAliadoNaVia() (engine.js), chamada a cada revelação em
+  // match/index.js/step(). "restrictPlayUntilRound" é checado em place()
+  // (match/index.js) antes de aceitar a jogada.
+  ["debuffSelfOnAllyEnter", "reaction"],
+  ["restrictPlayUntilRound", "passive"],
 ]) {
   registerEffect(id, { phase, resolver: () => null });
 }
