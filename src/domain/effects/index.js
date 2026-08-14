@@ -6,6 +6,7 @@ import {
   resolveHeka, resolveInvocar, resolveKhnum, resolveMacaco, resolveSemerj,
   resolveSeqerMau, resolveSekhmet, resolveSet, resolveSobek, resolveAfogamento,
   resolveCabraDoNilo, resolveApis, resolveMosca, resolveServoDoMel, resolvePurificacao, resolveBlessAllCostOne,
+  devolverCartaParaMao,
 } from "../engine.js";
 import { registrarLaminaOferenda } from "../cards/lamina-oferenda.js";
 import { registrarTechCards } from "../cards/tech-cards.js";
@@ -14,6 +15,7 @@ import { registrarLadraoDeKa } from "../cards/ladrao-de-ka.js";
 import { registrarSia } from "../cards/sia.js";
 import { registrarAmmitDevoradora } from "../cards/ammit-devoradora.js";
 import { registrarApep } from "../cards/apep.js";
+import { registrarIbis } from "../cards/ibis.js";
 
 /* O catálogo histórico ainda vive em engine.js. Cartas novas podem ser
    registradas por módulo sem ampliar aquele arquivo monolítico; como este
@@ -26,6 +28,7 @@ registrarLadraoDeKa(CARDS, byKey);
 registrarSia(CARDS, byKey);
 registrarAmmitDevoradora(CARDS, TOKENS, byKey);
 registrarApep(CARDS, byKey);
+registrarIbis(CARDS, byKey);
 
 registerEffect("buffRandomAlly", {
   phase: "enter", priority: 100,
@@ -39,6 +42,29 @@ registerEffect("buffRandomAlly", {
     aplicarBencao(state, target, params.value, definition.nome, { rng });
     pushLog(state, `${definition.nome} concedeu +${params.value} para ${byKey[target.key].nome}.`);
     return { uid: target.uid, text: `☀ +${params.value}`, kind: "buff", seq: state.effectSeq };
+  },
+});
+
+/* Íbis Sagrado — ver src/domain/cards/ibis.js. Alvo já vem filtrado por
+   `selectTargets` (scope "lane" + relation "ally" + excludeSource): só
+   aliados JÁ REVELADOS (emJogo) nesta via entram no sorteio, então o Íbis
+   nunca mira uma carta ainda por revelar nem a si mesmo. */
+registerEffect("returnRandomAllyToHand", {
+  phase: "enter", priority: 100,
+  target: { scope: "lane", relation: "ally", excludeSource: true, quantity: 1, mode: "random" },
+  resolver: ({ state, source, definition, targets }) => {
+    const target = targets[0];
+    if (!target) {
+      pushLog(state, `${definition.nome}: sem aliado na via — efeito perdido.`);
+      return { uid: source.uid, text: "sem alvo", kind: "block", seq: state.effectSeq };
+    }
+    const nomeAlvo = byKey[target.key].nome;
+    const voltou = devolverCartaParaMao(state, target);
+    if (!voltou) {
+      return { uid: target.uid, text: "✋ mão cheia", kind: "block", seq: state.effectSeq };
+    }
+    pushLog(state, `${definition.nome} devolveu ${nomeAlvo} para a mão.`);
+    return { uid: source.uid, text: `⇄ ${nomeAlvo}`, kind: "buff", seq: state.effectSeq };
   },
 });
 

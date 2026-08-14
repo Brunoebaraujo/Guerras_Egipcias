@@ -981,6 +981,45 @@ export function aplicarReacaoAliadoNaVia(s, revelada) {
   }
 }
 
+/* ===================== DEVOLVER CARTA PARA A MÃO (Íbis) ===================
+   Uso genérico: qualquer efeito que precise tirar uma carta JÁ REVELADA do
+   tabuleiro e devolvê-la à mão do dono. Não confundir com `pickup()`
+   (match/index.js) — aquela só atua sobre cartas AINDA POR REVELAR, no
+   planejamento; esta atua sobre uma carta que já está em jogo.
+
+   A carta some do `board` e reaparece na mão como entrada NOVA — sem `mods`
+   (bênçãos/maldições permanentes recebidas em jogo se perdem, mesmo padrão
+   da Múmia ao morrer; ver `mumia-return` acima), preservando `baked` e
+   `custoMod`. NÃO reembolsa energia: jogar de novo custa de novo.
+
+   DE PROPÓSITO NÃO GRAVA NENHUMA FLAG DE "JÁ USOU O AO ENTRAR" — essa flag
+   não existe em lugar nenhum do motor. Uma carta devolvida e replantada
+   entra em jogo como qualquer outra e passa de novo por `resolverEntrada`
+   (match/index.js): o "Ao Entrar" dela roda do zero. É esse comportamento
+   já existente — e não algo que precisou ser construído — que permite ao
+   Íbis reciclar o gatilho de outra carta.
+
+   MÃO CHEIA: a carta NÃO sai do tabuleiro — mão cheia cancela o efeito, não
+   destrói a carta (diferente da Múmia, que já estava saindo de jogo por ter
+   morrido). Devolve `true`/`false` para o chamador decidir o texto do
+   badge/log. */
+export function devolverCartaParaMao(s, card) {
+  const def = byKey[card.key];
+  const mao = (s.hand[card.owner] ||= []);
+  if (mao.length >= MAO_MAX) {
+    pushLog(s, `✋ ${SIDE_NAME[card.owner]}: mão cheia (${MAO_MAX}) — ${def.nome} continua na via.`);
+    return false;
+  }
+  const idx = s.board.findIndex((c) => c.uid === card.uid);
+  if (idx < 0) return false;
+  s.board.splice(idx, 1);
+  mao.push({
+    hid: nextUid(s), key: card.key, printed: card.printed, baked: card.baked || 0,
+    custoMod: card.custoMod || 0, venenos: card.venenos ? [...card.venenos] : [],
+  });
+  return true;
+}
+
 // Sorteia `n` alvos distintos entre as cartas do dono, em jogo, exceto a fonte.
 function sortearAlvos(s, fonte, n, rng) {
   const pool = s.board.filter(
