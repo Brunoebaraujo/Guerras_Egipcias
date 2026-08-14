@@ -263,6 +263,21 @@ describe("Armadura de Ptah", () => {
     expect(arm.dying).toBeTruthy();
     expect(power(alvo, ctxOf(s))).toBe(4);                             // 1 + 3
   });
+
+  it("regressao: aura contínua (Amon) na via nao infla o valor da fusao", () => {
+    // Amon dá +1 contínuo aos demais aliados. A Armadura, única outra aliada,
+    // recebia esse +1 na leitura de power() e repassava o total inflado pra
+    // frente na fusão — o valor precisa vir do Poder ESTÁTICO da própria
+    // Armadura (impresso + Faixa + mods), sem contar a aura contínua que a
+    // estava buffando na hora.
+    const amon = mk("amon");                          // estático: 5
+    const arm = mk("armadura", { lane: amon.lane });  // impresso 3, +1 de aura do Amon (não deve contar)
+    const s = mkState([amon, arm]);
+    resolveArmadura(s, arm);
+    expect(arm.dying).toBeTruthy();
+    // Amon recebe +3 (Poder estático da Armadura), não +4 (3 impresso + 1 de aura).
+    expect(power(amon, ctxOf(s))).toBe(8);                             // 5 + 3
+  });
 });
 
 /* ---------------------------- Selo do Silêncio ------------------------------ */

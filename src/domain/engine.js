@@ -1502,7 +1502,12 @@ export function resolveArmadura(s, arm, rng = defaultRng) {
   const allies = s.board.filter((c) => c.owner === arm.owner && c.lane === arm.lane && c.uid !== arm.uid && emJogo(c));
   if (allies.length === 0) { pushLog(s, `Armadura de Ptah: sem aliado na via — permanece em campo (3).`); return { uid: arm.uid, text: "sem fusão", kind: "block", seq: s.effectSeq }; }
   const target = allies[Math.floor(rng() * allies.length)];
-  const val = power(arm, ctxOf(s));
+  // staticPower(), não power(): a fusão deve carregar o Poder "próprio" da
+  // Armadura (impresso + Faixa + bênçãos permanentes como Heka), sem incluir
+  // auras contínuas (Sekhem, Amon...) que a estejam buffando na hora — senão
+  // uma Sekhem na via inflava a própria fusão e devolvia um bônus inflado
+  // pra si mesma (ou pra outro aliado) via aplicarBencao.
+  const val = staticPower(arm, ctxOf(s));
   // A Armadura e consumida pela fusao: precisa morrer ANTES de qualquer efeito
   // disparado pela bencao, senao ela entra no sorteio de alvos da Renenutet e
   // leva um +1 para o tumulo.
