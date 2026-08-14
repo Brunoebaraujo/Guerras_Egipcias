@@ -79,12 +79,33 @@ describe("Íbis Sagrado", () => {
     expect(s.hand[0]).toHaveLength(7); // mão não cresceu
   });
 
-  it("devolve a carta SEM as bênçãos permanentes que ela tinha acumulado", () => {
+  it("devolve a carta RETENDO a bênção permanente que ela tinha acumulado (dobrada em baked)", () => {
     const abencoada = onBoard("servo", { owner: 0, lane: 0, mods: [{ src: "Hathor", val: 3 }] });
     const ibis = onBoard("ibis", { owner: 0, lane: 0 });
     const s = mkMatch({ board: [abencoada, ibis], hand: [[], []] });
     resolveEffectPhase({ state: s, source: ibis, definition: byKey["ibis"], phase: "enter", rng: seeded(1) });
-    expect(s.hand[0][0]).not.toHaveProperty("mods");
+    expect(s.hand[0]).toHaveLength(1);
+    expect(s.hand[0][0]).not.toHaveProperty("mods"); // mão não tem esse campo — o saldo virou baked
+    expect(s.hand[0][0].baked).toBe(3);
+  });
+
+  it("devolve a carta RETENDO a maldição (mod negativo) — a carta volta mais fraca", () => {
+    const amaldicoada = onBoard("servo", { owner: 0, lane: 0, mods: [{ src: "Set", val: -1 }] });
+    const ibis = onBoard("ibis", { owner: 0, lane: 0 });
+    const s = mkMatch({ board: [amaldicoada, ibis], hand: [[], []] });
+    resolveEffectPhase({ state: s, source: ibis, definition: byKey["ibis"], phase: "enter", rng: seeded(1) });
+    expect(s.hand[0][0].baked).toBe(-1);
+  });
+
+  it("soma baked prévio + todos os mods (múltiplas bênçãos/maldições) ao devolver", () => {
+    const carta = onBoard("servo", {
+      owner: 0, lane: 0, baked: 1,
+      mods: [{ src: "Hathor", val: 3 }, { src: "Apep — reforço na via", val: -1 }, { src: "Renenutet", val: 2, inert: true }],
+    });
+    const ibis = onBoard("ibis", { owner: 0, lane: 0 });
+    const s = mkMatch({ board: [carta, ibis], hand: [[], []] });
+    resolveEffectPhase({ state: s, source: ibis, definition: byKey["ibis"], phase: "enter", rng: seeded(1) });
+    expect(s.hand[0][0].baked).toBe(1 + 3 - 1 + 2); // baked prévio + soma de TODOS os mods, inertes inclusive
   });
 
   it("NÃO reembolsa energia — a carta devolvida precisa ser paga de novo", () => {

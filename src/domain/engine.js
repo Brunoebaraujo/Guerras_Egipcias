@@ -987,10 +987,17 @@ export function aplicarReacaoAliadoNaVia(s, revelada) {
    (match/index.js) — aquela só atua sobre cartas AINDA POR REVELAR, no
    planejamento; esta atua sobre uma carta que já está em jogo.
 
-   A carta some do `board` e reaparece na mão como entrada NOVA — sem `mods`
-   (bênçãos/maldições permanentes recebidas em jogo se perdem, mesmo padrão
-   da Múmia ao morrer; ver `mumia-return` acima), preservando `baked` e
-   `custoMod`. NÃO reembolsa energia: jogar de novo custa de novo.
+   A carta some do `board` e reaparece na mão como entrada NOVA. RETÉM o que
+   ela acumulou: a mão não tem campo `mods` (só `board` tem), então toda
+   bênção e maldição permanente em `card.mods` — positiva OU negativa, ex.:
+   Hathor, Armadura de Ptah, o autodesconto do Apep — é somada e dobrada
+   dentro de `baked` (que já pode ser negativo; ver a Praga das Úlceras
+   consumindo `baked` de carta na mão, mais abaixo). Mesmo mecanismo que a
+   Múmia já usa para preservar Poder ao voltar (`mumia-return`, acima) — só
+   que ali o valor vem do Poder no momento da morte, e aqui vem da soma
+   direta de `mods`, porque a carta não morreu, então dá para ler a lista
+   original em vez de reconstruí-la por diferença. NÃO reembolsa energia:
+   jogar de novo custa de novo.
 
    DE PROPÓSITO NÃO GRAVA NENHUMA FLAG DE "JÁ USOU O AO ENTRAR" — essa flag
    não existe em lugar nenhum do motor. Uma carta devolvida e replantada
@@ -1013,8 +1020,9 @@ export function devolverCartaParaMao(s, card) {
   const idx = s.board.findIndex((c) => c.uid === card.uid);
   if (idx < 0) return false;
   s.board.splice(idx, 1);
+  const acumulado = (card.mods || []).reduce((total, m) => total + m.val, 0);
   mao.push({
-    hid: nextUid(s), key: card.key, printed: card.printed, baked: card.baked || 0,
+    hid: nextUid(s), key: card.key, printed: card.printed, baked: (card.baked || 0) + acumulado,
     custoMod: card.custoMod || 0, venenos: card.venenos ? [...card.venenos] : [],
   });
   return true;
