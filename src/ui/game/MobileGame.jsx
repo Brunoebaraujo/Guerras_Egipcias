@@ -263,7 +263,7 @@ function GameMobile(p) {
     g, ctx, wins, planning, sel, setSel, aim, moving, msg, fast,
     startReveal, setFast, reset, setScreen,
     placeCard, pickUp, resetPlan, startMove, moveTo, applyAim, skipAim, isAimable, isMovable,
-    zoomBoard, zoomHand,
+    zoomBoard, zoomHand, copiarLog, baixarLog,
     online = false, seat = 0, myReady = false, oppHand = 0, hideSide = null,
   } = p;
   const disabled = !planning || !!aim || !!moving;
@@ -358,6 +358,7 @@ function GameMobile(p) {
             {g.round >= 6 ? "Encerrando…" : "Seguindo…"}
           </span>)}
         {g.finished && <span style={{ ...mBtnBig, background: "#1c1917", color: "#fde68a", textAlign: "center", border: "1px solid #b45309", fontSize: 10 }}>{resultLabel(g)}</span>}
+        {copiarLog && <button onClick={copiarLog} onContextMenu={(e) => { e.preventDefault(); baixarLog?.(); }} style={mBtnSm} title="Copiar registro da partida (toque longo: baixar)">📋</button>}
         {online
           ? <button onClick={reset} style={mBtnSm} title="Sair da partida">⏲</button>
           : <><button onClick={reset} style={mBtnSm} title="Reiniciar">↺</button>
