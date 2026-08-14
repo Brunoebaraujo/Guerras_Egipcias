@@ -307,12 +307,29 @@ const ACTIONS = {
     const s = clone(g);
     s.plays[side] += 1;
     marcarJogadaNaVia(s, side, lane, +1);
-    s.board.push({
+    const novaCarta = {
       uid: nextUid(s), key: h.key, owner: side, lane,
       printed: h.printed, baked: h.baked, mods: [], revealed: false, pendentes: h.pendentes || 0,
       custoMod: h.custoMod || 0, venenos: h.venenos ? [...h.venenos] : [],
       entryPlays: s.plays[side], enteredRound: s.round, moved: false,
-    });
+    };
+    s.board.push(novaCarta);
+    /* Sia (e qualquer futura carta com "autoTransferPowerNext") se arma no
+       momento em que é POSICIONADA, não quando é revelada — ao contrário dos
+       demais gatilhos "Ao Entrar". Isso é o que permite que ela capture
+       "a próxima carta jogada DEPOIS dela", inclusive ainda na mesma rodada:
+       se armasse só na revelação, o planejamento inteiro da rodada já teria
+       acontecido e nenhuma carta da mesma rodada teria `entryPlays` maior que
+       o carimbo. Reusa os mesmos campos de Hu (`aguardandoProxima`,
+       `ativadoEmPlays`) e a mesma rotina de pagamento genérica em
+       `resolveCurrentCard`. Se a Sia for recolhida (`pickup`) antes de
+       revelar, o próprio `board.splice` remove o carimbo junto — nada fica
+       pendurado. */
+    if (cartaTemEfeito(def, "autoTransferPowerNext")) {
+      novaCarta.aguardandoProxima = true;
+      novaCarta.ativadoEmPlays = novaCarta.entryPlays;
+      pushLog(s, `${def.nome} guardou seu Poder para a próxima carta jogada.`);
+    }
     s.energy[side] -= custo;
     s.hand[side].splice(idx, 1);
     pushLog(s, `${SIDE_NAME[side]} posicionou ${def.nome} na Via ${lane + 1} (por revelar).`);

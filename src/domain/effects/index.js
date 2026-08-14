@@ -212,18 +212,20 @@ registerEffect("growPerBoardAnimal", {
   resolver: ({ state, source, definition }) => resolveApis(state, source, definition),
 });
 
-/* Sia — versão automática do "armar" do Hu. Só marca o estado de espera;
-   a entrega do Poder para a próxima carta jogada acontece na revelação
-   seguinte, na mesma rotina generalizada que atende Hu (ver match/index.js,
-   busca por `aguardandoProxima` dentro de `resolveCurrentCard`). */
+/* Sia — versão automática do "armar" do Hu. Resolver NO-OP de propósito:
+   a carta não tem `trigger: "entrar"` (ver src/domain/cards/sia.js), então
+   isso nunca é chamado na revelação — ela se arma em `place()`
+   (src/match/index.js) no momento em que é POSICIONADA, para conseguir
+   capturar uma carta da MESMA rodada jogada depois dela (armar só na
+   revelação chegaria tarde demais: o planejamento inteiro da rodada já
+   teria acontecido). Este registro existe só para que `cartaTemEfeito()`
+   reconheça a carta e para a validação de coleção não rejeitar o id. A
+   entrega de fato acontece na revelação da carta seguinte, na mesma rotina
+   genérica que atende Hu (busca por `aguardandoProxima` dentro de
+   `resolveCurrentCard`). */
 registerEffect("autoTransferPowerNext", {
   phase: "enter", priority: 100,
-  resolver: ({ state, source, definition }) => {
-    source.aguardandoProxima = true;
-    source.ativadoEmPlays = state.plays[source.owner];
-    pushLog(state, `${definition.nome} guardou seu Poder para a próxima carta jogada.`);
-    return null;
-  },
+  resolver: () => null,
 });
 
 for (const [id, phase] of [

@@ -25,19 +25,54 @@ describe("Sia — transferência automática de Poder", () => {
   const deckA = ["arqueiro", "arqueiro", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo"];
   const deckB = ["servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo", "servo"];
 
-  it("Sia se arma sozinha ao revelar (sem precisar de toggleActivate) e NÃO buffa ninguém na própria rodada", () => {
+  it("Sia se arma sozinha ao ser POSICIONADA (sem precisar de toggleActivate); se for a última jogada da rodada, fica esperando a rodada seguinte", () => {
     let s = freshMatch([deckA, deckB], { rng: () => 0 });
     // Avança até a Rodada 4 (energia 4) pra poder pagar a Sia.
     while (s.round < 4) { s = revelar(applyAction(s, { t: "startReveal" }).state); s = applyAction(s, { t: "nextRound" }).state; }
 
     s = giveCard(s, 0, "sia");
     s = place(s, 0, "sia", 0); // custa 4, esgota a energia da rodada — nada mais é jogado
+    // Já arma no place(), antes mesmo da revelação.
+    expect(s.board.find((c) => c.key === "sia").aguardandoProxima).toBe(true);
     s = revelar(applyAction(s, { t: "startReveal" }).state);
 
     const sia = s.board.find((c) => c.key === "sia");
-    expect(sia.aguardandoProxima).toBe(true); // ficou armada, esperando a próxima rodada
+    expect(sia.aguardandoProxima).toBe(true); // ninguém foi jogado depois dela — segue esperando
     expect(sia.jaBufou).toBeFalsy();
     expect(sia.mods.length).toBe(0);
+  });
+
+  it("Uma carta jogada DEPOIS da Sia na MESMA rodada recebe a cópia do Poder (regressão do bug de agosto/2026)", () => {
+    let s = freshMatch([deckA, deckB], { rng: () => 0 });
+    while (s.round < 6) { s = revelar(applyAction(s, { t: "startReveal" }).state); s = applyAction(s, { t: "nextRound" }).state; }
+
+    s = giveCard(s, 0, "sia");
+    s = place(s, 0, "sia", 0); // via 1
+    s = place(s, 0, "arqueiro", 1); // via 2, jogado DEPOIS da Sia, mesma rodada
+    s = revelar(applyAction(s, { t: "startReveal" }).state);
+
+    const arq = s.board.find((c) => c.key === "arqueiro" && c.revealed);
+    expect(arq.mods.some((m) => m.src.includes("Sia") && m.val === 2)).toBe(true);
+
+    const sia = s.board.find((c) => c.key === "sia" && c.revealed);
+    expect(sia.jaBufou).toBe(true);
+    expect(sia.aguardandoProxima).toBe(false);
+  });
+
+  it("Uma carta jogada ANTES da Sia na mesma rodada NÃO recebe o bônus (ordem de jogada importa)", () => {
+    let s = freshMatch([deckA, deckB], { rng: () => 0 });
+    while (s.round < 6) { s = revelar(applyAction(s, { t: "startReveal" }).state); s = applyAction(s, { t: "nextRound" }).state; }
+
+    s = place(s, 0, "arqueiro", 1); // jogado ANTES da Sia
+    s = giveCard(s, 0, "sia");
+    s = place(s, 0, "sia", 0);
+    s = revelar(applyAction(s, { t: "startReveal" }).state);
+
+    const arq = s.board.find((c) => c.key === "arqueiro" && c.revealed);
+    expect(arq.mods.some((m) => m.src.includes("Sia"))).toBe(false);
+
+    const sia = s.board.find((c) => c.key === "sia" && c.revealed);
+    expect(sia.aguardandoProxima).toBe(true); // ninguém elegível ainda — segue esperando a próxima rodada
   });
 
   it("A primeira carta jogada na rodada SEGUINTE recebe a cópia do Poder da Sia", () => {
