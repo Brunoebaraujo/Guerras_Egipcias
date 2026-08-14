@@ -1501,19 +1501,35 @@ export function resolveSobek(s, sobek) {
 export function resolveArmadura(s, arm, rng = defaultRng) {
   const allies = s.board.filter((c) => c.owner === arm.owner && c.lane === arm.lane && c.uid !== arm.uid && emJogo(c));
   if (allies.length === 0) { pushLog(s, `Armadura de Ptah: sem aliado na via — permanece em campo (3).`); return { uid: arm.uid, text: "sem fusão", kind: "block", seq: s.effectSeq }; }
-  const target = allies[Math.floor(rng() * allies.length)];
-  // staticPower(), não power(): a fusão deve carregar o Poder "próprio" da
-  // Armadura (impresso + Faixa + bênçãos permanentes como Heka), sem incluir
-  // auras contínuas (Sekhem, Amon...) que a estejam buffando na hora — senão
-  // uma Sekhem na via inflava a própria fusão e devolvia um bônus inflado
-  // pra si mesma (ou pra outro aliado) via aplicarBencao.
-  const val = staticPower(arm, ctxOf(s));
+
+  // Com 2+ aliados na via, a Armadura ABSORVE o Poder ESTÁTICO de um deles
+  // (sorteado) antes de se fundir com outro (também sorteado, sempre
+  // diferente do absorvido). "Absorver" é CÓPIA, não perda — o mesmo padrão
+  // de Hu/Sia: quem cede o valor não fica mais fraco. Com um único aliado
+  // na via não há de quem absorver além do próprio destino da fusão, então
+  // o comportamento cai no caso simples (só o Poder da própria Armadura).
+  let absorvido = null;
+  let target;
+  if (allies.length >= 2) {
+    absorvido = allies[Math.floor(rng() * allies.length)];
+    const semAbsorvido = allies.filter((c) => c.uid !== absorvido.uid);
+    target = semAbsorvido[Math.floor(rng() * semAbsorvido.length)];
+  } else {
+    target = allies[0];
+  }
+  // staticPower(), não power(): tanto o Poder "próprio" da Armadura quanto o
+  // do absorvido entram sem auras contínuas (Sekhem, Amon...) — elas somem
+  // com a fonte e não devem virar bônus permanente carregado pela fusão.
+  const valArmadura = staticPower(arm, ctxOf(s));
+  const valAbsorvido = absorvido ? staticPower(absorvido, ctxOf(s)) : 0;
+  const val = valArmadura + valAbsorvido;
   // A Armadura e consumida pela fusao: precisa morrer ANTES de qualquer efeito
   // disparado pela bencao, senao ela entra no sorteio de alvos da Renenutet e
   // leva um +1 para o tumulo.
   arm.dying = s.effectSeq;
   aplicarBencao(s, target, val, "Armadura de Ptah", { rng });
-  pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val}).`);
+  const detalhe = absorvido ? ` (absorveu ${byKey[absorvido.key].nome}, +${valAbsorvido})` : "";
+  pushLog(s, `Armadura de Ptah fundiu-se com ${byKey[target.key].nome} (+${val})${detalhe}.`);
   return { uid: target.uid, text: `⛨ +${val}`, kind: "fuse", seq: s.effectSeq };
 }
 

@@ -278,6 +278,57 @@ describe("Armadura de Ptah", () => {
     // Amon recebe +3 (Poder estático da Armadura), não +4 (3 impresso + 1 de aura).
     expect(power(amon, ctxOf(s))).toBe(8);                             // 5 + 3
   });
+
+  it("com 2+ aliados, absorve o Poder estático de um e funde no outro", () => {
+    // 2 aliados na via: sorteio 1 escolhe quem é absorvido (índice 0 do
+    // array `allies`), sorteio 2 escolhe o alvo entre os restantes (só
+    // sobra 1, então índice 0 já é ele). rng fixo em 0 deixa determinístico.
+    const servo = mk("servo");                    // 1 impresso — vai ser absorvido
+    const escaravelho = mk("escaravelho");         // 3 impresso — vai receber a fusão
+    const arm = mk("armadura");
+    const s = mkState([servo, escaravelho, arm]);
+    resolveArmadura(s, arm, () => 0);
+    expect(arm.dying).toBeTruthy();
+    // Absorvido não perde nada — é cópia, como Hu/Sia.
+    expect(power(servo, ctxOf(s))).toBe(1);
+    // Escaravelho recebe: 3 impresso + (3 da Armadura + 1 absorvido do Servo) = 7
+    expect(power(escaravelho, ctxOf(s))).toBe(7);
+  });
+
+  it("o absorvido nunca contribui com aura contínua (só Poder estático dele)", () => {
+    // Amon (aura) e Servo na mesma via da Armadura. Se o sorteio de "quem é
+    // absorvido" cair no Servo, o valor tem que ser o estático dele (1),
+    // NUNCA o inflado pela aura do Amon (2).
+    const amon = mk("amon");
+    const servo = mk("servo", { lane: amon.lane });   // 1 impresso, +1 de aura do Amon
+    const arm = mk("armadura", { lane: amon.lane });
+    const s = mkState([amon, servo, arm]);
+    // allies = [amon, servo] (ordem de push no board). rng=0 → absorvido = amon (5).
+    // semAbsorvido = [servo] → alvo = servo.
+    resolveArmadura(s, arm, () => 0);
+    // Servo: 1 impresso + 8 de bênção (3 Armadura + 5 Amon absorvido, estático)
+    // + 1 de aura contínua do próprio Amon (que ainda está em jogo) = 10.
+    expect(power(servo, ctxOf(s))).toBe(10);
+    expect(power(amon, ctxOf(s))).toBe(5);            // Amon não perde nada
+  });
+
+  it("combo real: Sia buffa o Ka Errante, a Armadura absorve o Ka e funde no Conselheiro", () => {
+    // Reproduz o combo relatado por Bruno: Sia -> Ka Errante (ecoando/recebendo
+    // o Poder da Sia como bênção permanente) -> Armadura -> Conselheiro Real.
+    // Simula o bônus da Sia direto em mods (o mecanismo de entrega já é
+    // testado em sia.test.js) para isolar só o comportamento da Armadura.
+    const ka = mk("ka-errante", { mods: [{ src: "Faixa acumulada", val: 3 }, { src: "Sia", val: 8 }] });
+    // Ka: 3 impresso + 3 + 8 = 14 de Poder estático.
+    expect(power(ka, ctxOf(mkState([ka])))).toBe(14);
+    const conselheiro = mk("conselheiro");
+    const arm = mk("armadura");
+    const s = mkState([ka, conselheiro, arm]);
+    // allies = [ka, conselheiro]. rng=0 → absorvido = ka (14). alvo = conselheiro.
+    resolveArmadura(s, arm, () => 0);
+    expect(power(ka, ctxOf(s))).toBe(14);              // Ka não perde o que já tinha
+    // Conselheiro: 3 impresso + (3 da Armadura + 14 absorvidos do Ka) = 20.
+    expect(power(conselheiro, ctxOf(s))).toBe(20);
+  });
 });
 
 /* ---------------------------- Selo do Silêncio ------------------------------ */
