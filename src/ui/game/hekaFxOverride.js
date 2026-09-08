@@ -245,13 +245,16 @@ export function installHekaFxOverride() {
       if (seenBadges.has(badge)) return;
       const match = (badge.textContent || "").trim().match(/^\+(\d+)/);
       if (!match) return;
-      seenBadges.add(badge);
 
       while (pendingSources.length && now - pendingSources[0].at > 1800) pendingSources.shift();
-      const source = pendingSources.pop();
+      const source = pendingSources[pendingSources.length - 1];
       const target = rectOf(badge.parentElement);
       const value = Number(match[1]);
-      if (source && target && value > 0) void playHekaFx(source.rect, target, value, badge);
+      if (!source || !target || value <= 0) return;
+
+      pendingSources.pop();
+      seenBadges.add(badge);
+      void playHekaFx(source.rect, target, value, badge);
     });
   };
 
