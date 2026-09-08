@@ -4,9 +4,16 @@
  * Heka resolves in the game engine at the same instant as the target card's own
  * effects. Visually, though, those effects must not compete. This bridge gives
  * the reveal presentation a queue: Heka plays first; any blessing animation
- * created by the target card (Renenutet is the important case) is delayed until
- * Heka finishes; and the automatic reveal step is held while the presentation
- * queue is still busy.
+ * created by the target card is delayed until Heka finishes; and the automatic
+ * reveal step is held while the presentation queue is still busy.
+ *
+ * Ka Errante needs one extra presentation rule. When Ka consumes Heka and then
+ * echoes Heka, the rule engine resolves both facts in the same reveal step:
+ * Heka -> Ka happens now, while Ka also becomes the source of the NEXT Heka
+ * transfer. The current UI marks only the physical Heka as `.duat-charge`, so
+ * this bridge remembers Ka as a virtual Heka source after the first transfer.
+ * The next +N therefore originates visually from Ka, producing two serialized
+ * animations instead of collapsing both effects into the original Heka.
  *
  * The rule state remains untouched. This module only sequences presentation.
  */
@@ -18,8 +25,9 @@ const HANDS_TOTAL = 2000;
 const TRAVEL_DELAY = 585;
 const TRAVEL_DURATION = 890;
 const IMPACT_AT = TRAVEL_DELAY + TRAVEL_DURATION;
-const HEKA_STAGE_MS = Math.max(HANDS_TOTAL, IMPACT_AT + 650) + 75; // ~2.2s before chained card FX
+const HEKA_STAGE_MS = Math.max(HANDS_TOTAL, IMPACT_AT + 650) + 75;
 const BLESSING_MAX_ANIM_MS = 1500;
+const KA_TITLE_FRAGMENT = "copia o último efeito";
 
 const nativeSetTimeout = typeof window !== "undefined" ? window.setTimeout.bind(window) : null;
 const nativeClearTimeout = typeof window !== "undefined" ? window.clearTimeout.bind(window) : null;
@@ -60,6 +68,9 @@ const make = (tag = "div", style = {}) => {
   return node;
 };
 
+const isKaCard = (node) =>
+  (node?.getAttribute?.("title") || "").toLocaleLowerCase("pt-BR").includes(KA_TITLE_FRAGMENT);
+
 function markPresentationBusy(msFromNow) {
   presentationBusyUntil = Math.max(presentationBusyUntil, performance.now() + msFromNow);
   window.__duatPresentationBusyUntil = presentationBusyUntil;
@@ -69,18 +80,10 @@ function isRevealStepCallback(fn) {
   if (typeof fn !== "function") return false;
   let src = "";
   try { src = Function.prototype.toString.call(fn); } catch { return false; }
-  // App.jsx schedules exactly: setTimeout(() => dispatch({ t: "step" }), ...)
-  // The regex also survives Vite's production minification ({t:"step"}).
   return /\bt\s*:\s*["']step["']/.test(src);
 }
 
-/*
- * The normal reveal loop already waits for the animations it knows about.
- * Heka is currently an overlay outside React state, so the loop does not know
- * its duration. Guard only the automatic `step` timer: when it fires while a
- * presentation is still busy, reschedule the same callback for the end of the
- * queue. Other timers in the app are untouched.
- */
+/* Hold only the automatic reveal step while an FX presentation is running. */
 function installRevealTimerGuard() {
   if (!nativeSetTimeout || !nativeClearTimeout || window.__duatRevealTimerGuard) return;
   window.__duatRevealTimerGuard = true;
@@ -135,12 +138,7 @@ function inlineDelayMs(node) {
   return Number.parseFloat(raw) || 0;
 }
 
-/*
- * Renenutet (and any future effect using the same blessing primitives) creates
- * its animation nodes in the same React commit that consumes Heka. Mutation
- * observers run before paint, so adding HEKA_STAGE_MS to their inline delay
- * puts them genuinely behind Heka instead of merely hiding an overlap.
- */
+/* Put Renenutet / blessing primitives after Heka rather than on top of it. */
 function queueChainedCardAnimations() {
   const selector = ".duat-bless-fonte,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise";
   const nodes = [...document.querySelectorAll(selector)].filter((n) => !n.dataset.hekaQueued);
@@ -304,13 +302,14 @@ async function playHekaFx(source, target, value, badge, previousBadgeVisibility)
 
 export function installHekaFxOverride() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
-  if (window.__duatHekaFxV3) return;
-  window.__duatHekaFxV3 = true;
+  if (window.__duatHekaFxV4) return;
+  window.__duatHekaFxV4 = true;
 
   installRevealTimerGuard();
 
   let charges = new Map();
   const pendingSources = [];
+  const kaEchoSources = [];
   const seenBadges = new WeakSet();
 
   const scanCharges = () => {
@@ -323,10 +322,32 @@ export function installHekaFxOverride() {
 
     const now = performance.now();
     for (const [card, rect] of charges) {
-      if (!next.has(card)) pendingSources.push({ rect, at: now });
+      if (!next.has(card)) pendingSources.push({ card, rect, at: now });
     }
     while (pendingSources.length > 8) pendingSources.shift();
     charges = next;
+  };
+
+  const latestLiveKaEchoSource = () => {
+    while (kaEchoSources.length) {
+      const candidate = kaEchoSources[kaEchoSources.length - 1];
+      const rect = candidate.card?.isConnected ? rectOf(candidate.card) : candidate.rect;
+      if (rect) return { ...candidate, rect };
+      kaEchoSources.pop();
+    }
+    return null;
+  };
+
+  const activeHekaSourceForKa = (targetCard) => {
+    // Special Heka -> Ka commit: the physical Heka may stay charged because Ka
+    // re-reserved the same effect before React painted. In that case there is no
+    // charge-removal event to infer the first source from, so use the still-live
+    // Heka charge. Restrict this fallback to Ka to avoid stealing unrelated +N.
+    if (!isKaCard(targetCard)) return null;
+    const active = [...charges.entries()].filter(([card]) => card !== targetCard && card.isConnected);
+    if (!active.length) return null;
+    const [card, rect] = active[active.length - 1];
+    return { card, rect, at: performance.now(), activeFallback: true };
   };
 
   const processBadges = () => {
@@ -337,22 +358,61 @@ export function installHekaFxOverride() {
       if (!match) return;
 
       while (pendingSources.length && now - pendingSources[0].at > 2500) pendingSources.shift();
-      const source = pendingSources[pendingSources.length - 1];
-      const target = rectOf(badge.parentElement);
-      const value = Number(match[1]);
-      if (!source || !target || value <= 0) return;
 
-      pendingSources.pop();
+      const targetCard = badge.parentElement;
+      const target = rectOf(targetCard);
+      const value = Number(match[1]);
+      if (!target || value <= 0) return;
+
+      // Priority 1: a Ka that echoed Heka owns the next Heka-style transfer.
+      // This deliberately beats a stale physical-Heka removal created in the
+      // same React commit when the copied reservation is finally consumed.
+      const kaEcho = latestLiveKaEchoSource();
+      let source = kaEcho;
+      let sourceKind = kaEcho ? "ka-echo" : null;
+
+      // Priority 2: normal source — a `.duat-charge` that just disappeared.
+      if (!source) {
+        source = pendingSources[pendingSources.length - 1] || null;
+        if (source) sourceKind = "pending";
+      }
+
+      // Priority 3: Heka -> Ka can consume and re-arm Heka in one engine step,
+      // so the Heka charge never disappears. Use the active charge only for Ka.
+      if (!source) {
+        source = activeHekaSourceForKa(targetCard);
+        if (source) sourceKind = "active-heka-to-ka";
+      }
+
+      if (!source?.rect) return;
+
+      if (sourceKind === "ka-echo") {
+        kaEchoSources.pop();
+        // The hard-coded physical Heka glow may disappear in this same commit.
+        // Its pending source is now stale; discard it so it cannot animate a
+        // later, unrelated +N after Ka has already supplied the true source.
+        if (pendingSources.length) pendingSources.pop();
+      } else if (sourceKind === "pending") {
+        pendingSources.pop();
+      }
+
       seenBadges.add(badge);
 
-      // Hide the generic +N immediately; Heka owns this part of the presentation.
       const previousBadgeVisibility = badge.style.visibility;
       badge.style.visibility = "hidden";
 
-      // First Heka. Only after it ends may Renenutet / chained blessing FX run.
       const queueEndMs = queueChainedCardAnimations();
       markPresentationBusy(queueEndMs);
       void playHekaFx(source.rect, target, value, badge, previousBadgeVisibility);
+
+      // If Heka just buffed Ka and Ka's resulting badge is still +N, the Ka
+      // successfully echoed Heka in this reveal. Remember its DOM node, not only
+      // its current rectangle, so the copied reservation may survive rounds and
+      // still originate from Ka when it is eventually consumed.
+      if (isKaCard(targetCard)) {
+        kaEchoSources.push({ card: targetCard, rect: target, at: now, value });
+        while (kaEchoSources.length > 4) kaEchoSources.shift();
+      }
     });
   };
 
