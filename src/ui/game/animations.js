@@ -58,25 +58,25 @@ function playHekaFx(a,b,v,badge){
   const rise=el("div",{position:"fixed",left:`${tx}px`,top:`${b.top}px`,zIndex:"5",opacity:"0",color:hi,fontFamily:"Georgia,serif",fontWeight:"900",
     fontSize:`${Math.max(22,Math.min(40,b.width*.48))}px`,textShadow:"0 0 6px #fff,0 0 14px rgba(250,204,21,.95),0 2px 4px #000",
     transform:"translate(-50%,10px) scale(.65)"});rise.textContent=`+${v}`;root.appendChild(rise);
-  const total=reduced?420:1500;
+  const total=reduced?420:2000, orbTotal=reduced?420:1500;
   if(!reduced){
     hands.animate([{opacity:0,transform:"translate(-50%,-50%) scale(.76)"},{offset:.16,opacity:1,transform:"translate(-50%,-50%) scale(1)"},
-      {offset:.72,opacity:1,transform:"translate(-50%,-50%) scale(1.02)"},{opacity:0,transform:"translate(-50%,-55%) scale(.94)"}],
+      {offset:.79,opacity:1,transform:"translate(-50%,-50%) scale(1.02)"},{opacity:0,transform:"translate(-50%,-55%) scale(.94)"}],
       {duration:total,easing:"cubic-bezier(.2,.75,.25,1)",fill:"both"});
     orb.animate([{opacity:0,transform:"scale(.25)"},{offset:.18,opacity:1,transform:"scale(.75)"},{offset:.29,opacity:1,transform:"scale(1.25)"},
       {offset:.38,opacity:1,transform:"scale(.82)"},{offset:.47,opacity:1,transform:"scale(1.3)"},{offset:.58,opacity:0,transform:"scale(.3)"},{opacity:0}],
-      {duration:total,easing:"ease-out",fill:"both"});
+      {duration:orbTotal,easing:"ease-out",fill:"both"});
     const A={x:sx,y:sy},B={x:tx,y:ty},dist=Math.hypot(tx-sx,ty-sy),C={x:(sx+tx)/2,y:Math.min(sy,ty)-Math.min(95,Math.max(36,dist*.25))};
     const q=t=>({x:(1-t)**2*A.x+2*(1-t)*t*C.x+t*t*B.x,y:(1-t)**2*A.y+2*(1-t)*t*C.y+t*t*B.y});
     [0,1,2].forEach(i=>{const dot=el("div",{position:"fixed",left:"0",top:"0",width:i?"8px":"12px",height:i?"8px":"12px",borderRadius:"50%",zIndex:"4",
       background:`radial-gradient(circle,#fff,${hi} 30%,${gold} 62%,transparent 76%)`,boxShadow:"0 0 14px 5px rgba(250,204,21,.7)"});
       root.appendChild(dot);dot.animate([0,.25,.5,.75,1].map((t,n)=>{const z=q(t);return{offset:t,opacity:n===0||n===4?0:(i?.6:1),transform:`translate(${z.x}px,${z.y}px) translate(-50%,-50%)`}}),
-      {duration:390,delay:585+i*42,easing:"cubic-bezier(.35,.05,.2,1)",fill:"both"})});
+      {duration:890,delay:585+i*42,easing:"cubic-bezier(.35,.05,.2,1)",fill:"both"})});
     ring.animate([{opacity:0,transform:"scale(.74)"},{opacity:1,transform:"scale(.96)"},{opacity:0,transform:"scale(1.5)"}],
-      {duration:430,delay:850,easing:"cubic-bezier(.2,.75,.25,1)",fill:"both"});
+      {duration:430,delay:1350,easing:"cubic-bezier(.2,.75,.25,1)",fill:"both"});
     rise.animate([{opacity:0,transform:"translate(-50%,10px) scale(.65)"},{offset:.2,opacity:1,transform:"translate(-50%,-2px) scale(1.18)"},
       {offset:.66,opacity:1,transform:"translate(-50%,-19px) scale(1.03)"},{opacity:0,transform:"translate(-50%,-42px) scale(.98)"}],
-      {duration:620,delay:875,easing:"ease-out",fill:"both"});
+      {duration:620,delay:1375,easing:"ease-out",fill:"both"});
   }else{
     ring.animate([{opacity:0},{opacity:1},{opacity:0}],{duration:total,fill:"both"});
     rise.animate([{opacity:0},{opacity:1,transform:"translate(-50%,-5px)"},{opacity:0,transform:"translate(-50%,-18px)"}],{duration:total,fill:"both"});
