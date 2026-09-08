@@ -1,18 +1,33 @@
 /*
- * Heka FX v2 — observer robusto e timings explícitos.
+ * Heka FX — presentation queue bridge.
  *
- * Este módulo assume o controle do FX de Heka antes de animations.js instalar
- * a ponte antiga. A razão é simples: a ponte anterior dependia de uma janela
- * curta entre a remoção de `.duat-charge` e a criação do badge +N; em alguns
- * renders isso falhava e sobrava apenas o badge genérico, que parecia mais
- * rápido e sem as mãos.
+ * Heka resolves in the game engine at the same instant as the target card's own
+ * effects. Visually, though, those effects must not compete. This bridge gives
+ * the reveal presentation a queue: Heka plays first; any blessing animation
+ * created by the target card (Renenutet is the important case) is delayed until
+ * Heka finishes; and the automatic reveal step is held while the presentation
+ * queue is still busy.
+ *
+ * The rule state remains untouched. This module only sequences presentation.
  */
-if (typeof window !== "undefined") window.__duatHekaFx = true;
+if (typeof window !== "undefined") window.__duatHekaFx = true; // blocks legacy bridge in animations.js
 
 const HANDS_PAYLOAD = `${import.meta.env.BASE_URL}fx/heka-hands.webp.b64`;
+
+const HANDS_TOTAL = 2000;
+const TRAVEL_DELAY = 585;
+const TRAVEL_DURATION = 890;
+const IMPACT_AT = TRAVEL_DELAY + TRAVEL_DURATION;
+const HEKA_STAGE_MS = Math.max(HANDS_TOTAL, IMPACT_AT + 650) + 75; // ~2.2s before chained card FX
+const BLESSING_MAX_ANIM_MS = 1500;
+
+const nativeSetTimeout = typeof window !== "undefined" ? window.setTimeout.bind(window) : null;
+const nativeClearTimeout = typeof window !== "undefined" ? window.clearTimeout.bind(window) : null;
+
+let presentationBusyUntil = 0;
 let handsSrc = null;
 const handsReady = typeof fetch === "function"
-  ? fetch(HANDS_PAYLOAD)
+  ? fetch(HANDS_PAYLOAD, { cache: "force-cache" })
       .then((r) => {
         if (!r.ok) throw new Error(`Heka hands payload ${r.status}`);
         return r.text();
@@ -25,7 +40,10 @@ const handsReady = typeof fetch === "function"
         }
         return handsSrc;
       })
-      .catch(() => null)
+      .catch((err) => {
+        console.warn("Heka FX: não foi possível carregar as mãos.", err);
+        return null;
+      })
   : Promise.resolve(null);
 
 const rectOf = (node) => {
@@ -42,23 +60,114 @@ const make = (tag = "div", style = {}) => {
   return node;
 };
 
-async function playHekaFx(source, target, value, badge) {
-  const resolvedHands = handsSrc || await handsReady;
+function markPresentationBusy(msFromNow) {
+  presentationBusyUntil = Math.max(presentationBusyUntil, performance.now() + msFromNow);
+  window.__duatPresentationBusyUntil = presentationBusyUntil;
+}
 
+function isRevealStepCallback(fn) {
+  if (typeof fn !== "function") return false;
+  let src = "";
+  try { src = Function.prototype.toString.call(fn); } catch { return false; }
+  // App.jsx schedules exactly: setTimeout(() => dispatch({ t: "step" }), ...)
+  // The regex also survives Vite's production minification ({t:"step"}).
+  return /\bt\s*:\s*["']step["']/.test(src);
+}
+
+/*
+ * The normal reveal loop already waits for the animations it knows about.
+ * Heka is currently an overlay outside React state, so the loop does not know
+ * its duration. Guard only the automatic `step` timer: when it fires while a
+ * presentation is still busy, reschedule the same callback for the end of the
+ * queue. Other timers in the app are untouched.
+ */
+function installRevealTimerGuard() {
+  if (!nativeSetTimeout || !nativeClearTimeout || window.__duatRevealTimerGuard) return;
+  window.__duatRevealTimerGuard = true;
+
+  const tickets = new Map();
+
+  window.setTimeout = (fn, delay = 0, ...args) => {
+    if (!isRevealStepCallback(fn)) return nativeSetTimeout(fn, delay, ...args);
+
+    let publicId = null;
+    const ticket = { cancelled: false, currentId: null };
+
+    const run = () => {
+      if (ticket.cancelled) return;
+      const remaining = presentationBusyUntil - performance.now();
+      if (remaining > 8) {
+        ticket.currentId = nativeSetTimeout(run, remaining + 12);
+        return;
+      }
+      tickets.delete(publicId);
+      fn(...args);
+    };
+
+    ticket.currentId = nativeSetTimeout(run, delay);
+    publicId = ticket.currentId;
+    tickets.set(publicId, ticket);
+    return publicId;
+  };
+
+  window.clearTimeout = (id) => {
+    const ticket = tickets.get(id);
+    if (!ticket) return nativeClearTimeout(id);
+    ticket.cancelled = true;
+    if (ticket.currentId != null) nativeClearTimeout(ticket.currentId);
+    tickets.delete(id);
+  };
+}
+
+function classDurationMs(node) {
+  if (node.classList.contains("duat-bless-rise")) return 1500;
+  if (node.classList.contains("duat-bless-ring")) return 1150;
+  if (node.classList.contains("duat-bless-glow")) return 1150;
+  if (node.classList.contains("duat-bless-fonte")) return 950;
+  return BLESSING_MAX_ANIM_MS;
+}
+
+function inlineDelayMs(node) {
+  const raw = (node.style.animationDelay || "0").trim();
+  if (!raw) return 0;
+  if (raw.endsWith("ms")) return Number.parseFloat(raw) || 0;
+  if (raw.endsWith("s")) return (Number.parseFloat(raw) || 0) * 1000;
+  return Number.parseFloat(raw) || 0;
+}
+
+/*
+ * Renenutet (and any future effect using the same blessing primitives) creates
+ * its animation nodes in the same React commit that consumes Heka. Mutation
+ * observers run before paint, so adding HEKA_STAGE_MS to their inline delay
+ * puts them genuinely behind Heka instead of merely hiding an overlap.
+ */
+function queueChainedCardAnimations() {
+  const selector = ".duat-bless-fonte,.duat-bless-ring,.duat-bless-glow,.duat-bless-rise";
+  const nodes = [...document.querySelectorAll(selector)].filter((n) => !n.dataset.hekaQueued);
+
+  let queueEnd = HEKA_STAGE_MS;
+  for (const node of nodes) {
+    const originalDelay = inlineDelayMs(node);
+    const queuedDelay = originalDelay + HEKA_STAGE_MS;
+    node.dataset.hekaQueued = "1";
+    node.style.animationDelay = `${queuedDelay}ms`;
+    queueEnd = Math.max(queueEnd, queuedDelay + classDurationMs(node));
+  }
+
+  return queueEnd + 120;
+}
+
+async function playHekaFx(source, target, value, badge, previousBadgeVisibility) {
   const root = make("div", {
     position: "fixed", inset: "0", zIndex: "9999", pointerEvents: "none", overflow: "hidden",
   });
   root.setAttribute("aria-hidden", "true");
   document.body.appendChild(root);
 
-  const previousBadgeVisibility = badge?.style?.visibility || "";
-  if (badge) badge.style.visibility = "hidden";
-
   const sx = source.left + source.width / 2;
   const sy = source.top + source.height * 0.34;
   const tx = target.left + target.width / 2;
   const ty = target.top + target.height * 0.34;
-
   const handsWidth = Math.max(140, Math.min(300, source.width * 3.05));
   const orbSize = Math.max(18, Math.min(32, source.width * 0.34));
   const gold = "#facc15";
@@ -69,9 +178,11 @@ async function playHekaFx(source, target, value, badge) {
     transform: "translate(-50%,-50%) scale(.76)",
     filter: "drop-shadow(0 0 7px rgba(125,211,252,.72)) drop-shadow(0 0 15px rgba(56,189,248,.38))",
   });
-  if (resolvedHands) hands.src = resolvedHands;
   hands.alt = "";
   root.appendChild(hands);
+
+  const resolvedHands = handsSrc || await handsReady;
+  if (resolvedHands) hands.src = resolvedHands;
 
   const orb = make("div", {
     position: "fixed", left: `${sx - orbSize / 2}px`, top: `${sy - orbSize / 2}px`,
@@ -102,23 +213,10 @@ async function playHekaFx(source, target, value, badge) {
   rise.textContent = `+${value}`;
   root.appendChild(rise);
 
-  /* Timings pedidos:
-     - mãos: 1500ms originais + 500ms = 2000ms totais;
-     - orb na curva: 390ms originais + 500ms = 890ms;
-     - impacto só começa quando a orb chega. */
-  const HANDS_TOTAL = 2000;
-  const TRAVEL_DELAY = 585;
-  const TRAVEL_DURATION = 890;
-  const IMPACT_AT = TRAVEL_DELAY + TRAVEL_DURATION;
-  const END_AT = Math.max(HANDS_TOTAL, IMPACT_AT + 650);
-
   const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
   if (reduced) {
     hands.animate([
-      { opacity: 0, transform: "translate(-50%,-50%) scale(.92)" },
-      { offset: .18, opacity: 1, transform: "translate(-50%,-50%) scale(1)" },
-      { offset: .78, opacity: 1, transform: "translate(-50%,-50%) scale(1)" },
-      { opacity: 0, transform: "translate(-50%,-52%) scale(.98)" },
+      { opacity: 0 }, { offset: .18, opacity: 1 }, { offset: .78, opacity: 1 }, { opacity: 0 },
     ], { duration: 900, fill: "both", easing: "ease-out" });
     ring.animate([{ opacity: 0 }, { opacity: 1 }, { opacity: 0 }], { duration: 500, delay: 350, fill: "both" });
     rise.animate([
@@ -126,7 +224,7 @@ async function playHekaFx(source, target, value, badge) {
       { opacity: 1, transform: "translate(-50%,-4px)" },
       { opacity: 0, transform: "translate(-50%,-22px)" },
     ], { duration: 600, delay: 360, fill: "both" });
-    setTimeout(() => {
+    nativeSetTimeout(() => {
       if (badge) badge.style.visibility = previousBadgeVisibility;
       root.remove();
     }, 1050);
@@ -189,35 +287,27 @@ async function playHekaFx(source, target, value, badge) {
     { opacity: 0, transform: "scale(.74)" },
     { opacity: 1, transform: "scale(.96)" },
     { opacity: 0, transform: "scale(1.5)" },
-  ], {
-    duration: 430,
-    delay: IMPACT_AT,
-    easing: "cubic-bezier(.2,.75,.25,1)",
-    fill: "both",
-  });
+  ], { duration: 430, delay: IMPACT_AT, easing: "cubic-bezier(.2,.75,.25,1)", fill: "both" });
 
   rise.animate([
     { opacity: 0, transform: "translate(-50%,10px) scale(.65)" },
     { offset: .2, opacity: 1, transform: "translate(-50%,-2px) scale(1.18)" },
     { offset: .66, opacity: 1, transform: "translate(-50%,-19px) scale(1.03)" },
     { opacity: 0, transform: "translate(-50%,-42px) scale(.98)" },
-  ], {
-    duration: 620,
-    delay: IMPACT_AT + 25,
-    easing: "ease-out",
-    fill: "both",
-  });
+  ], { duration: 620, delay: IMPACT_AT + 25, easing: "ease-out", fill: "both" });
 
-  setTimeout(() => {
+  nativeSetTimeout(() => {
     if (badge) badge.style.visibility = previousBadgeVisibility;
     root.remove();
-  }, END_AT + 100);
+  }, HEKA_STAGE_MS);
 }
 
 export function installHekaFxOverride() {
   if (typeof window === "undefined" || typeof document === "undefined" || typeof MutationObserver === "undefined") return;
-  if (window.__duatHekaFxV2) return;
-  window.__duatHekaFxV2 = true;
+  if (window.__duatHekaFxV3) return;
+  window.__duatHekaFxV3 = true;
+
+  installRevealTimerGuard();
 
   let charges = new Map();
   const pendingSources = [];
@@ -246,7 +336,7 @@ export function installHekaFxOverride() {
       const match = (badge.textContent || "").trim().match(/^\+(\d+)/);
       if (!match) return;
 
-      while (pendingSources.length && now - pendingSources[0].at > 1800) pendingSources.shift();
+      while (pendingSources.length && now - pendingSources[0].at > 2500) pendingSources.shift();
       const source = pendingSources[pendingSources.length - 1];
       const target = rectOf(badge.parentElement);
       const value = Number(match[1]);
@@ -254,7 +344,15 @@ export function installHekaFxOverride() {
 
       pendingSources.pop();
       seenBadges.add(badge);
-      void playHekaFx(source.rect, target, value, badge);
+
+      // Hide the generic +N immediately; Heka owns this part of the presentation.
+      const previousBadgeVisibility = badge.style.visibility;
+      badge.style.visibility = "hidden";
+
+      // First Heka. Only after it ends may Renenutet / chained blessing FX run.
+      const queueEndMs = queueChainedCardAnimations();
+      markPresentationBusy(queueEndMs);
+      void playHekaFx(source.rect, target, value, badge, previousBadgeVisibility);
     });
   };
 
