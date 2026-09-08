@@ -9,12 +9,24 @@
  */
 if (typeof window !== "undefined") window.__duatHekaFx = true;
 
-const HANDS_SRC = `${import.meta.env.BASE_URL}fx/heka-hands.webp`;
-let preload = null;
-if (typeof Image !== "undefined") {
-  preload = new Image();
-  preload.src = HANDS_SRC;
-}
+const HANDS_PAYLOAD = `${import.meta.env.BASE_URL}fx/heka-hands.webp.b64`;
+let handsSrc = null;
+const handsReady = typeof fetch === "function"
+  ? fetch(HANDS_PAYLOAD)
+      .then((r) => {
+        if (!r.ok) throw new Error(`Heka hands payload ${r.status}`);
+        return r.text();
+      })
+      .then((b64) => {
+        handsSrc = `data:image/webp;base64,${b64.trim()}`;
+        if (typeof Image !== "undefined") {
+          const img = new Image();
+          img.src = handsSrc;
+        }
+        return handsSrc;
+      })
+      .catch(() => null)
+  : Promise.resolve(null);
 
 const rectOf = (node) => {
   if (!node?.getBoundingClientRect) return null;
@@ -30,7 +42,9 @@ const make = (tag = "div", style = {}) => {
   return node;
 };
 
-function playHekaFx(source, target, value, badge) {
+async function playHekaFx(source, target, value, badge) {
+  const resolvedHands = handsSrc || await handsReady;
+
   const root = make("div", {
     position: "fixed", inset: "0", zIndex: "9999", pointerEvents: "none", overflow: "hidden",
   });
@@ -55,7 +69,7 @@ function playHekaFx(source, target, value, badge) {
     transform: "translate(-50%,-50%) scale(.76)",
     filter: "drop-shadow(0 0 7px rgba(125,211,252,.72)) drop-shadow(0 0 15px rgba(56,189,248,.38))",
   });
-  hands.src = HANDS_SRC;
+  if (resolvedHands) hands.src = resolvedHands;
   hands.alt = "";
   root.appendChild(hands);
 
@@ -237,7 +251,7 @@ export function installHekaFxOverride() {
       const source = pendingSources.pop();
       const target = rectOf(badge.parentElement);
       const value = Number(match[1]);
-      if (source && target && value > 0) playHekaFx(source.rect, target, value, badge);
+      if (source && target && value > 0) void playHekaFx(source.rect, target, value, badge);
     });
   };
 
