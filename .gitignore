@@ -4,3 +4,21 @@ dist
 *.log
 playwright-report
 test-results
+
+# Unity / Guerras Egípcias VR
+vr-unity/[Ll]ibrary/
+vr-unity/[Tt]emp/
+vr-unity/[Oo]bj/
+vr-unity/[Bb]uild/
+vr-unity/[Bb]uilds/
+vr-unity/[Ll]ogs/
+vr-unity/[Uu]ser[Ss]ettings/
+vr-unity/MemoryCaptures/
+vr-unity/Recordings/
+vr-unity/*.csproj
+vr-unity/*.sln
+vr-unity/*.suo
+vr-unity/*.user
+vr-unity/*.userprefs
+vr-unity/.idea/
+vr-unity/.vs/
