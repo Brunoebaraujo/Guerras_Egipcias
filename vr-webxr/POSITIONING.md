@@ -1,3 +1,9 @@
+# Atualização 0.3.1
+
+O painel exige confirmar VEJO O PAINEL antes de habilitar os botões. Sua renderização agora ignora neblina, profundidade e recorte de frustum, e usa a última camada de desenho. A visibilidade real no Quest ainda precisa ser confirmada.
+
+Há controles alternativos na página fora de VR, em Coordenadas da posição. SALVAR confirma a leitura do armazenamento e grava uma fotografia com data. A exportação inclui o último salvamento confirmado em savedSnapshot e o estado atual em current, com unsavedChanges. Alterações correntes ficam em rascunho entre recargas. PADRÃO precisa de duas confirmações e preserva o último salvamento.
+
 # Versão 0.3 — calibração no Quest
 
 Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=0.3 e confirme VR / 0.3. Saia da sessão anterior e recarregue antes de entrar.
@@ -28,3 +34,4 @@ Não existe conexão automática com esta conversa nem envio de telemetria. Abri
 ## Verificação
 
 13 testes automatizados verificam posicionamento em diferentes orientações, independência de altura/distância, raycast dos botões e cartas, persistência, snap e fluxo de via. São testes matemáticos com canvas simulado. O conforto e o funcionamento físico dos controles desta versão precisam ser confirmados no Quest.
+

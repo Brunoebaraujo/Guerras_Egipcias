@@ -24,6 +24,7 @@ test('panel remains reachable, real ray activates distance button, saved setting
   const scene=new THREE.Scene(),world=createWorld(scene),core=new SandboxCore();world.sync(core.state,core.powers());
   const cal=createCalibration(scene,world,()=>{}),head=new THREE.Vector3(2,1.65,3),q=new THREE.Quaternion();
   cal.align(head,q);cal.open(head,q);const panelPos=cal.panel.position.clone(),height=world.table.position.y;
+  const confirmTarget=cal.panel.localToWorld(new THREE.Vector3(0,(.5-400/1024)*1.12,0));cal.press(new THREE.Raycaster(head,confirmTarget.sub(head).normalize()));
   const local=new THREE.Vector3(((18+119)/1024-.5)*1.12,(.5-(195+54)/1024)*1.12,0);
   const target=cal.panel.localToWorld(local);const ray=new THREE.Raycaster(head,target.clone().sub(head).normalize());
   assert.equal(cal.press(ray),true);assert.ok(Math.abs(cal.report().settings.distance-.65)<1e-6);assert.equal(world.table.position.y,height);assert.deepEqual(cal.panel.position,panelPos);
@@ -41,3 +42,13 @@ test('all five cards are pickable from Quest-like controller positions, includin
   core.command('play-lane',{cardId:'anubis',lane:0});world.sync(core.state,core.powers());assert.equal(world.cards[0].mesh.parent,world.table);
   core.reset();world.sync(core.state,core.powers());assert.equal(world.cards[0].mesh.parent,world.hand);
 });
+
+test('export preserves confirmed save after edits, defaults require confirmation, reload preserves draft',()=>{
+  memory.clear();const scene=new THREE.Scene(),w=createWorld(scene),cal=createCalibration(scene,w,()=>{});
+  cal.adjust('distance',.3);cal.action('save');const saved=cal.report();assert.equal(saved.exportedFrom,'confirmed-save');assert.ok(Math.abs(saved.savedSnapshot.settings.distance-.85)<1e-6);assert.ok(saved.savedAt);
+  cal.adjust('height',-.1);assert.equal(cal.report().settings.height,.8);assert.ok(Math.abs(cal.report().current.settings.height-.7)<1e-6);assert.equal(cal.report().unsavedChanges,true);
+  cal.action('defaults');assert.ok(Math.abs(cal.report().current.settings.height-.7)<1e-6);
+  const other=createCalibration(scene,w,()=>{});assert.ok(Math.abs(other.report().current.settings.height-.7)<1e-6);assert.equal(other.report().savedSnapshot.code,saved.code);
+  cal.action('defaults');assert.equal(cal.report().current.settings.height,.8);assert.equal(cal.report().savedSnapshot.code,saved.code);
+});
+
