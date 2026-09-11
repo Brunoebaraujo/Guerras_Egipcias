@@ -1,8 +1,8 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {SandboxCore} from './core.js?v=0.3.2';
-import {createWorld} from './scene.js?v=0.3.2';
-import {createCalibration} from './calibration.js?v=0.3.2';
-import {registerTools} from './webmcp.js?v=0.3.2';
+import {SandboxCore} from './core.js?v=0.4.0';
+import {createWorld} from './scene.js?v=0.4.0';
+import {createCalibration} from './calibration.js?v=0.4.0';
+import {registerTools} from './webmcp.js?v=0.4.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -13,7 +13,7 @@ const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(48,innerW
 const world=createWorld(scene);const core=new SandboxCore();
 const raycaster=new THREE.Raycaster();const pointer=new THREE.Vector2();const rotation=new THREE.Matrix4();
 const v=new THREE.Vector3(),worldPoint=new THREE.Vector3(),normal=new THREE.Vector3(0,1,0),plane=new THREE.Plane();
-const controllers=[];let held=null,hover=null,lastHighlight='',pendingRecenter=false,pendingPanel=false,zoom=1,mouseActive=false;
+const controllers=[];let held=null,hover=null,lastHighlight='',pendingRecenter=false,pendingPanel=false,alignAfter=0,resetSpace=null,zoom=1,mouseActive=false;
 const status=document.querySelector('#status'),vrButton=document.querySelector('#vr');
 function say(text){status.textContent=text;world.message.paint(text);}
 function desktopCamera(){camera.position.set(0,2.7*zoom,2.1*zoom);camera.lookAt(0,.72,-.85);camera.aspect=innerWidth/innerHeight;camera.fov=innerWidth<640?64:48;camera.updateProjectionMatrix();}
@@ -38,7 +38,7 @@ document.querySelector('#height').oninput=e=>calibration.setHeight(Number(e.targ
 document.querySelector('#placement').onclick=openCalibration;
 const flat=document.querySelector('#flat-placement');
 for(const [label,field,delta] of [['Mais longe','distance',.1],['Mais perto','distance',-.1],['Mesa abaixo','height',-.05],['Mesa acima','height',.05],['Mesa esquerda','lateral',-.05],['Mesa direita','lateral',.05],['Girar esquerda','angle',-5],['Girar direita','angle',5],['Jogador esquerda','playerX',-.05],['Jogador direita','playerX',.05],['Jogador avança','playerZ',-.05],['Jogador recua','playerZ',.05],['Cartas longe','handDistance',.05],['Cartas perto','handDistance',-.05],['Cartas abaixo','handDrop',.05],['Cartas acima','handDrop',-.05]]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.adjust(field,delta);flat.appendChild(b);}
-for(const [label,action] of [['Salvar posição','save'],['Restaurar padrão (confirmar duas vezes)','defaults']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.action(action);flat.appendChild(b);}
+for(const [label,action] of [['Usar posição baixa aprovada','low'],['Salvar posição','save'],['Restaurar padrão (confirmar duas vezes)','defaults']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.action(action);flat.appendChild(b);}
 document.querySelector('#copy-coordinates').onclick=async()=>{const out=document.querySelector('#coordinates');out.value=JSON.stringify(calibration.report(),null,2);try{await navigator.clipboard.writeText(out.value);say('Coordenadas copiadas. Cole na conversa.');}catch{out.focus();out.select();say('Selecione e copie as coordenadas abaixo.');}};
 document.querySelector('#download-coordinates').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(calibration.report(),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='guerras-vr-posicao.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function rayFor(source){
@@ -115,12 +115,13 @@ function recenter(frame){
   const {position,orientation}=pose.transform;
   const q=new THREE.Quaternion(orientation.x,orientation.y,orientation.z,orientation.w);
   v.set(0,0,-1).applyQuaternion(q);const yaw=Math.atan2(-v.x,-v.z);
-  calibration.align(new THREE.Vector3(position.x,position.y,position.z),q);
+  calibration.align(new THREE.Vector3(position.x,position.y,position.z),q,{center:true});
   if(pendingPanel){calibration.open(new THREE.Vector3(position.x,position.y,position.z),q);pendingPanel=false;}
   pendingRecenter=false;say('Ajuste a posição e pressione JOGAR.');
 }
-renderer.xr.addEventListener('sessionstart',()=>{cancel();document.body.classList.add('xr');camera.position.set(0,0,0);camera.quaternion.identity();pendingRecenter=true;pendingPanel=true;});
-renderer.xr.addEventListener('sessionend',()=>{cancel();controllers.forEach(c=>c.userData.buttons.clear());calibration.panel.visible=false;document.body.classList.remove('xr');world.stage.position.set(0,0,0);world.stage.rotation.set(0,0,0);desktopCamera();vrButton.textContent='Entrar em VR';});
+function onReferenceReset(){cancel();pendingRecenter=true;pendingPanel=calibration.panel.visible;alignAfter=performance.now()+250;}
+renderer.xr.addEventListener('sessionstart',()=>{cancel();document.body.classList.add('xr');camera.position.set(0,0,0);camera.quaternion.identity();pendingRecenter=true;pendingPanel=true;alignAfter=performance.now()+250;resetSpace=renderer.xr.getReferenceSpace();resetSpace?.addEventListener('reset',onReferenceReset);});
+renderer.xr.addEventListener('sessionend',()=>{resetSpace?.removeEventListener('reset',onReferenceReset);resetSpace=null;cancel();controllers.forEach(c=>c.userData.buttons.clear());calibration.panel.visible=false;document.body.classList.remove('xr');world.stage.position.set(0,0,0);world.stage.rotation.set(0,0,0);desktopCamera();vrButton.textContent='Entrar em VR';});
 async function setupXR(){
   if(!isSecureContext){vrButton.textContent='VR precisa de HTTPS';return;}
   if(!navigator.xr){vrButton.textContent='Abra no Quest para VR';return;}
@@ -141,9 +142,10 @@ async function setupXR(){
 setupXR();
 let previous=0,elapsed=0,frames=0,lastStats={fps:0,calls:0,triangles:0};
 renderer.setAnimationLoop((time,frame)=>{
-  if(pendingRecenter&&frame)recenter(frame);
+  if(pendingRecenter&&frame&&time>=alignAfter)recenter(frame);
   for(const c of controllers){const pressed=!!c.userData.inputSource?.gamepad?.buttons[3]?.pressed;if(pressed&&!c.userData.stickPressed)openCalibration();c.userData.stickPressed=pressed;}
   if(held)moveHeld();
+  world.update(previous?Math.min((time-previous)/1000,.1):0);
   if(world.hologram.visible)world.hologram.rotation.y=Math.sin(time*.0007)*.12;
   renderer.render(scene,camera);
   if(previous){elapsed+=Math.min(time-previous,100);frames++;}
@@ -152,7 +154,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.3.2',events:core,
+  version:'0.4.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
