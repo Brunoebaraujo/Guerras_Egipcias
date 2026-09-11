@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {CARDS} from './core.js';
+import {CARDS} from './core.js?v=0.3.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -7,6 +7,7 @@ export function createWorld(scene){
   const sun=new THREE.DirectionalLight(0xffd2a0,2.3);sun.position.set(-3,7,-4);scene.add(sun);
   const stage=new THREE.Group();scene.add(stage);
   const table=new THREE.Group();table.position.y=.8;table.position.z=-.3;stage.add(table);
+  const hand=new THREE.Group();hand.position.set(0,.8,-.45);stage.add(hand);
   const batches=new Map();
   function box(parent,x,y,z,w,h,d,color){
     const key=parent.uuid+':'+color;
@@ -78,16 +79,17 @@ export function createWorld(scene){
   function button(id,text,x,z,width=.43){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce'});b.mesh.userData={kind:'button',id};controls.push(b.mesh);return b;}
   button('reset','REINICIAR JOGADA',-.78,-.03,.5);button('end','FINALIZAR TURNO',.78,-.03,.5);
   button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);
-  button('recenter','CENTRALIZAR',1.3,-.93,.32);
+  button('recenter','AJUSTAR POSIÇÃO',1.3,-.93,.32);
   const performance=label(.38,.13,1.31,.06,-1.19,['DESEMPENHO','Aguardando']);
   const cards=CARDS.map((card,i)=>{
-    const l=label(.19,.27,0,0,0,[card.name,card.glyph,`${card.cost} EN  ·  ${card.power} POD`],{bg:i===0?'#143743':'#18242e',border:i===0?'#63dcef':'#c5a366'});
+    const l=label(.19,.27,0,0,0,[card.name,card.glyph,`${card.cost} EN  ·  ${card.power} POD`],{parent:hand,bg:i===0?'#143743':'#18242e',border:i===0?'#63dcef':'#c5a366'});
     l.mesh.userData={kind:'card',id:card.id};return {definition:card,mesh:l.mesh,home:new THREE.Vector3(),rotation:new THREE.Euler()};
   });
-  function arrangeHand(hand){
-    hand.forEach((id,index)=>{
-      const card=cards.find(c=>c.definition.id===id),a=(index-(hand.length-1)/2)*.15;
-      card.home.set(Math.sin(a)*.84,.23-Math.abs(a)*.09,.36-Math.abs(a)*.09);
+  function arrangeHand(handIds){
+    handIds.forEach((id,index)=>{
+      const card=cards.find(c=>c.definition.id===id),a=(index-(handIds.length-1)/2)*.15;
+      hand.add(card.mesh);
+      card.home.set(Math.sin(a)*.84,-Math.abs(a)*.09,-Math.abs(a)*.09);
       card.rotation.set(-.74,0,-a*.65);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);
     });
   }
@@ -114,12 +116,12 @@ export function createWorld(scene){
     arrangeHand(state.hand);hologram.visible=false;
     for(const [slotId,cardId] of Object.entries(state.board)){
       const slot=slots.find(s=>s.id===slotId),card=cards.find(c=>c.definition.id===cardId);
-      card.mesh.position.copy(slot.position).y+=.012;card.mesh.rotation.set(-Math.PI/2,0,0);
+      table.add(card.mesh);card.mesh.position.copy(slot.position).y+=.012;card.mesh.rotation.set(-Math.PI/2,0,0);
       if(cardId==='anubis'){hologram.position.copy(slot.position).y+=.03;hologram.visible=true;}
     }
     energy.paint(['ENERGIA',`${state.energy} / 6`]);
     for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],`VOCÊ  ${powers[i]}`]);laneLabels[i*2+1].paint(['OPONENTE',`PODER  ${state.opponentPower[i]}`]);}
     highlight();
   }
-  return {stage,table,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,message,arrangeHand,river};
+  return {stage,table,hand,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,message,arrangeHand,river};
 }
