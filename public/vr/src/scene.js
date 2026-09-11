@@ -103,8 +103,9 @@ export function createWorld(scene){
     mesh(g,new THREE.TorusGeometry(.21,.026,4,12),material,0,.66,0).rotation.x=Math.PI/2;
     return g;
   }
-  const statue=jackal(stage,1.1,mat(0x192329));statue.position.set(0,.45,-2.55);
-  box(stage,0,.23,-2.55,.9,.46,.7,0x383636);
+  const opponent=new THREE.Group();stage.add(opponent);opponent.position.set(0,0,-2.65);
+  const statue=jackal(opponent,1.1,mat(0x192329));statue.position.set(0,.45,0);
+  box(opponent,0,.23,0,.9,.46,.7,0x383636);
   const hologram=jackal(table,.32,new THREE.MeshBasicMaterial({color:CYAN,wireframe:true,transparent:true,opacity:.8,depthWrite:false}));hologram.visible=false;
   for(const b of batches.values()){
     const inst=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat(b.color),b.items.length);
@@ -123,5 +124,5 @@ export function createWorld(scene){
     for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],`VOCÊ  ${powers[i]}`]);laneLabels[i*2+1].paint(['OPONENTE',`PODER  ${state.opponentPower[i]}`]);}
     highlight();
   }
-  return {stage,table,hand,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,message,arrangeHand,river};
+  return {stage,table,hand,opponent,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,message,arrangeHand,river};
 }

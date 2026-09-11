@@ -52,3 +52,14 @@ test('export preserves confirmed save after edits, defaults require confirmation
   cal.action('defaults');assert.equal(cal.report().current.settings.height,.8);assert.equal(cal.report().savedSnapshot.code,saved.code);
 });
 
+
+test('opponent and pedestal stay beyond table and on floor for every placement',()=>{
+  memory.clear();const scene=new THREE.Scene(),w=createWorld(scene),cal=createCalibration(scene,w,()=>{});
+  for(const [field,delta] of [['distance',.3],['angle',30],['lateral',.4],['playerZ',-.2],['height',.3]]){
+    cal.adjust(field,delta);scene.updateMatrixWorld(true);
+    const local=w.table.worldToLocal(w.opponent.getWorldPosition(new THREE.Vector3()));
+    assert.ok(Math.abs(local.x)<1e-6);assert.ok(Math.abs(local.z+2.65)<1e-6);
+    assert.equal(w.opponent.position.y,0);assert.equal(w.opponent.rotation.y,w.table.rotation.y);
+    assert.ok((-1.95)-(local.z+.35)>.3);
+  }
+});

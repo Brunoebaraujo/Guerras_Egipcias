@@ -1,8 +1,8 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {SandboxCore} from './core.js?v=0.3.1';
-import {createWorld} from './scene.js?v=0.3.1';
-import {createCalibration} from './calibration.js?v=0.3.1';
-import {registerTools} from './webmcp.js?v=0.3.1';
+import {SandboxCore} from './core.js?v=0.3.2';
+import {createWorld} from './scene.js?v=0.3.2';
+import {createCalibration} from './calibration.js?v=0.3.2';
+import {registerTools} from './webmcp.js?v=0.3.2';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -152,7 +152,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.3.1',events:core,
+  version:'0.3.2',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
