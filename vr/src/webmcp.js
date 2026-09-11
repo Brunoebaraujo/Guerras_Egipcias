@@ -1,11 +1,12 @@
 export function registerTools(api){
-  const context=document.modelContext;if(!context?.registerTool)return;
-  const lifecycle=new AbortController();
-  const tools=[
-    {name:'read_sandbox',description:'Read the current Guerras Egípcias VR sandbox hand, energy and board.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>api.getState()},
-    {name:'play_sandbox_card',description:'Play a card from the hand in a chosen player lane, using its first free slot. Spends local sandbox energy.',inputSchema:{type:'object',properties:{cardId:{type:'string'},lane:{type:'integer',minimum:0,maximum:2}},required:['cardId','lane'],additionalProperties:false},annotations:{readOnlyHint:false},execute(input){if(!input||typeof input.cardId!=='string'||!Number.isInteger(input.lane))return {ok:false,reason:'cardId must be a string and lane an integer from 0 to 2'};return api.command('play-lane',{cardId:input.cardId,lane:input.lane});}},
-    {name:'reset_sandbox',description:'Reset the sandbox: remove played cards, restore the five-card hand and six energy.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:()=>api.command('reset')}
-  ];
-  for(const tool of tools){try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{/* Experimental API; never block the game. */}}
-  window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
+ const context=document.modelContext;if(!context?.registerTool)return;
+ const lifecycle=new AbortController();
+ const definitions=[
+  {name:'read_match',description:'Read the local VR match visible state; opponent hidden cards are redacted.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:true},execute:()=>api.getState()},
+  {name:'play_match_card',description:'Play or move an eligible local player card into lane 0, 1 or 2.',inputSchema:{type:'object',properties:{cardId:{type:'string'},lane:{type:'integer',minimum:0,maximum:2}},required:['cardId','lane'],additionalProperties:false},annotations:{readOnlyHint:false},execute:input=>api.command('play-lane',input)},
+  {name:'end_match_turn',description:'Commit the local player plan, run the bot and start the reveal queue.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:()=>api.command('end-turn')},
+  {name:'reset_match_plan',description:'Undo only the local player unrevealed placements from the current round and refund their energy.',inputSchema:{type:'object',properties:{},additionalProperties:false},annotations:{readOnlyHint:false},execute:()=>api.command('reset')}
+ ];
+ for(const tool of definitions){try{Promise.resolve(context.registerTool(tool,{signal:lifecycle.signal})).catch(()=>{});}catch{}}
+ window.addEventListener('pagehide',()=>lifecycle.abort(),{once:true});
 }

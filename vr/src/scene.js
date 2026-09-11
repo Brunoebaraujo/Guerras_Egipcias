@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {CARDS} from './core.js?v=0.3.0';
+import {createCardView,createInspection,createMatchPanel} from './cards.js?v=0.5.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -72,27 +72,19 @@ export function createWorld(scene){
   label(.32,.065,0,.034,-1.05,'RIO NILO',{bg:'#107991',border:'#107991',color:'#d1fcff'});
   const energy=label(.32,.16,-1.31,.14,-.47,['ENERGIA','6 / 6'],{flat:false});energy.mesh.rotation.x=-.5;
   for(let i=0;i<6;i++)box(table,1.3,.035+i*.009,-.56,.23,.009,.32,i%2?INK:GOLD);
-  label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
+  const deckLabel=label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
   const stateLabel=label(.69,.13,0,.09,-1.97,['OPONENTE','Guardião do horizonte'],{flat:false});
   const message=label(.78,.1,0,.055,-.155,'SELECIONE UMA CARTA');
   const controls=[];
   function button(id,text,x,z,width=.43){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce'});b.mesh.userData={kind:'button',id};controls.push(b.mesh);return b;}
-  button('reset','REINICIAR JOGADA',-.78,-.03,.5);button('end','FINALIZAR TURNO',.78,-.03,.5);
+  button('reset','REINICIAR JOGADA',-.78,-.03,.5);const endButton=button('end','FINALIZAR TURNO',.78,-.03,.5);
+  const skipButton=button('skip','PULAR ALVO',0,.095,.42);skipButton.mesh.visible=false;
   button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);
   button('recenter','AJUSTAR POSIÇÃO',1.3,-.93,.32);
   const performance=label(.38,.13,1.31,.06,-1.19,['DESEMPENHO','Aguardando']);
-  const cards=CARDS.map((card,i)=>{
-    const l=label(.19,.27,0,0,0,[card.name,card.glyph,`${card.cost} EN  ·  ${card.power} POD`],{parent:hand,bg:i===0?'#143743':'#18242e',border:i===0?'#63dcef':'#c5a366'});
-    l.mesh.userData={kind:'card',id:card.id};return {definition:card,mesh:l.mesh,home:new THREE.Vector3(),rotation:new THREE.Euler()};
-  });
-  function arrangeHand(handIds){
-    handIds.forEach((id,index)=>{
-      const card=cards.find(c=>c.definition.id===id),a=(index-(handIds.length-1)/2)*.15;
-      hand.add(card.mesh);
-      card.home.set(Math.sin(a)*.84,-Math.abs(a)*.09,-Math.abs(a)*.09);
-      card.rotation.set(-.74,0,-a*.65);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);
-    });
-  }
+  const cardView=createCardView(table,hand,slots),cards=cardView.cards;
+  const inspection=createInspection(table),matchPanel=createMatchPanel(table);
+  const arrangeHand=cardView.arrangeHand;
   function jackal(parent,scale,material){
     const g=new THREE.Group();parent.add(g);g.scale.setScalar(scale);
     mesh(g,new THREE.CylinderGeometry(.19,.27,.62,6),material,0,.38,0);
@@ -123,18 +115,18 @@ export function createWorld(scene){
     if(progress>=1)hologram.visible=false;
   }
   function sync(state,powers){
-    arrangeHand(state.hand);
-    const currentSlot=Object.entries(state.board).find(([,id])=>id==='anubis')?.[0]??null;
-    if(currentSlot!==anubisSlot){anubisSlot=currentSlot;hologramElapsed=0;hologram.visible=!!currentSlot;hologram.scale.setScalar(.064);}
-
-    for(const [slotId,cardId] of Object.entries(state.board)){
-      const slot=slots.find(s=>s.id===slotId),card=cards.find(c=>c.definition.id===cardId);
-      table.add(card.mesh);card.mesh.position.copy(slot.position).y+=.012;card.mesh.rotation.set(-Math.PI/2,0,0);
-      if(cardId==='anubis'){hologram.position.copy(slot.position).y+=.03;}
-    }
-    energy.paint(['ENERGIA',`${state.energy} / 6`]);
-    for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],`VOCÊ  ${powers[i]}`]);laneLabels[i*2+1].paint(['OPONENTE',`PODER  ${state.opponentPower[i]}`]);}
+    cardView.sync(state);matchPanel.paint(state);
+    const revealed=state.cards.find(c=>c.id===state.lastReveal&&c.key==='anubis'&&c.revealed);
+    const marker=revealed?state.seed+':'+revealed.id:null;
+    if(marker&&marker!==anubisSlot){anubisSlot=marker;hologramElapsed=0;hologram.visible=true;hologram.scale.setScalar(.064);hologram.position.copy(slots.find(s=>s.id===revealed.slot).position).y+=.03;}
+    if(state.turn===1&&state.phase==='plan'&&!state.cards.some(c=>c.zone==='board')){hologram.visible=false;anubisSlot=null;}
+    energy.paint(['RODADA '+state.turn+' / 6',state.energy+' ENERGIA']);
+    deckLabel.paint(['SEU DECK',state.deck+' CARTAS']);
+    stateLabel.paint(['BOT · '+state.opponentHand+' NA MÃO',state.ended?'PARTIDA ENCERRADA':'PRIORIDADE: '+(state.priority===0?'VOCÊ':'BOT')]);
+    endButton.paint(state.ended?'NOVA PARTIDA':state.phase==='plan'?'FINALIZAR TURNO':'REVELANDO…');
+    skipButton.mesh.visible=state.aim?.side===0;
+    for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],'VOCÊ  '+powers[i]]);laneLabels[i*2+1].paint(['OPONENTE','PODER  '+state.opponentPower[i]]);}
     highlight();
   }
-  return {stage,table,hand,opponent,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,update,message,arrangeHand,river};
+  return {stage,table,hand,opponent,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,update,message,arrangeHand,river,inspection,setHandMounted:cardView.setMounted};
 }
