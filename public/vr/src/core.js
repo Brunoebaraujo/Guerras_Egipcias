@@ -14,10 +14,12 @@ export class SandboxCore extends EventTarget {
   emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail:structuredClone(detail)}));}
   reset(){this.state={turn:1,energy:6,deck:15,hand:CARDS.map(c=>c.id),board:{},opponentPower:[0,0,0],ended:false};this.emit('state:changed',this.state);return {ok:true};}
   validSlots(cardId){const c=CARDS.find(c=>c.id===cardId);return c && !this.state.ended && this.state.hand.includes(cardId) && c.cost<=this.state.energy ? SLOT_IDS.filter(id=>!this.state.board[id]):[];}
+  nextSlot(cardId,lane){return Number.isInteger(lane)&&lane>=0&&lane<3 ? this.validSlots(cardId).find(id=>id.startsWith(`p-${lane}-`)) ?? null : null;}
   command(type,payload={}){
     this.emit('intent',{type,payload});
     let result;
-    if(type==='play-card'){
+    if(type==='play-card'||type==='play-lane'){
+      if(type==='play-lane')payload={...payload,slotId:this.nextSlot(payload.cardId,payload.lane)};
       if(!this.validSlots(payload.cardId).includes(payload.slotId))result={ok:false,reason:this.state.ended?'Turno encerrado. Reinicie para testar novamente.':'Espaço inválido ou energia insuficiente.'};
       else{
         const c=CARDS.find(c=>c.id===payload.cardId);

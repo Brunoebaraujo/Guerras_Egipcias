@@ -6,7 +6,7 @@ export function createWorld(scene){
   scene.add(new THREE.HemisphereLight(0xffe2ab,0x324654,2.1));
   const sun=new THREE.DirectionalLight(0xffd2a0,2.3);sun.position.set(-3,7,-4);scene.add(sun);
   const stage=new THREE.Group();scene.add(stage);
-  const table=new THREE.Group();table.position.y=.8;stage.add(table);
+  const table=new THREE.Group();table.position.y=.8;table.position.z=-.3;stage.add(table);
   const batches=new Map();
   function box(parent,x,y,z,w,h,d,color){
     const key=parent.uuid+':'+color;
@@ -41,7 +41,7 @@ export function createWorld(scene){
   const slots=[];
   for(let side=0;side<2;side++)for(let lane=0;lane<3;lane++)for(let cell=0;cell<4;cell++){
     const x=(lane-1)*.67+(cell%2===0?-.132:.132);
-    const z=side===0?-.5-Math.floor(cell/2)*.27:-1.34-Math.floor(cell/2)*.27;
+    const z=side===0?-.77+Math.floor(cell/2)*.27:-1.34-Math.floor(cell/2)*.27;
     box(table,x,.025,z,.246,.008,.252,GOLD);
     slots.push({id:`${side===0?'p':'o'}-${lane}-${cell}`,side,lane,cell,position:new THREE.Vector3(x,.034,z)});
   }
@@ -87,7 +87,7 @@ export function createWorld(scene){
   function arrangeHand(hand){
     hand.forEach((id,index)=>{
       const card=cards.find(c=>c.definition.id===id),a=(index-(hand.length-1)/2)*.15;
-      card.home.set(Math.sin(a)*.84,.23-Math.abs(a)*.09,.06-Math.abs(a)*.09);
+      card.home.set(Math.sin(a)*.84,.23-Math.abs(a)*.09,.36-Math.abs(a)*.09);
       card.rotation.set(-.74,0,-a*.65);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);
     });
   }
@@ -109,7 +109,7 @@ export function createWorld(scene){
     b.items.forEach(([x,y,z,w,h,d],i)=>{tmp.position.set(x,y,z);tmp.scale.set(w,h,d);tmp.updateMatrix();inst.setMatrixAt(i,tmp.matrix);});b.parent.add(inst);
   }
   const baseColors=[new THREE.Color(0x263941),new THREE.Color(0x302e2a)];const validColor=new THREE.Color(0x166f7d),hoverColor=new THREE.Color(0x65e2e9);
-  function highlight(valid=[],hover=null){slots.forEach((s,i)=>slotMesh.setColorAt(i,s.id===hover?hoverColor:valid.includes(s.id)?validColor:baseColors[s.side]));slotMesh.instanceColor.needsUpdate=true;}
+  function highlight(valid=[],hover=null){slots.forEach((s,i)=>slotMesh.setColorAt(i,hover!==null&&s.side===0&&s.lane===hover?hoverColor:valid.includes(s.id)?validColor:baseColors[s.side]));slotMesh.instanceColor.needsUpdate=true;}
   function sync(state,powers){
     arrangeHand(state.hand);hologram.visible=false;
     for(const [slotId,cardId] of Object.entries(state.board)){

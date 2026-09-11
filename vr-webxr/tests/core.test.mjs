@@ -19,3 +19,15 @@ test('end turn locks play; reset restores exactly the starting sandbox',()=>{
 test('event payloads and snapshots cannot change authoritative state',()=>{
   const c=new SandboxCore();let played=0;c.addEventListener('card:played',()=>played++);c.addEventListener('state:changed',e=>{e.detail.energy=999;});c.command('play-card',{cardId:'scarab',slotId:'p-2-3'});assert.equal(played,1);assert.equal(c.state.energy,5);const s=c.snapshot();s.hand.length=0;assert.equal(c.state.hand.length,4);
 });
+
+test('lane placement fills top left, top right, bottom left, bottom right and rejects full lanes',()=>{
+  const c=new SandboxCore();c.state.energy=100; // Fixture allows exercising all four positions in one turn.
+  for(const [i,cardId] of ['anubis','warrior','priestess','scarab'].entries()){
+    assert.equal(c.nextSlot(cardId,1),`p-1-${i}`);
+    assert.equal(c.command('play-lane',{cardId,lane:1}).ok,true);
+    assert.equal(c.state.board[`p-1-${i}`],cardId);
+  }
+  const before=c.snapshot();assert.equal(c.command('play-lane',{cardId:'storm',lane:1}).ok,false);assert.deepEqual(c.snapshot(),before);
+  assert.equal(c.nextSlot('storm',0),'p-0-0');assert.equal(c.nextSlot('storm',2),'p-2-0');
+  for(const lane of [-1,3,1.5,'1',null])assert.equal(c.command('play-lane',{cardId:'storm',lane}).ok,false);
+});
