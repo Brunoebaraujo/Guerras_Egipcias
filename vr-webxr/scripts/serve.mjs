@@ -1,11 +1,12 @@
 import http from 'node:http';
+import {existsSync} from 'node:fs';
 import https from 'node:https';
 import {readFile} from 'node:fs/promises';
 import {resolve,extname,sep} from 'node:path';
-const root=resolve(import.meta.dirname,'../../public/vr');
+const root=existsSync(resolve('dist/index.html'))?resolve('dist'):resolve('../public/vr');
 const secure=process.argv.includes('--https');
 const port=Number(process.env.PORT || (secure?8443:8080));
-const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.png':'image/png','.json':'application/json'};
+const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.txt':'text/plain; charset=utf-8','.webp':'image/webp','.png':'image/png','.json':'application/json'};
 const handler=async(req,res)=>{
   try{
     const pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);

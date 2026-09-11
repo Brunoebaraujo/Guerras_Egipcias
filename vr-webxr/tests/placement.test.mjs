@@ -4,7 +4,7 @@ import * as THREE from '../../public/vr/vendor/three.module.min.js';
 import {DEFAULT_PLACEMENT,tableTransform,handTransform,normalizePlacement,placementCode} from '../../public/vr/src/placement.js';
 import {createWorld} from '../../public/vr/src/scene.js';
 import {createCalibration} from '../../public/vr/src/calibration.js';
-import {SandboxCore} from '../../public/vr/src/core.js';
+import {MatchCore} from '../../public/vr/src/core.js';
 const memory=new Map();globalThis.localStorage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};
 globalThis.document={querySelector:()=>null,createElement:()=>({getContext:()=>({fillRect(){},strokeRect(){},fillText(){}})})};
 test('more distance moves the near table edge away for any viewing direction without changing height',()=>{
@@ -21,7 +21,7 @@ test('hand is in front of player and independent from table adjustments; malform
   assert.deepEqual(a,b);assert.ok(a.z<0);assert.equal(normalizePlacement({height:NaN,distance:-10}).height,.8);assert.equal(normalizePlacement({distance:-10}).distance,.3);
 });
 test('panel remains reachable, real ray activates distance button, saved settings reload, aligning never changes height',()=>{
-  const scene=new THREE.Scene(),world=createWorld(scene),core=new SandboxCore();world.sync(core.state,core.powers());
+  const scene=new THREE.Scene(),world=createWorld(scene),core=new MatchCore();world.sync(core.snapshot(),core.powers());
   const cal=createCalibration(scene,world,()=>{}),head=new THREE.Vector3(2,1.65,3),q=new THREE.Quaternion();
   cal.align(head,q);cal.open(head,q);const panelPos=cal.panel.position.clone(),height=world.table.position.y;
   const confirmTarget=cal.panel.localToWorld(new THREE.Vector3(0,(.5-400/1024)*1.12,0));cal.press(new THREE.Raycaster(head,confirmTarget.sub(head).normalize()));
@@ -32,15 +32,12 @@ test('panel remains reachable, real ray activates distance button, saved setting
   const cal2=createCalibration(scene,world,()=>{});assert.equal(placementCode(cal2.report().settings),code);
   cal2.align(new THREE.Vector3(-2,1.15,5),new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI/2));assert.ok(Math.abs(world.table.position.y-.7)<1e-6);
 });
-test('all five cards are pickable from Quest-like controller positions, including after playing and resetting',()=>{
-  const scene=new THREE.Scene(),world=createWorld(scene),core=new SandboxCore(),cal=createCalibration(scene,world,()=>{});
-  cal.action('defaults');cal.align(new THREE.Vector3(0,1.4,0),new THREE.Quaternion());world.sync(core.state,core.powers());scene.updateMatrixWorld(true);
-  for(const x of [-.2,.2])for(const card of world.cards){
-    const origin=new THREE.Vector3(x,1.15,-.12),target=card.mesh.getWorldPosition(new THREE.Vector3());target.x+=.001;
-    const ray=new THREE.Raycaster(origin,target.sub(origin).normalize());const hits=ray.intersectObjects(world.cards.map(c=>c.mesh));assert.equal(hits[0]?.object.userData.id,card.definition.id);
-  }
-  core.command('play-lane',{cardId:'anubis',lane:0});world.sync(core.state,core.powers());assert.equal(world.cards[0].mesh.parent,world.table);
-  core.reset();world.sync(core.state,core.powers());assert.equal(world.cards[0].mesh.parent,world.hand);
+test('cards attached to left grip remain pickable from right controller',()=>{
+ const scene=new THREE.Scene(),world=createWorld(scene),core=new MatchCore({seed:123});world.sync(core.snapshot(),core.powers());
+ const grip=new THREE.Group();scene.add(grip);grip.position.set(-.24,1.05,-.35);grip.add(world.hand);world.hand.position.set(0,.18,-.06);world.hand.rotation.y=.65;world.setHandMounted(true);scene.updateMatrixWorld(true);
+ const visible=world.cards.filter(c=>c.mesh.visible);
+ for(const card of visible){const origin=new THREE.Vector3(.25,1.05,-.2),target=card.mesh.getWorldPosition(new THREE.Vector3());const ray=new THREE.Raycaster(origin,target.sub(origin).normalize());const hits=ray.intersectObjects(visible.map(c=>c.mesh));assert.equal(hits[0]?.object.userData.id,card.definition.id);}
+ const before=visible[0].mesh.getWorldPosition(new THREE.Vector3());grip.position.x+=.2;scene.updateMatrixWorld(true);const after=visible[0].mesh.getWorldPosition(new THREE.Vector3());assert.ok(Math.abs(after.x-before.x-.2)<1e-6);
 });
 
 test('export preserves confirmed save after edits, defaults require confirmation, reload preserves draft',()=>{

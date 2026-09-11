@@ -1,33 +1,54 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {SandboxCore,SLOT_IDS} from '../../public/vr/src/core.js';
-test('24 physical slots, 12 player targets; initial economy and five cards',()=>{
-  const core=new SandboxCore();assert.equal(SLOT_IDS.length,12);assert.equal(core.state.hand.length,5);assert.equal(core.state.energy,6);assert.equal(core.state.deck,15);
-});
-test('Anubis consumes energy once, contributes power and cannot be played twice',()=>{
-  const c=new SandboxCore();assert.equal(c.command('play-card',{cardId:'anubis',slotId:'p-1-0'}).ok,true);assert.equal(c.state.energy,2);assert.deepEqual(c.powers(),[0,5,0]);
-  assert.equal(c.command('play-card',{cardId:'anubis',slotId:'p-0-0'}).ok,false);assert.equal(c.state.energy,2);
-});
-test('invalid, occupied, opponent and unaffordable destinations do not mutate state',()=>{
-  const c=new SandboxCore();for(const slotId of ['o-1-0','p-5-0',null]){const before=c.snapshot();assert.equal(c.command('play-card',{cardId:'anubis',slotId}).ok,false);assert.deepEqual(c.snapshot(),before);}
-  c.command('play-card',{cardId:'anubis',slotId:'p-0-0'});
-  for(const payload of [{cardId:'scarab',slotId:'p-0-0'},{cardId:'warrior',slotId:'p-1-0'}]){const before=c.snapshot();assert.equal(c.command('play-card',payload).ok,false);assert.deepEqual(c.snapshot(),before);}
-});
-test('end turn locks play; reset restores exactly the starting sandbox',()=>{
-  const c=new SandboxCore(),initial=c.snapshot();c.command('play-card',{cardId:'scarab',slotId:'p-2-2'});c.command('end-turn');assert.deepEqual(c.validSlots('anubis'),[]);assert.equal(c.command('end-turn').ok,false);c.command('reset');assert.deepEqual(c.snapshot(),initial);
-});
-test('event payloads and snapshots cannot change authoritative state',()=>{
-  const c=new SandboxCore();let played=0;c.addEventListener('card:played',()=>played++);c.addEventListener('state:changed',e=>{e.detail.energy=999;});c.command('play-card',{cardId:'scarab',slotId:'p-2-3'});assert.equal(played,1);assert.equal(c.state.energy,5);const s=c.snapshot();s.hand.length=0;assert.equal(c.state.hand.length,4);
-});
+import {readFile} from 'node:fs/promises';
+import {createHash} from 'node:crypto';
+import {MatchCore,DECKS} from '../../public/vr/src/core.js';
+import {freshMatch,applyAction,isAimable} from '../../public/vr/game-core/src/match/index.js';
+import {ctxOf,laneScore,matchResult} from '../../public/vr/game-core/src/domain/engine.js';
+import {runBotPlanning} from '../../public/vr/game-core/src/match/bots/controller.js';
+import {decideFacil} from '../../public/vr/game-core/src/domain/bots/index.js';
+import {createRng} from '../../public/vr/game-core/src/domain/rng.js';
 
-test('lane placement fills top left, top right, bottom left, bottom right and rejects full lanes',()=>{
-  const c=new SandboxCore();c.state.energy=100; // Fixture allows exercising all four positions in one turn.
-  for(const [i,cardId] of ['anubis','warrior','priestess','scarab'].entries()){
-    assert.equal(c.nextSlot(cardId,1),`p-1-${i}`);
-    assert.equal(c.command('play-lane',{cardId,lane:1}).ok,true);
-    assert.equal(c.state.board[`p-1-${i}`],cardId);
+test('vendored engine files match their recorded main hashes',async()=>{
+ const manifest=JSON.parse(await readFile(new URL('../../public/vr/game-core/provenance.json',import.meta.url)));
+ assert.equal(manifest.commit,'30f6e39f75a9c4fcfdc1f987694dac3b0c7ae39f');
+ for(const [path,hash] of Object.entries(manifest.files)){const data=await readFile(new URL('../../public/vr/game-core/'+path,import.meta.url));assert.equal(createHash('sha256').update(data).digest('hex'),hash,path);}
+});
+test('reset refunds only this round, invalid lanes fail, unrevealed power does not count',()=>{
+ const c=new MatchCore({seed:123}),s=c.snapshot(),id=s.hand.find(id=>c.validSlots(id).length);
+ assert.equal(c.command('play-lane',{cardId:id,lane:9}).ok,false);
+ assert.equal(c.command('play-lane',{cardId:id,lane:0}).ok,true);assert.deepEqual(c.powers(),[0,0,0]);
+ assert.equal(Object.keys(c.snapshot().board)[0],'p-0-0');
+ assert.equal(c.command('reset').ok,true);assert.equal(c.snapshot().energy,s.energy);assert.equal(c.snapshot().hand.length,s.hand.length);
+});
+test('full matches against bot agree with direct main engine, including queue and final result',()=>{
+ for(let seed=0;seed<40;seed++){
+  const c=new MatchCore({seed});let ref=freshMatch(DECKS,{seed});const rng=createRng(`${seed}:bot`);
+  const apply=action=>{const r=applyAction(ref,action);assert.ok(!r.error,r.error);ref=r.state;};
+  let n=0;
+  while(!ref.finished&&n++<250){
+   if(ref.phase==='plan'){
+    for(const h of [...ref.hand[0]]){const lane=[seed%3,(seed+1)%3,(seed+2)%3].find(lane=>!applyAction(ref,{t:'place',side:0,hid:h.hid,lane}).error);if(lane!==undefined){assert.equal(c.command('play-lane',{cardId:'h-'+h.hid,lane}).ok,true);apply({t:'place',side:0,hid:h.hid,lane});}}
+    ref=runBotPlanning({state:ref,side:1,decide:decideFacil,rng}).state;apply({t:'startReveal'});assert.equal(c.command('end-turn').ok,true);
+    for(const card of c.snapshot().cards.filter(x=>x.owner===1&&!x.revealed)){assert.equal(card.hidden,true);assert.equal(card.key,null);assert.equal(card.power,null);}
+    assert.equal(c.command('end-turn').ok,false);
+   }else if(ref.awaitingAim?.side===0){apply({t:'skipAim'});assert.equal(c.command('skip-aim').ok,true);}
+   else {
+    let action;if(ref.awaitingAim){const targets=ref.board.filter(card=>isAimable(ref,card));action=targets.length?{t:'aim',targetUid:targets[Math.floor(rng()*targets.length)].uid}:{t:'skipAim'};}
+    else action={t:ref.awaitingPlagueShowcase?'ackPlagueShowcase':ref.phase==='revealed'?'nextRound':'step'};
+    apply(action);c.tick(1);
+   }
+   const snap=c.snapshot();assert.equal(snap.turn,ref.round);assert.equal(snap.phase,ref.phase);assert.equal(snap.queue.remaining,ref.queue.length);
+   assert.deepEqual(snap.powers,[0,1,2].map(l=>laneScore(ctxOf(ref),l,0)));assert.deepEqual(snap.opponentPower,[0,1,2].map(l=>laneScore(ctxOf(ref),l,1)));
+   assert.equal(new Set(Object.values(snap.board)).size,Object.keys(snap.board).length);assert.ok(snap.cards.length<=31);
   }
-  const before=c.snapshot();assert.equal(c.command('play-lane',{cardId:'storm',lane:1}).ok,false);assert.deepEqual(c.snapshot(),before);
-  assert.equal(c.nextSlot('storm',0),'p-0-0');assert.equal(c.nextSlot('storm',2),'p-2-0');
-  for(const lane of [-1,3,1.5,'1',null])assert.equal(c.command('play-lane',{cardId:'storm',lane}).ok,false);
+  assert.ok(ref.finished,'seed '+seed+' stalled');assert.deepEqual(c.snapshot().result,matchResult(ref));assert.equal(c.snapshot().turn,6);
+  assert.equal(c.command('reset').ok,false);assert.equal(c.command('new-match').ok,true);assert.equal(c.snapshot().turn,1);assert.equal(Object.keys(c.snapshot().board).length,0);
+ }
+});
+test('revealed Escaravelho can move once on a following round and does not duplicate',()=>{
+ const c=new MatchCore({seed:123});const card=c.snapshot().cards.find(c=>c.key==='escaravelho');
+ c.command('play-lane',{cardId:card.id,lane:0});c.command('end-turn');for(let i=0;c.snapshot().phase!=='plan'&&i<50;i++)c.tick(1);
+ const b=c.snapshot().cards.find(c=>c.key==='escaravelho'&&c.owner===0);assert.ok(b.movable);assert.ok(c.command('play-lane',{cardId:b.id,lane:1}).ok);
+ assert.equal(c.snapshot().cards.filter(c=>c.id===b.id).length,1);assert.equal(c.validSlots(b.id).length,0);
 });

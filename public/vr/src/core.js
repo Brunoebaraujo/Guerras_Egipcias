@@ -1,38 +1,69 @@
-// This local adapter is deliberately independent of Three.js and input devices.
-// Replace it with a server/core adapter implementing the same command contract.
-export const CARDS = Object.freeze([
-  {id:'anubis',name:'ANÚBIS',subtitle:'Guardião do além',cost:4,power:5,glyph:'☥'},
-  {id:'warrior',name:'GUERREIRO',subtitle:'Lâmina de Kemet',cost:3,power:3,glyph:'⚔'},
-  {id:'priestess',name:'SACERDOTISA',subtitle:'Voz do templo',cost:2,power:4,glyph:'☾'},
-  {id:'scarab',name:'ESCARAVELHO',subtitle:'O sol renasce',cost:1,power:3,glyph:'◈'},
-  {id:'storm',name:'TEMPESTADE',subtitle:'Fúria solar',cost:4,power:4,glyph:'☀'}
-].map(Object.freeze));
-export const SLOT_IDS = Object.freeze(Array.from({length:12},(_,i)=>`p-${Math.floor(i/4)}-${i%4}`));
-export class SandboxCore extends EventTarget {
-  constructor(){super();this.reset();}
-  snapshot(){return structuredClone(this.state);}
-  emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail:structuredClone(detail)}));}
-  reset(){this.state={turn:1,energy:6,deck:15,hand:CARDS.map(c=>c.id),board:{},opponentPower:[0,0,0],ended:false};this.emit('state:changed',this.state);return {ok:true};}
-  validSlots(cardId){const c=CARDS.find(c=>c.id===cardId);return c && !this.state.ended && this.state.hand.includes(cardId) && c.cost<=this.state.energy ? SLOT_IDS.filter(id=>!this.state.board[id]):[];}
-  nextSlot(cardId,lane){return Number.isInteger(lane)&&lane>=0&&lane<3 ? this.validSlots(cardId).find(id=>id.startsWith(`p-${lane}-`)) ?? null : null;}
-  command(type,payload={}){
-    this.emit('intent',{type,payload});
-    let result;
-    if(type==='play-card'||type==='play-lane'){
-      if(type==='play-lane')payload={...payload,slotId:this.nextSlot(payload.cardId,payload.lane)};
-      if(!this.validSlots(payload.cardId).includes(payload.slotId))result={ok:false,reason:this.state.ended?'Turno encerrado. Reinicie para testar novamente.':'Espaço inválido ou energia insuficiente.'};
-      else{
-        const c=CARDS.find(c=>c.id===payload.cardId);
-        this.state.board[payload.slotId]=c.id;this.state.hand=this.state.hand.filter(id=>id!==c.id);this.state.energy-=c.cost;
-        this.emit('card:played',{...payload,power:c.power,cost:c.cost});result={ok:true};
-      }
-    }else if(type==='reset'){return this.reset();}
-    else if(type==='end-turn'){
-      if(this.state.ended)result={ok:false,reason:'O turno já terminou. Reinicie para jogar novamente.'};
-      else {this.state.ended=true;this.emit('turn:ended',this.state);result={ok:true};}
-    }else result={ok:false,reason:'Comando desconhecido.'};
-    if(result.ok)this.emit('state:changed',this.state);else this.emit('command:rejected',{type,payload,...result});
-    return result;
+// Presentation adapter. Rules and bot decisions are unmodified modules from main.
+import {freshMatch,applyAction,isAimable} from '../game-core/src/match/index.js';
+import {byKey,ctxOf,laneScore,laneWins,matchResult,power,custoDe} from '../game-core/src/domain/engine.js';
+import {decideFacil} from '../game-core/src/domain/bots/index.js';
+import {runBotPlanning} from '../game-core/src/match/bots/controller.js';
+import {createRng,randomSeed} from '../game-core/src/domain/rng.js';
+export const DECKS=Object.freeze([
+ ['servo','arqueiro','lanceiro','carruagem','guardareal','montu','hathor','escaravelho','heka','mumia','sobek','anubis'],
+ ['cao','cabra-nilo','ganso','gato','macaco','hiena','garca','rebanho','domador','apis','amon','escaravelho']
+]);
+export const SLOT_IDS=Object.freeze(Array.from({length:12},(_,i)=>`p-${Math.floor(i/4)}-${i%4}`));
+export class MatchCore extends EventTarget {
+ #state; #slots=new Map(); #botRng; #wait=0; #revealTotal=0; #seed;
+ constructor({seed=randomSeed()}={}){super();this.newMatch(seed);}
+ emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail:structuredClone(detail)}));}
+ newMatch(seed=randomSeed()){this.#seed=seed;this.#state=freshMatch(DECKS,{seed});this.#botRng=createRng(`${seed}:bot`);this.#slots.clear();this.#wait=0;this.#revealTotal=0;this.changed();return {ok:true};}
+ changed(){this.assignSlots();this.emit('state:changed',this.snapshot());}
+ assignSlots(){
+  const s=this.#state;
+  for(const [uid,id] of this.#slots){const c=s.board.find(c=>c.uid===uid&&!c.dying);if(!c||id.split('-')[1]!==String(c.lane))this.#slots.delete(uid);}
+  for(const c of s.board.filter(c=>!c.dying))if(!this.#slots.has(c.uid)){const prefix=`${c.owner?'o':'p'}-${c.lane}-`;const id=Array.from({length:4},(_,i)=>prefix+i).find(id=>![...this.#slots.values()].includes(id));if(id)this.#slots.set(c.uid,id);}
+ }
+ powers(){return [0,1,2].map(l=>laneScore(ctxOf(this.#state),l,0));}
+ snapshot(){
+  const s=this.#state,ctx=ctxOf(s),board={},cards=[];
+  const describe=(c,id,hidden=false)=>{const d=hidden?null:byKey[c.key];return {id,key:d?.key??null,name:d?.nome??'Carta oculta',text:d?.texto||'Sem efeito.',cost:d?custoDe(c):null,power:d?(c.uid?power(c,ctx):c.printed+(c.baked||0)):null,hidden};};
+  for(const h of s.hand[0])cards.push({...describe(h,'h-'+h.hid),zone:'hand'});
+  for(const c of s.board.filter(c=>!c.dying)){
+   const id='b-'+c.uid,slot=this.#slots.get(c.uid);if(!slot)continue;board[slot]=id;
+   cards.push({...describe(c,id,c.owner===1&&!c.revealed),zone:'board',slot,active:s.lastReveal?.uid===c.uid,owner:c.owner,revealed:c.revealed,aimable:s.awaitingAim?.side===0&&isAimable(s,c),movable:this.moveLanes(c.uid).length>0,pickup:s.phase==='plan'&&!s.finished&&c.owner===0&&!c.revealed&&c.enteredRound===s.round});
   }
-  powers(){const out=[0,0,0];for(const [id,c] of Object.entries(this.state.board))out[Number(id.split('-')[1])]+=CARDS.find(card=>card.id===c).power;return out;}
+  const aim=s.awaitingAim;
+  return {seed:this.#seed,turn:s.round,phase:s.phase,energy:s.energy[0],deck:s.deck[0].length,opponentDeck:s.deck[1].length,opponentHand:s.hand[1].length,hand:s.hand[0].map(h=>'h-'+h.hid),cards,board,opponentPower:[0,1,2].map(l=>laneScore(ctx,l,1)),powers:this.powers(),wins:laneWins(s),priority:s.priority,ended:s.finished,result:s.finished?matchResult(s):null,queue:{remaining:s.queue.length,total:this.#revealTotal,items:s.queue.map(uid=>s.board.find(c=>c.uid===uid)).filter(Boolean).map(c=>({owner:c.owner,lane:c.lane,name:c.owner===0||c.revealed?byKey[c.key].nome:'Carta oculta'}))},aim:aim?{side:aim.side,name:aim.srcNome,needs:aim.needs}:null,lastReveal:s.lastReveal?('b-'+s.lastReveal.uid):null,effect:s.phase==='revealing'?s.effect?.text||'':'',message:this.message()};
+ }
+ message(){const s=this.#state;if(s.finished){const r=matchResult(s);return `${r.side===-1?'EMPATE':r.side===0?'VOCÊ VENCEU':'O BOT VENCEU'} · ${laneWins(s).join(' × ')} vias${r.tiebreak?' · desempate por poder':''}`;}if(s.awaitingAim?.side===0)return `Escolha um alvo ${s.awaitingAim.needs==='ally'?'aliado':'inimigo'} iluminado.`;if(s.phase==='revealing')return `Revelando · ${s.queue.length} na fila${s.effect?.text?' · '+s.effect.text:''}`;if(s.phase==='revealed')return 'Resolvendo o fim da rodada…';return `Rodada ${s.round}/6 · ${s.energy[0]} energia · selecione carta e via.`;}
+ moveLanes(uid){const s=this.#state;if(s.phase!=='plan'||s.finished)return [];const c=s.board.find(c=>c.uid===uid&&c.owner===0&&c.revealed);if(!c)return [];return [0,1,2].filter(lane=>lane!==c.lane&&!applyAction(s,{t:'move',side:0,uid,lane}).error);}
+ validSlots(id){const s=this.#state;if(s.phase!=='plan'||s.finished)return [];let lanes=[];
+  if(id?.startsWith('h-'))lanes=[0,1,2].filter(lane=>!applyAction(s,{t:'place',side:0,hid:Number(id.slice(2)),lane}).error);
+  else if(id?.startsWith('b-'))lanes=this.moveLanes(Number(id.slice(2)));
+  return SLOT_IDS.filter(slot=>lanes.includes(Number(slot.split('-')[1]))&&![...this.#slots.values()].includes(slot));
+ }
+ nextSlot(id,lane){return this.validSlots(id).find(s=>s.startsWith(`p-${lane}-`))??null;}
+ apply(action){const r=applyAction(this.#state,action);if(r.error)return {ok:false,reason:r.error};this.#state=r.state;return {ok:true};}
+ command(type,payload={}){
+  this.emit('intent',{type,payload});let result;
+  if(type==='new-match')return this.newMatch();
+  if(this.#state.finished)return {ok:false,reason:'Partida encerrada. Selecione NOVA PARTIDA.'};
+  if(type==='play-lane'){
+   const {cardId,lane}=payload;if(!Number.isInteger(lane)||!this.nextSlot(cardId,lane))return {ok:false,reason:'Via indisponível ou energia insuficiente.'};
+   result=this.apply(cardId.startsWith('h-')?{t:'place',side:0,hid:Number(cardId.slice(2)),lane}:{t:'move',side:0,uid:Number(cardId.slice(2)),lane});
+  }else if(type==='pickup')result=this.apply({t:'pickup',side:0,uid:Number(payload.cardId?.slice(2))});
+  else if(type==='reset')result=this.apply({t:'resetPlan',side:0});
+  else if(type==='aim'&&this.#state.awaitingAim?.side===0)result=this.apply({t:'aim',targetUid:Number(payload.cardId?.slice(2))});
+  else if(type==='skip-aim'&&this.#state.awaitingAim?.side===0)result=this.apply({t:'skipAim'});
+  else if(type==='end-turn'&&this.#state.phase==='plan'){
+   const planned=runBotPlanning({state:this.#state,side:1,decide:decideFacil,rng:this.#botRng});
+   if(planned.stopped!=='done')return {ok:false,reason:'O bot não concluiu o planejamento.'};
+   this.#state=planned.state;result=this.apply({t:'startReveal'});this.#revealTotal=this.#state.queue.length;this.#wait=.8;
+  }else result={ok:false,reason:'Aguarde a revelação terminar.'};
+  if(result.ok){this.changed();this.emit('command:applied',{type,payload});}else this.emit('command:rejected',{type,payload,...result});return result;
+ }
+ tick(delta){const s=this.#state;if(s.finished||s.phase==='plan'||s.awaitingAim?.side===0)return;
+  this.#wait-=Math.max(0,delta);if(this.#wait>0)return;this.#wait=.85;let action;
+  if(s.awaitingAim){const targets=s.board.filter(c=>isAimable(s,c));action=targets.length?{t:'aim',targetUid:targets[Math.floor(this.#botRng()*targets.length)].uid}:{t:'skipAim'};}
+  else if(s.awaitingPlagueShowcase)action={t:'ackPlagueShowcase'};
+  else action={t:s.phase==='revealed'?'nextRound':'step'};
+  const result=this.apply(action);if(!result.ok){this.emit('runtime:error',result);return;}this.changed();
+ }
 }

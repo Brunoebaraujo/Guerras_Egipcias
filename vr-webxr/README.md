@@ -1,59 +1,74 @@
-Neste repositório, o site está em public/vr/. Execute servidor e testes a partir de vr-webxr/. As referências a dist/ no guia original correspondem a ../public/vr/.
+# Guerras Egípcias VR — demo jogável 0.5.0
 
-# Atualização 0.3
+Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
-Para os controles atuais, calibração e envio das coordenadas, leia [POSITIONING.md](POSITIONING.md). As instruções de interação 0.1 abaixo são históricas; permanecem válidas as instruções de servidor e HTTPS.
+## Jogar no Quest 2
 
-# Guerras Egípcias VR — vertical slice 0.1
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=0.5.0 no navegador do Quest, confira **VR / 0.5.0** e pressione **Entrar em VR**.
 
-Protótipo WebXR em Three.js para ergonomia de mesa e interação com cartas. Funciona como página desktop com mouse e implementa sessão `immersive-vr` com controles do Quest. Sem multiplayer, combate, IA ou integração com contas.
+1. Olhe para a frente ao iniciar. Confirme que vê o painel de posição; selecione **JOGAR** para fechá-lo.
+2. Levante o controle esquerdo: o leque acompanha essa mão, com manopla egípcia em preto, ouro e azul.
+3. Aponte o controle direito para uma carta e clique no gatilho. Leia o efeito no painel lateral.
+4. Aponte para uma via iluminada e clique novamente. A carta ocupa automaticamente o primeiro espaço livre: cima esquerda, cima direita, baixo esquerda, baixo direita.
+5. Clique numa carta sua recém-posicionada para recolhê-la. **REINICIAR JOGADA** devolve somente as jogadas ainda não reveladas desta rodada e reembolsa sua energia.
+6. Pressione **FINALIZAR TURNO**. O bot planeja suas jogadas, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original. O painel à direita mostra a fila e a prioridade.
+7. A próxima rodada começa automaticamente após a resolução. Após a sexta, aparecem vitória, derrota ou empate e o placar por via. O mesmo botão passa a ser **NOVA PARTIDA**.
 
-## Abrir no computador
+Escaravelho pode ser selecionado no tabuleiro e movido para outra via quando sua regra permitir. A interface também suporta escolha de alvos e pular alvo quando o motor solicitar. Os decks atuais usam predominantemente efeitos automáticos. As cartas ocultas do bot aparecem de costas e não expõem nome, arte ou poder na interface pública.
 
-Requer Node.js 20 ou superior. Na pasta deste projeto:
+As mãos são modelos 3D leves de manoplas, ligados aos controles Touch; não há rastreamento óptico dos dedos. A mão direita é a única que ativa cartas e botões. Troca de mão ainda não está incluída. Incline o pulso esquerdo para ajustar o ângulo das cartas. A mão flutuante anterior permanece como fallback desktop ou na ausência do controle esquerdo.
+
+## Desktop
+
+Requer Node.js 20 ou superior. Não precisa instalar dependências:
 
 ```sh
 node scripts/serve.mjs
 ```
 
-Abra http://localhost:8080. Não abra `index.html` como arquivo: os módulos precisam de HTTP/HTTPS. Não é necessário instalar pacotes, compilar ou acessar uma CDN. O Three.js 0.170.0 está incluído em `dist/vendor/`, com licença MIT. Todo o site distribuível está em `dist/`.
+Abra http://localhost:8080. Clique na carta e depois na via. Esc cancela seleção, R desfaz o planejamento atual, Enter finaliza o turno. A roda do mouse ajusta a câmera. Não abra index.html diretamente como arquivo.
 
-## Controles
+## Regras e origem
 
-| Ação | Desktop | Quest com controles |
-| --- | --- | --- |
-| Selecionar / mover | Segurar o botão esquerdo e arrastar | Apontar e segurar gatilho ou botão de agarrar |
-| Soltar / encaixar | Soltar sobre espaço azul | Soltar o botão sobre espaço azul |
-| Alternativa ao arraste | Clicar na carta, depois no espaço | Aproximar controle da carta e agarrar |
-| Cancelar | Esc ou soltar fora de espaço válido | Soltar fora de espaço válido |
-| Reiniciar | Botão esquerdo da mesa, botão da página ou R | Apontar para REINICIAR JOGADA e apertar gatilho |
-| Finalizar | Botão direito da mesa, botão da página ou Enter | Apontar para FINALIZAR TURNO e apertar gatilho |
-| Ajustar altura | Controle deslizante ou MESA + / − | Botões MESA + / − à esquerda |
-| Centralizar | Botão na mesa; roda ajusta distância | Olhar para a frente e selecionar CENTRALIZAR |
+Os 24 módulos em `dist/game-core/src/domain/` e `dist/game-core/src/match/` são cópias **sem alterações** do commit `30f6e39f75a9c4fcfdc1f987694dac3b0c7ae39f` da main de `Brunoebaraujo/Guerras_Egipcias`. `provenance.json` registra o SHA do commit e o SHA-256 de cada arquivo. O adaptador VR não redefine regras.
 
-O arraste distante projeta a carta na superfície da mesa. Ao agarrar de perto, ela acompanha a posição do controle; aproxime-a do espaço para soltar. Só uma carta fica agarrada por vez, mesmo usando dois controles. Se apertar gatilho e agarrar juntos, solte ambos para concluir. Perda de foco, desconexão do controle e saída de VR devolvem a carta à mão.
+- Decks fixos de 12 cartas: guerreiros/divindades para o jogador, animais para o bot.
+- Abertura, compra e energia seguem a main: três cartas iniciais mais a compra da primeira rodada, uma energia na rodada 1. O leque cresce até o limite real de sete cartas.
+- Totais consideram cartas reveladas e todos os modificadores/auras do motor.
+- Vence quem ganhar mais vias; empate de vias usa o saldo de poder, conforme a main.
+- Efeitos são resolvidos sem animações. Anúbis conserva apenas a entrada holográfica curta, que desaparece e deixa a carta plana.
+- Cada nova partida usa uma semente; não há persistência da partida ao recarregar a página.
 
-A mesa se centraliza diante do olhar ao entrar em VR. Sua altura inicial fica aproximadamente 50 cm abaixo dos olhos, limitada a 55–115 cm do piso. É possível jogar sentado ou em pé. O leque fica no espaço diante do jogador; não segue automaticamente a cabeça nem usa rastreamento óptico das mãos. Para reposicionar o conjunto, use CENTRALIZAR. Não há locomoção artificial.
+Para atualizar o espelho, a partir da pasta do protótipo, com um checkout confiável da main:
 
-## Conteúdo da slice
+```sh
+node scripts/sync-core.mjs ../main-game
+node --test tests/*.test.mjs
+```
 
-- Templo simples, pirâmides, estátua de Anúbis e mesa de pedra escura com detalhes dourados.
-- Rio Nilo separando os lados, 3 vias × 4 espaços × 2 lados = 24 espaços.
-- Cinco cartas em leque: Anúbis, Guerreiro, Sacerdotisa, Escaravelho e Tempestade.
-- Deck visível com 15 cartas restantes: contador estático porque esta slice não compra cartas.
-- Energia inicial 6; uma jogada válida desconta somente o custo impresso na carta.
-- Poder por via, nos dois lados. O oponente começa vazio e fica em zero; não existe IA.
-- Espaços válidos destacados, destaque mais claro sob a carta e snap ao soltar.
-- Anúbis invoca uma figura 3D holográfica em wireframe, sem efeito de combate.
-- Finalizar turno bloqueia novas jogadas. Reiniciar restaura o cenário inteiro, incluindo energia e mão.
+O script também copia as 23 ilustrações usadas pelos decks. Atualizar o core exige revisar o contrato e rodar os testes antes de publicar.
 
-Os custos e poderes são dados de demonstração. A apresentação parte da imagem conceitual fornecida na conversa: preto e dourado, rio ciano, três vias, leque e guardião frontal. Não reproduz a arte detalhada da imagem, mantendo geometria e texturas leves.
+## Integração
 
-## HTTPS local e acesso pelo Quest
+`dist/src/core.js` é o adaptador `MatchCore`: recebe intenções, chama `applyAction` original, executa o bot original e emite eventos `state:changed`, `intent`, `command:applied` e `command:rejected`. A cena consome somente o snapshot de apresentação.
 
-WebXR exige contexto seguro e permissão iniciada por um clique. `http://localhost` é uma exceção segura no próprio aparelho, mas `http://192.168.x.x` não é. O localhost do Quest aponta para o Quest, não para o computador. Para testar sem configurar certificados no headset, a opção mais simples é publicar `dist/` em um host HTTPS.
+`window.guerrasVR` oferece `command`, `getState`, `getPlacement`, `getMetrics` e `events`. O estado público omite mãos/decks privados do bot. Esta é uma demo local, não uma fronteira de segurança multiplayer.
 
-Para HTTPS local, use [mkcert](https://github.com/FiloSottile/mkcert), já instalado no computador:
+- `scene.js`: ambiente, mesa, placares e holograma temporário.
+- `cards.js`: pool fixo de 32 cartas, atlas e painéis de leitura/fila.
+- `hands.js`: arte procedural das duas manoplas e seleção exclusiva pela direita.
+- `main.js`: mouse, WebXR, montagem no grip esquerdo, ciclo de apresentação.
+- `calibration.js` / `placement.js`: posição, centralização e exportação. Preserva as chaves de armazenamento da versão anterior.
+
+## Conforto
+
+Use **AJUSTAR POSIÇÃO** ou pressione o analógico para abrir o painel. Altura, distância, centralização e posição do oponente foram preservadas. **Usar posição baixa aprovada** aplica mesa a 40 cm. As opções de distância/altura das cartas controlam o fallback flutuante; em VR com controle esquerdo conectado o leque segue a mão.
+
+## HTTPS local
+
+WebXR precisa de contexto seguro. Para o Quest, prefira o link publicado acima. O endereço HTTP da rede local não habilita WebXR.
+
+Com mkcert instalado, gere um certificado para o computador e seu IP:
 
 ```sh
 mkdir .cert
@@ -62,98 +77,20 @@ mkcert -key-file .cert/key.pem -cert-file .cert/cert.pem localhost 127.0.0.1 ::1
 node scripts/serve.mjs --https
 ```
 
-Substitua `192.168.1.100` pelo IP real do computador. Abra https://localhost:8443 no computador. No Quest, conectado à mesma rede, abra `https://IP-DO-COMPUTADOR:8443`. Libere a porta 8443 no firewall da rede privada, se necessário.
+Substitua o IP pelo seu. Abra https://localhost:8443 no computador. O Quest precisa confiar na CA para abrir `https://IP:8443` como contexto seguro; instalar a CA só no computador não basta. Não publique chaves privadas. Se não houver um fluxo de certificado confiável no aparelho, use GitHub Pages.
 
-O certificado também precisa ser confiável no Quest: a instalação de mkcert no computador não transfere essa confiança. Instale somente o certificado público da CA (`rootCA.pem`, localizado por `mkcert -CAROOT`) no aparelho por um procedimento compatível com sua versão do sistema. Se isso não estiver disponível, use o host HTTPS ou a alternativa USB abaixo. Ignorar o aviso de certificado não garante um contexto seguro para WebXR. Nunca distribua `rootCA-key.pem` ou a chave privada do servidor; a pasta `.cert/` é ignorada no Git e não faz parte do site.
+## GitHub Pages ou outro host HTTPS
 
-Alternativa USB de desenvolvimento, com modo desenvolvedor e ADB configurados e o Quest autorizado:
+Todo o site está em `dist/`, incluindo engine, imagens e Three.js. Copie seu conteúdo para uma pasta do host, mantendo a estrutura. Os caminhos são relativos: pode ser `/vr/`.
 
-```sh
-node scripts/serve.mjs
-# Em outro terminal:
-adb reverse tcp:8080 tcp:8080
-```
+Neste repositório, os arquivos de distribuição ficam em `public/vr/` na branch de trabalho e em `vr/` na branch `gh-pages`. Preserve os demais arquivos do jogo ao publicar. O PR precisa ser incorporado pelo fluxo normal antes que uma publicação futura da main preserve automaticamente `/vr/`.
 
-Abra http://localhost:8080 no navegador do Quest; o encaminhamento USB dá acesso ao servidor do computador pela exceção de localhost. Essa alternativa não é HTTPS e serve apenas ao teste de desenvolvimento. Para remover o encaminhamento: `adb reverse --remove tcp:8080`.
-
-No navegador do Quest, selecione **Entrar em VR** e aceite a permissão. Abra a página diretamente, evitando iframes que não autorizem `xr-spatial-tracking`.
-
-## Publicar no GitHub Pages
-
-1. Crie um repositório separado e envie o conteúdo desta pasta, incluindo `dist/` e `.github/workflows/pages.yml`.
-2. Em **Settings → Pages → Build and deployment → Source**, selecione **GitHub Actions**.
-3. Envie para `main` ou execute **Actions → Publish WebXR sandbox → Run workflow**.
-4. Aguarde o workflow terminar. Abra a URL fornecida pela etapa Deploy no Quest e selecione Entrar em VR.
-
-Não há build ou instalação de dependências. Os imports e assets são relativos, então a página também funciona sob `/nome-do-repositorio/`. O workflow incluído pressupõe um repositório exclusivo para este protótipo; não substitua o workflow de publicação do jogo principal por ele.
-
-Para outro host HTTPS estático, publique somente o conteúdo de `dist/`, com `index.html` como entrada e `.js` servido como JavaScript. Não configure fallback HTML para arquivos JavaScript ausentes. Os arquivos podem ser hospedados sem servidor de aplicação ou serviços de terceiros.
-
-## Arquitetura e ligação futura com o game core
-
-```text
-mouse / controles WebXR / WebMCP opcional
-                 ↓ intenções
-             SandboxCore
-                 ↓ eventos + estado
-       cena Three.js / UI espacial
-```
-
-| Arquivo | Responsabilidade |
-| --- | --- |
-| `dist/src/core.js` | Estado local, validação mínima, custos, poder, comandos e eventos. Sem Three.js. |
-| `dist/src/scene.js` | Geometria, atlas de texto, cartas, slots, holograma e sincronização visual. |
-| `dist/src/main.js` | Sessão XR, mouse, seleção, movimento, encaixe, conforto e métricas. |
-| `dist/src/webmcp.js` | Registro opcional de ferramentas no navegador quando a API está disponível. |
-| `scripts/serve.mjs` | Servidor estático HTTP/HTTPS sem dependências. |
-
-Exemplo no console do navegador:
-
-```js
-guerrasVR.events.addEventListener('intent', e => console.log(e.detail));
-guerrasVR.events.addEventListener('card:played', e => console.log(e.detail));
-guerrasVR.events.addEventListener('state:changed', e => console.log(e.detail));
-guerrasVR.command('play-card', { cardId: 'anubis', slotId: 'p-1-0' });
-guerrasVR.command('end-turn');
-guerrasVR.command('reset');
-guerrasVR.getState();
-guerrasVR.getMetrics();
-```
-
-Os identificadores são `p-{via}-{célula}` e `o-{via}-{célula}`, com via 0–2 e célula 0–3. O core só permite jogar em `p-*`. Eventos: `intent`, `card:played`, `turn:ended`, `command:rejected`, `state:changed`. Payloads e snapshots são cópias. O adaptador hoje é síncrono: para um servidor, trocar por uma interface assíncrona, manter a carta pendente até a confirmação e aplicar snapshots autoritativos. Não basta conectar o evento a uma rede e tratar o estado local como verdade. Não existe rede de jogo implementada nesta versão.
-
-## Performance e validação
-
-Objetivo: 72 FPS no Quest 2. **Ainda não medido em um Quest 2 físico nesta entrega.** A solicitação de 72 Hz é feita apenas se a sessão anunciar suporte. O runtime pode escolher outra frequência. O contador espacial mostra cadência de frames, draw calls e triângulos reportados pelo renderer; não é um profiler de GPU.
-
-- Arquitetura e molduras agrupadas com `InstancedMesh`; 24 slots em uma instância.
-- Um atlas de texto 2048 × 2048, atualizado apenas quando conteúdo muda.
-- Sem sombras, bloom, modelos importados, texturas fotográficas, física ou pós-processamento.
-- Resolução XR em escala 1 e foveation 1 quando suportada. DPR desktop limitado a 1,5.
-- Luz hemisférica e uma direcional. Holograma pequeno e simples.
-
-Execute os testes:
+## Verificação
 
 ```sh
 node --test tests/*.test.mjs
 ```
 
-Testes automatizados cobrem economia, jogadas inválidas, espaços ocupados, bloqueio do turno, reset, isolamento dos eventos, raycast matemático das cinco cartas e dos 24 slots, snap e holograma. O teste de cena usa um canvas de texto simulado: não valida rasterização, legibilidade, tracking ou performance real. O servidor HTTP e a sintaxe dos módulos foram verificados. Não foi realizada uma sessão imersiva nem QA visual em navegador nesta entrega. WebMCP é experimental, opcional e não foi validado em navegador compatível.
+Os testes verificam hashes do core, 40 partidas completas em comparação com execução direta do motor, fila, totais, resultado, reset, movimento do Escaravelho, limites, cartas ocultas, geometria, seleção pela direita e preservação da calibração. Testes geométricos não substituem teste físico no Quest.
 
-Roteiro de aceitação no Quest:
-
-1. Entrar em VR sentado; confirmar mesa e leque confortáveis. Ajustar altura e centralizar.
-2. Jogar Anúbis com cada controle em testes separados: holograma aparece e energia cai de 6 para 2.
-3. Tentar Guerreiro com 2 de energia: permanece na mão. Jogar Sacerdotisa: energia chega a zero.
-4. Reiniciar; soltar uma carta no rio, no lado adversário e fora da mesa: volta à mão.
-5. Tentar um espaço ocupado. Finalizar durante seleção e tentar jogar depois: estado permanece consistente.
-6. Sair e entrar em VR, desconectar um controle e voltar do menu do sistema durante um arraste.
-7. Testar de pé, perto de cada canto da mesa, usando ambos os controles e agarrar de perto.
-8. Observar o contador por 60 segundos com holograma ativo. Registrar quedas sustentadas abaixo de 72 FPS, legibilidade e conforto. Se houver quedas, reduzir a escala XR para 0,85 antes da próxima sessão e medir novamente.
-
-## Decisão sobre o repositório existente
-
-Foi consultado `Brunoebaraujo/Guerras_Egipcias`: existe `vr-unity/`, mas nenhuma pasta específica de protótipos WebXR. Este projeto foi entregue separado, sem modificar o repositório ou os arquivos sincronizados em `sources/`. A publicação não foi executada; os arquivos e o workflow estão prontos para essa etapa.
-
-Referências técnicas: [Three.js WebXRManager](https://threejs.org/docs/pages/WebXRManager.html), [MDN: requestSession](https://developer.mozilla.org/en-US/docs/Web/API/XRSystem/requestSession), [segurança WebXR](https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API/Permissions_and_security).
-
+Three.js r170 está incluído com licença MIT. Sem sombras, pós-processamento ou modelos externos de mãos. Arquitetura e manoplas usam instâncias; cartas compartilham atlas e material. A sessão solicita 72 Hz quando disponível. FPS e draw calls aparecem na mesa; 72 FPS no aparelho precisam ser medidos no Quest 2.
