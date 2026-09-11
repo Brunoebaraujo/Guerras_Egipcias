@@ -1,8 +1,8 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {SandboxCore} from './core.js?v=0.3.0';
-import {createWorld} from './scene.js?v=0.3.0';
-import {createCalibration} from './calibration.js?v=0.3.0';
-import {registerTools} from './webmcp.js?v=0.3.0';
+import {SandboxCore} from './core.js?v=0.3.1';
+import {createWorld} from './scene.js?v=0.3.1';
+import {createCalibration} from './calibration.js?v=0.3.1';
+import {registerTools} from './webmcp.js?v=0.3.1';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -36,6 +36,9 @@ function act(id){
 document.querySelector('#reset').onclick=()=>act('reset');document.querySelector('#end').onclick=()=>act('end');
 document.querySelector('#height').oninput=e=>calibration.setHeight(Number(e.target.value));
 document.querySelector('#placement').onclick=openCalibration;
+const flat=document.querySelector('#flat-placement');
+for(const [label,field,delta] of [['Mais longe','distance',.1],['Mais perto','distance',-.1],['Mesa abaixo','height',-.05],['Mesa acima','height',.05],['Mesa esquerda','lateral',-.05],['Mesa direita','lateral',.05],['Girar esquerda','angle',-5],['Girar direita','angle',5],['Jogador esquerda','playerX',-.05],['Jogador direita','playerX',.05],['Jogador avança','playerZ',-.05],['Jogador recua','playerZ',.05],['Cartas longe','handDistance',.05],['Cartas perto','handDistance',-.05],['Cartas abaixo','handDrop',.05],['Cartas acima','handDrop',-.05]]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.adjust(field,delta);flat.appendChild(b);}
+for(const [label,action] of [['Salvar posição','save'],['Restaurar padrão (confirmar duas vezes)','defaults']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.action(action);flat.appendChild(b);}
 document.querySelector('#copy-coordinates').onclick=async()=>{const out=document.querySelector('#coordinates');out.value=JSON.stringify(calibration.report(),null,2);try{await navigator.clipboard.writeText(out.value);say('Coordenadas copiadas. Cole na conversa.');}catch{out.focus();out.select();say('Selecione e copie as coordenadas abaixo.');}};
 document.querySelector('#download-coordinates').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(calibration.report(),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='guerras-vr-posicao.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
 function rayFor(source){
@@ -149,7 +152,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.3.0',events:core,
+  version:'0.3.1',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
