@@ -113,16 +113,28 @@ export function createWorld(scene){
   }
   const baseColors=[new THREE.Color(0x263941),new THREE.Color(0x302e2a)];const validColor=new THREE.Color(0x166f7d),hoverColor=new THREE.Color(0x65e2e9);
   function highlight(valid=[],hover=null){slots.forEach((s,i)=>slotMesh.setColorAt(i,hover!==null&&s.side===0&&s.lane===hover?hoverColor:valid.includes(s.id)?validColor:baseColors[s.side]));slotMesh.instanceColor.needsUpdate=true;}
+  let anubisSlot=null,hologramElapsed=0;
+  function update(delta){
+    if(!hologram.visible)return;hologramElapsed+=Math.max(0,delta);
+    const progress=Math.min(1,hologramElapsed/1.8);
+    hologram.scale.setScalar(.32*Math.min(1,.2+progress*6));
+    const opacity=.8*Math.min(1,progress*8)*Math.min(1,(1-progress)*4);
+    hologram.traverse(object=>{if(object.isMesh)object.material.opacity=opacity;});
+    if(progress>=1)hologram.visible=false;
+  }
   function sync(state,powers){
-    arrangeHand(state.hand);hologram.visible=false;
+    arrangeHand(state.hand);
+    const currentSlot=Object.entries(state.board).find(([,id])=>id==='anubis')?.[0]??null;
+    if(currentSlot!==anubisSlot){anubisSlot=currentSlot;hologramElapsed=0;hologram.visible=!!currentSlot;hologram.scale.setScalar(.064);}
+
     for(const [slotId,cardId] of Object.entries(state.board)){
       const slot=slots.find(s=>s.id===slotId),card=cards.find(c=>c.definition.id===cardId);
       table.add(card.mesh);card.mesh.position.copy(slot.position).y+=.012;card.mesh.rotation.set(-Math.PI/2,0,0);
-      if(cardId==='anubis'){hologram.position.copy(slot.position).y+=.03;hologram.visible=true;}
+      if(cardId==='anubis'){hologram.position.copy(slot.position).y+=.03;}
     }
     energy.paint(['ENERGIA',`${state.energy} / 6`]);
     for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],`VOCÊ  ${powers[i]}`]);laneLabels[i*2+1].paint(['OPONENTE',`PODER  ${state.opponentPower[i]}`]);}
     highlight();
   }
-  return {stage,table,hand,opponent,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,message,arrangeHand,river};
+  return {stage,table,hand,opponent,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,update,message,arrangeHand,river};
 }

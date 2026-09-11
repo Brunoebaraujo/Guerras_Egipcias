@@ -63,3 +63,16 @@ test('opponent and pedestal stay beyond table and on floor for every placement',
     assert.ok((-1.95)-(local.z+.35)>.3);
   }
 });
+
+test('centering removes saved lateral and rotation offsets at any new headset heading, preserving comfort',()=>{
+  memory.clear();const scene=new THREE.Scene(),w=createWorld(scene),cal=createCalibration(scene,w,()=>{});
+  cal.adjust('distance',.5);cal.adjust('lateral',.1);cal.adjust('playerX',-.1);cal.adjust('angle',45);cal.adjust('handDistance',.1);
+  const comfort=cal.report().current.settings;
+  for(const yaw of [Math.PI/4,-Math.PI/2,Math.PI]){
+    const head=new THREE.Vector3(2,1.55,-3),q=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),yaw);
+    cal.align(head,q,{center:true});scene.updateMatrixWorld(true);
+    const center=w.table.localToWorld(new THREE.Vector3(0,0,-1.05)).sub(head).applyQuaternion(q.clone().invert());
+    assert.ok(Math.abs(center.x)<1e-6);assert.ok(center.z<0);
+    const settings=cal.report().current.settings;assert.equal(settings.height,comfort.height);assert.equal(settings.distance,comfort.distance);assert.equal(settings.handDistance,comfort.handDistance);assert.equal(settings.angle,0);
+  }
+});

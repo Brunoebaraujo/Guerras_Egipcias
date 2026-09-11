@@ -27,3 +27,11 @@ test('table and hand are independent; slot indices match reading order',()=>{
   assert.ok(cells[0].position.z<cells[2].position.z);assert.ok(cells[2].position.x<cells[3].position.x);
 });
 
+
+test('hologram ends after entry animation and never replays on UI sync or end turn',()=>{
+  const scene=new THREE.Scene(),w=createWorld(scene),c=new SandboxCore();
+  c.command('play-lane',{cardId:'anubis',lane:0});w.sync(c.state,c.powers());assert.equal(w.hologram.visible,true);
+  w.update(.9);assert.equal(w.hologram.visible,true);w.sync(c.state,c.powers());w.update(1);assert.equal(w.hologram.visible,false);
+  c.command('end-turn');w.sync(c.state,c.powers());assert.equal(w.hologram.visible,false);assert.equal(c.state.board['p-0-0'],'anubis');
+  c.reset();w.sync(c.state,c.powers());c.command('play-lane',{cardId:'anubis',lane:2});w.sync(c.state,c.powers());assert.equal(w.hologram.visible,true);
+});
