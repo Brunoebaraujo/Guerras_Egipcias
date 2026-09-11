@@ -1,0 +1,125 @@
+import * as THREE from '../vendor/three.module.min.js';
+import {CARDS} from './core.js';
+const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
+export function createWorld(scene){
+  scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
+  scene.add(new THREE.HemisphereLight(0xffe2ab,0x324654,2.1));
+  const sun=new THREE.DirectionalLight(0xffd2a0,2.3);sun.position.set(-3,7,-4);scene.add(sun);
+  const stage=new THREE.Group();scene.add(stage);
+  const table=new THREE.Group();table.position.y=.8;stage.add(table);
+  const batches=new Map();
+  function box(parent,x,y,z,w,h,d,color){
+    const key=parent.uuid+':'+color;
+    if(!batches.has(key))batches.set(key,{parent,color,items:[]});
+    batches.get(key).items.push([x,y,z,w,h,d]);
+  }
+  const mat=(color)=>new THREE.MeshStandardMaterial({color,roughness:.83,metalness:.15});
+  function mesh(parent,geometry,material,x,y,z){const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);parent.add(m);return m;}
+  // All architecture boxes sharing a color are instanced, including table trim.
+  box(stage,0,-.07,-3,24,.12,24,0x76624e);
+  for(const x of [-3.1,3.1])for(const z of [1,-2.7,-6.4]){
+    box(stage,x,1.75,z,.65,3.5,.65,0x8c7152);
+    box(stage,x,.16,z,.94,.32,.94,0x4a4037);
+    box(stage,x,3.35,z,.95,.25,.95,GOLD);
+    for(let y=.7;y<3;y+=.45)box(stage,x,y,z+.33,.38,.06,.025,0x554535);
+  }
+  const pyramidMat=mat(0xb59168);
+  for(const [x,z,s] of [[-5,-11,4],[3,-13,5],[7,-15,3]]){
+    const p=mesh(stage,new THREE.ConeGeometry(s,s*1.3,4),pyramidMat,x,s*.65,z);p.rotation.y=Math.PI/4;
+  }
+  mesh(stage,new THREE.SphereGeometry(.7,16,8),new THREE.MeshBasicMaterial({color:0xffd697}),-3,4.5,-15);
+  box(table,0,-.09,-1.05,2.18,.18,1.8,INK);
+  box(table,0,-.185,-1.05,2.26,.045,1.88,GOLD);
+  for(const x of [-1.08,1.08])box(table,x,.012,-1.05,.024,.025,1.8,GOLD);
+  for(const z of [-.15,-1.95])box(table,0,.012,z,2.18,.025,.024,GOLD);
+  for(const x of [-.99,.99])for(const z of [-.28,-1.82])box(table,x,-.46,z,.12,.72,.12,0x383636);
+  for(const x of [-.335,.335])box(table,x,.012,-1.05,.018,.02,1.6,GOLD);
+  const river=mesh(table,new THREE.BoxGeometry(2.12,.026,.17),new THREE.MeshBasicMaterial({color:0x107991}),0,.015,-1.05);
+  for(const z of [-.955,-1.145])box(table,0,.026,z,2.12,.01,.009,CYAN);
+  const ripples=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),new THREE.MeshBasicMaterial({color:0x72dceb}),18);
+  const tmp=new THREE.Object3D();for(let i=0;i<18;i++){tmp.position.set(-1+i*.12,.032,-1.05+Math.sin(i*2)*.06);tmp.scale.set(.05,.002,.004);tmp.updateMatrix();ripples.setMatrixAt(i,tmp.matrix);}table.add(ripples);
+  const slots=[];
+  for(let side=0;side<2;side++)for(let lane=0;lane<3;lane++)for(let cell=0;cell<4;cell++){
+    const x=(lane-1)*.67+(cell%2===0?-.132:.132);
+    const z=side===0?-.5-Math.floor(cell/2)*.27:-1.34-Math.floor(cell/2)*.27;
+    box(table,x,.025,z,.246,.008,.252,GOLD);
+    slots.push({id:`${side===0?'p':'o'}-${lane}-${cell}`,side,lane,cell,position:new THREE.Vector3(x,.034,z)});
+  }
+  const slotMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(.23,.012,.236),mat(0xffffff),24);
+  slots.forEach((s,i)=>{tmp.position.copy(s.position);tmp.scale.set(1,1,1);tmp.updateMatrix();slotMesh.setMatrixAt(i,tmp.matrix);slotMesh.setColorAt(i,new THREE.Color(s.side?0x302e2a:0x263941));});table.add(slotMesh);
+  // One canvas atlas and one material for every text surface, including card faces.
+  const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=2048;
+  const ctx=atlas.getContext('2d');const texture=new THREE.CanvasTexture(atlas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=2;
+  const labelMat=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});let cellIndex=0;
+  function label(width,height,x,y,z,lines,opts={}){
+    const id=cellIndex++;const ax=id%4*512,ay=Math.floor(id/4)*256;
+    if(id>=32)throw new Error('Text atlas full');
+    const g=new THREE.PlaneGeometry(width,height),uv=g.attributes.uv;
+    for(let i=0;i<uv.count;i++)uv.setXY(i,(ax+uv.getX(i)*512)/2048,1-(ay+(1-uv.getY(i))*256)/2048);
+    const m=mesh(opts.parent||table,g,labelMat,x,y,z);m.rotation.x=opts.flat===false?0:-Math.PI/2;
+    const paint=(text)=>{
+      ctx.fillStyle=opts.bg||'#142029';ctx.fillRect(ax,ay,512,256);
+      ctx.strokeStyle=opts.border||'#b9995e';ctx.lineWidth=5;ctx.strokeRect(ax+7,ay+7,498,242);
+      const rows=Array.isArray(text)?text:[text];
+      rows.forEach((line,i)=>{ctx.fillStyle=i===0?(opts.color||'#e9cb8c'):'#d4e7e9';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`${rows.length===1?36: i===0?32:44}px ${i===0?'Georgia':'sans-serif'}`;ctx.fillText(line,ax+256,ay+256*(i+1)/(rows.length+1),475);});texture.needsUpdate=true;
+    };paint(lines);return {mesh:m,paint};
+  }
+  const laneLabels=[];for(let lane=0;lane<3;lane++){
+    laneLabels.push(label(.54,.095,(lane-1)*.67,.036,-.32,[['ESQUERDA','CENTRO','DIREITA'][lane],'VOCÊ  0']));
+    laneLabels.push(label(.54,.095,(lane-1)*.67,.036,-1.82,['OPONENTE','PODER  0']));
+  }
+  label(.32,.065,0,.034,-1.05,'RIO NILO',{bg:'#107991',border:'#107991',color:'#d1fcff'});
+  const energy=label(.32,.16,-1.31,.14,-.47,['ENERGIA','6 / 6'],{flat:false});energy.mesh.rotation.x=-.5;
+  for(let i=0;i<6;i++)box(table,1.3,.035+i*.009,-.56,.23,.009,.32,i%2?INK:GOLD);
+  label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
+  const stateLabel=label(.69,.13,0,.09,-1.97,['OPONENTE','Guardião do horizonte'],{flat:false});
+  const message=label(.78,.1,0,.055,-.155,'SELECIONE UMA CARTA');
+  const controls=[];
+  function button(id,text,x,z,width=.43){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce'});b.mesh.userData={kind:'button',id};controls.push(b.mesh);return b;}
+  button('reset','REINICIAR JOGADA',-.78,-.03,.5);button('end','FINALIZAR TURNO',.78,-.03,.5);
+  button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);
+  button('recenter','CENTRALIZAR',1.3,-.93,.32);
+  const performance=label(.38,.13,1.31,.06,-1.19,['DESEMPENHO','Aguardando']);
+  const cards=CARDS.map((card,i)=>{
+    const l=label(.19,.27,0,0,0,[card.name,card.glyph,`${card.cost} EN  ·  ${card.power} POD`],{bg:i===0?'#143743':'#18242e',border:i===0?'#63dcef':'#c5a366'});
+    l.mesh.userData={kind:'card',id:card.id};return {definition:card,mesh:l.mesh,home:new THREE.Vector3(),rotation:new THREE.Euler()};
+  });
+  function arrangeHand(hand){
+    hand.forEach((id,index)=>{
+      const card=cards.find(c=>c.definition.id===id),a=(index-(hand.length-1)/2)*.15;
+      card.home.set(Math.sin(a)*.84,.23-Math.abs(a)*.09,.06-Math.abs(a)*.09);
+      card.rotation.set(-.74,0,-a*.65);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);
+    });
+  }
+  function jackal(parent,scale,material){
+    const g=new THREE.Group();parent.add(g);g.scale.setScalar(scale);
+    mesh(g,new THREE.CylinderGeometry(.19,.27,.62,6),material,0,.38,0);
+    mesh(g,new THREE.IcosahedronGeometry(.18,0),material,0,.84,0);
+    const snout=mesh(g,new THREE.ConeGeometry(.10,.3,4),material,0,.82,.2);snout.rotation.x=Math.PI/2;
+    for(const x of [-.11,.11])mesh(g,new THREE.ConeGeometry(.075,.32,4),material,x,1.08,0);
+    for(const x of [-.29,.29]){const arm=mesh(g,new THREE.CylinderGeometry(.045,.06,.48,5),material,x,.4,.02);arm.rotation.z=x>0?.2:-.2;}
+    mesh(g,new THREE.TorusGeometry(.21,.026,4,12),material,0,.66,0).rotation.x=Math.PI/2;
+    return g;
+  }
+  const statue=jackal(stage,1.1,mat(0x192329));statue.position.set(0,.45,-2.55);
+  box(stage,0,.23,-2.55,.9,.46,.7,0x383636);
+  const hologram=jackal(table,.32,new THREE.MeshBasicMaterial({color:CYAN,wireframe:true,transparent:true,opacity:.8,depthWrite:false}));hologram.visible=false;
+  for(const b of batches.values()){
+    const inst=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),mat(b.color),b.items.length);
+    b.items.forEach(([x,y,z,w,h,d],i)=>{tmp.position.set(x,y,z);tmp.scale.set(w,h,d);tmp.updateMatrix();inst.setMatrixAt(i,tmp.matrix);});b.parent.add(inst);
+  }
+  const baseColors=[new THREE.Color(0x263941),new THREE.Color(0x302e2a)];const validColor=new THREE.Color(0x166f7d),hoverColor=new THREE.Color(0x65e2e9);
+  function highlight(valid=[],hover=null){slots.forEach((s,i)=>slotMesh.setColorAt(i,s.id===hover?hoverColor:valid.includes(s.id)?validColor:baseColors[s.side]));slotMesh.instanceColor.needsUpdate=true;}
+  function sync(state,powers){
+    arrangeHand(state.hand);hologram.visible=false;
+    for(const [slotId,cardId] of Object.entries(state.board)){
+      const slot=slots.find(s=>s.id===slotId),card=cards.find(c=>c.definition.id===cardId);
+      card.mesh.position.copy(slot.position).y+=.012;card.mesh.rotation.set(-Math.PI/2,0,0);
+      if(cardId==='anubis'){hologram.position.copy(slot.position).y+=.03;hologram.visible=true;}
+    }
+    energy.paint(['ENERGIA',`${state.energy} / 6`]);
+    for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],`VOCÊ  ${powers[i]}`]);laneLabels[i*2+1].paint(['OPONENTE',`PODER  ${state.opponentPower[i]}`]);}
+    highlight();
+  }
+  return {stage,table,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,message,arrangeHand,river};
+}
