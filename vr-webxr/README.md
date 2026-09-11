@@ -1,8 +1,8 @@
-# Publicação no repositório Guerras_Egipcias
+Neste repositório, o site está em public/vr/. Execute servidor e testes a partir de vr-webxr/. As referências a dist/ no guia original correspondem a ../public/vr/.
 
-URL do protótipo: https://brunoebaraujo.github.io/Guerras_Egipcias/vr/
+# Atualização 0.3
 
-Os arquivos servidos ficam em `public/vr/`, copiados automaticamente pelo build Vite do jogo. Execute o servidor e os testes a partir de `vr-webxr/`. Neste repositório, as referências a `dist/` no guia original abaixo correspondem a `../public/vr/`. A branch `codex/webxr-prototype-0.1` prepara essa inclusão; até sua integração em main, um novo deploy do jogo pode remover a publicação inicial em gh-pages. Nenhum workflow de publicação separado substitui o jogo principal.
+Para os controles atuais, calibração e envio das coordenadas, leia [POSITIONING.md](POSITIONING.md). As instruções de interação 0.1 abaixo são históricas; permanecem válidas as instruções de servidor e HTTPS.
 
 # Guerras Egípcias VR — vertical slice 0.1
 
@@ -156,3 +156,4 @@ Roteiro de aceitação no Quest:
 Foi consultado `Brunoebaraujo/Guerras_Egipcias`: existe `vr-unity/`, mas nenhuma pasta específica de protótipos WebXR. Este projeto foi entregue separado, sem modificar o repositório ou os arquivos sincronizados em `sources/`. A publicação não foi executada; os arquivos e o workflow estão prontos para essa etapa.
 
 Referências técnicas: [Three.js WebXRManager](https://threejs.org/docs/pages/WebXRManager.html), [MDN: requestSession](https://developer.mozilla.org/en-US/docs/Web/API/XRSystem/requestSession), [segurança WebXR](https://developer.mozilla.org/en-US/docs/Web/API/WebXR_Device_API/Permissions_and_security).
+

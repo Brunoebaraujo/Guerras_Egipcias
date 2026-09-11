@@ -18,11 +18,12 @@ test('Anubis snaps to the chosen slot and reset removes the hologram',()=>{
   c.command('reset');w.sync(c.state,c.powers());assert.equal(w.hologram.visible,false);assert.equal(card.mesh.position.distanceTo(card.home),0);
 });
 
-test('table is 30 cm farther while hand stays close; slot indices match reading order',()=>{
+test('table and hand are independent; slot indices match reading order',()=>{
   const scene=new THREE.Scene(),w=createWorld(scene),c=new SandboxCore();w.sync(c.state,c.powers());scene.updateMatrixWorld(true);
   assert.equal(w.table.position.z,-.3);
-  assert.ok(Math.abs(w.cards[2].mesh.getWorldPosition(new THREE.Vector3()).z-.06)<1e-6);
+  assert.equal(w.cards[2].mesh.parent,w.hand);assert.ok(w.cards[2].mesh.getWorldPosition(new THREE.Vector3()).z<-.3);
   const cells=w.slots.filter(s=>s.side===0&&s.lane===1);
   assert.ok(cells[0].position.x<cells[1].position.x);assert.equal(cells[0].position.z,cells[1].position.z);
   assert.ok(cells[0].position.z<cells[2].position.z);assert.ok(cells[2].position.x<cells[3].position.x);
 });
+
