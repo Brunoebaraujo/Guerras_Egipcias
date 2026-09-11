@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {SandboxCore} from './core.js';
-import {createWorld} from './scene.js';
-import {registerTools} from './webmcp.js';
+import {SandboxCore} from './core.js?v=0.2.0';
+import {createWorld} from './scene.js?v=0.2.0';
+import {registerTools} from './webmcp.js?v=0.2.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -18,7 +18,7 @@ function say(text){status.textContent=text;world.message.paint(text);}
 function desktopCamera(){camera.position.set(0,2.7*zoom,2.1*zoom);camera.lookAt(0,.72,-.85);camera.aspect=innerWidth/innerHeight;camera.fov=innerWidth<640?64:48;camera.updateProjectionMatrix();}
 desktopCamera();
 function sync(){world.sync(core.snapshot(),core.powers());}
-core.addEventListener('state:changed',sync);sync();say('Arraste uma carta até um espaço azul.');
+core.addEventListener('state:changed',sync);sync();say('Selecione uma carta e depois uma via azul.');
 function cancel(){if(held){held=null;sync();}hover=null;highlight();}
 function act(id){
   if(id==='reset'){cancel();core.command('reset');say('Jogada reiniciada. Energia restaurada.');}
@@ -44,31 +44,33 @@ function pick(source){
   return raycaster.intersectObjects(targets,false)[0];
 }
 function begin(source){
-  if(held)return;
+  if(held){if(held.source===source)release(source);return;}
   const hit=pick(source);if(!hit)return;
   if(hit.object.userData.kind==='button'){act(hit.object.userData.id);return;}
   const id=hit.object.userData.id;
   if(!core.validSlots(id).length){say(core.state.ended?'Turno encerrado. Reinicie a jogada.':'Energia insuficiente para esta carta.');return;}
   const card=world.cards.find(c=>c.definition.id===id);
-  held={source,card,near:!!hit.near,distance:hit.distance};say(`${card.definition.name}: solte em um espaço azul.`);highlight();
+  held={source,card,near:!!hit.near,distance:hit.distance};say(`${card.definition.name}: aponte e confirme uma via.`);highlight();
   const gamepad=source?.userData?.inputSource?.gamepad;
   gamepad?.hapticActuators?.[0]?.pulse(.25,35)?.catch(()=>{});
 }
-function slotAt(local){return world.slots.find(s=>s.side===0&&Math.abs(s.position.x-local.x)<.115&&Math.abs(s.position.z-local.z)<.118&&Math.abs(local.y-s.position.y)<.18);}
 function moveHeld(){
   if(!held)return;rayFor(held.source);
-  world.table.getWorldPosition(v);plane.set(normal,-v.y-.09);
-  if(held.near)worldPoint.copy(raycaster.ray.origin).addScaledVector(raycaster.ray.direction,.06);
-  else if(!raycaster.ray.intersectPlane(plane,worldPoint)||worldPoint.distanceTo(raycaster.ray.origin)>3)raycaster.ray.at(Math.min(held.distance,1.5),worldPoint);
-  world.table.worldToLocal(worldPoint);held.card.mesh.position.copy(worldPoint);held.card.mesh.rotation.set(-Math.PI/2,0,0);
-  const candidate=slotAt(worldPoint);hover=candidate&&core.validSlots(held.card.definition.id).includes(candidate.id)?candidate.id:null;
+  world.table.getWorldPosition(v);plane.set(normal,-v.y-.04);
+  hover=null;
+  if(raycaster.ray.intersectPlane(plane,worldPoint)&&worldPoint.distanceTo(raycaster.ray.origin)<4){
+    world.table.worldToLocal(worldPoint);
+    const lane=Math.round(worldPoint.x/.67)+1;
+    if(worldPoint.z>=-.91&&worldPoint.z<=-.24&&Math.abs(worldPoint.x-(lane-1)*.67)<.325&&core.nextSlot(held.card.definition.id,lane))hover=lane;
+  }
   highlight();
 }
 function release(source){
   if(!held||held.source!==source)return;
-  moveHeld();const {card}=held;const slotId=hover;held=null;hover=null;
-  if(slotId){const r=core.command('play-card',{cardId:card.definition.id,slotId});say(r.ok?`${card.definition.name} em campo. ${core.state.energy} de energia restante.`:r.reason);if(!r.ok)sync();}
-  else {sync();say('Carta devolvida à mão. Escolha um espaço azul.');}
+  const target=pick(source);if(target?.object.userData.kind==='button'){act(target.object.userData.id);return;}
+  moveHeld();const {card}=held;const lane=hover;held=null;hover=null;
+  if(lane!==null){const r=core.command('play-lane',{cardId:card.definition.id,lane});say(r.ok?`${card.definition.name} em campo. ${core.state.energy} de energia restante.`:r.reason);if(!r.ok)sync();}
+  else {sync();say('Carta devolvida à mão. Escolha uma via disponível.');}
   highlight();
 }
 function highlight(){const valid=held?core.validSlots(held.card.definition.id):[];const key=valid.join(',')+hover;if(key!==lastHighlight){world.highlight(valid,hover);lastHighlight=key;}}
@@ -94,8 +96,8 @@ for(let i=0;i<2;i++){
   c.addEventListener('connected',e=>{c.userData.inputSource=e.data;c.visible=true;});
   c.addEventListener('disconnected',()=>{if(held?.source===c)cancel();c.userData.buttons.clear();c.visible=false;});
   for(const kind of ['select','squeeze']){
-    c.addEventListener(kind+'start',()=>{c.userData.buttons.add(kind);begin(c);});
-    c.addEventListener(kind+'end',()=>{c.userData.buttons.delete(kind);if(!c.userData.buttons.size)release(c);});
+    c.addEventListener(kind+'start',()=>{c.userData.buttons.add(kind);if(c.userData.buttons.size===1)begin(c);});
+    c.addEventListener(kind+'end',()=>{c.userData.buttons.delete(kind);/* Selection remains until the next click on a lane. */});
   }
 }
 function recenter(frame){
@@ -105,7 +107,7 @@ function recenter(frame){
   v.set(0,0,-1).applyQuaternion(q);const yaw=Math.atan2(-v.x,-v.z);
   world.stage.position.set(position.x,0,position.z);world.stage.rotation.y=yaw;
   world.table.position.y=THREE.MathUtils.clamp(position.y-.5,.55,1.15);
-  document.querySelector('#height').value=world.table.position.y;pendingRecenter=false;say('Segure o gatilho, mova a carta e solte.');
+  document.querySelector('#height').value=world.table.position.y;pendingRecenter=false;say('Clique em uma carta; depois clique na via.');
 }
 renderer.xr.addEventListener('sessionstart',()=>{cancel();document.body.classList.add('xr');camera.position.set(0,0,0);camera.quaternion.identity();pendingRecenter=true;});
 renderer.xr.addEventListener('sessionend',()=>{cancel();controllers.forEach(c=>c.userData.buttons.clear());document.body.classList.remove('xr');world.stage.position.set(0,0,0);world.stage.rotation.set(0,0,0);desktopCamera();vrButton.textContent='Entrar em VR';});
@@ -139,7 +141,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.1.0',events:core,
+  version:'0.2.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
