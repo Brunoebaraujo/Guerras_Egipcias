@@ -1,3 +1,10 @@
+# 1.2.0 — coleção visual na câmara
+
+- As cartas da coleção agora mostram a arte, o custo e o poder no paredão da câmara.
+- Oito cartas menores aparecem por página para manter toda a seleção dentro do campo de visão.
+- A troca de páginas ganhou botões maiores e também responde ao analógico direito.
+- O botão INICIAR PARTIDA foi movido para a frente da mesa de pedra e ampliado.
+
 # 1.1.0 — câmara de preparação em VR
 
 - Entrar em VR antes da partida leva o jogador a uma câmara interna de pirâmide.

@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.1.0';
-import {createWorld} from './scene.js?v=1.1.0';
-import {createCalibration} from './calibration.js?v=1.1.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.1.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.1.0';
-import {createDeckRoom} from './deck-room.js?v=1.1.0';
-import {registerTools} from './webmcp.js?v=1.1.0';
+import {MatchCore} from './core.js?v=1.2.0';
+import {createWorld} from './scene.js?v=1.2.0';
+import {createCalibration} from './calibration.js?v=1.2.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.2.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.2.0';
+import {createDeckRoom} from './deck-room.js?v=1.2.0';
+import {registerTools} from './webmcp.js?v=1.2.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -185,7 +185,14 @@ setupXR();
 let previous=0,elapsed=0,frames=0,lastStats={fps:0,calls:0,triangles:0};
 renderer.setAnimationLoop((time,frame)=>{
   if(pendingRecenter&&frame&&time>=alignAfter)recenter(frame);
-  for(const c of controllers){const pressed=!!c.userData.inputSource?.gamepad?.buttons[3]?.pressed;if(!deckRoom.visible&&pressed&&!c.userData.stickPressed)openCalibration();c.userData.stickPressed=pressed;}
+  for(const c of controllers){
+    const input=c.userData.inputSource,pressed=!!input?.gamepad?.buttons[3]?.pressed;
+    if(!deckRoom.visible&&pressed&&!c.userData.stickPressed)openCalibration();c.userData.stickPressed=pressed;
+    if(deckRoom.visible&&input?.handedness==='right'){
+      const axes=input.gamepad?.axes||[],axis=axes.length>=4?axes[3]:(axes[1]||0),direction=axis>.65?1:axis<-.65?-1:0;
+      if(direction&&!c.userData.roomPageDirection)deckRoom.navigate(direction);c.userData.roomPageDirection=direction;
+    }else c.userData.roomPageDirection=0;
+  }
   if(held)moveHeld();
   const delta=previous?Math.min((time-previous)/1000,.1):0;
   if(!calibration.panel.visible&&!deckRoom.visible)core.tick(delta);
@@ -199,7 +206,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.1.0',events:core,
+  version:'1.2.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

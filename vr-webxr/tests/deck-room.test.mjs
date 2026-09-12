@@ -10,9 +10,11 @@ test('pyramid antechamber exposes spatial deck controls and starts with two chos
  const saved=new Map(),storage={getItem:key=>saved.get(key)||null,setItem:(key,value)=>saved.set(key,value)};let started=null;
  const room=createDeckRoom(new THREE.Scene(),{storage,onStart:decks=>{started=decks;return {ok:true};}});
  assert.equal(room.visible,true);assert.ok(room.controls.length>=20);assert.ok(room.controls.every(mesh=>mesh.userData.kind==='deck-room'));
+ const cards=room.controls.filter(mesh=>mesh.userData.id.startsWith('card-'));assert.equal(cards.length,8);assert.ok(cards.every(mesh=>mesh.geometry.parameters.width<.7));
+ assert.equal(room.page,0);assert.equal(room.navigate(1),true);assert.equal(room.page,1);assert.equal(room.navigate(-1),true);assert.equal(room.page,0);
  const botTab=room.controls.find(mesh=>mesh.userData.id==='side-1');room.activate('side-1',botTab);
  const preset=room.controls.find(mesh=>mesh.userData.id==='choice-0');room.activate('choice-0',preset);assert.deepEqual(room.getDecks()[1],PRESETS.Padrão);
- const start=room.controls.find(mesh=>mesh.userData.id==='start');room.activate('start',start);assert.deepEqual(started,[PRESETS.Padrão,PRESETS.Padrão]);assert.equal(room.visible,false);assert.ok(saved.has('ge_vr_deck_selection'));
+ const start=room.controls.find(mesh=>mesh.userData.id==='start');assert.equal(start.parent,room.stage);assert.equal(start.rotation.x,-Math.PI/2);assert.ok(start.position.y>.65);room.activate('start',start);assert.deepEqual(started,[PRESETS.Padrão,PRESETS.Padrão]);assert.equal(room.visible,false);assert.ok(saved.has('ge_vr_deck_selection'));
 });
 
 test('antechamber follows the centered VR stage transform',()=>{
