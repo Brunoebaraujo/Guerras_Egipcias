@@ -1,19 +1,20 @@
-# Guerras Egípcias VR — demo jogável 1.0.0
+# Guerras Egípcias VR — demo jogável 1.1.0
 
 Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
 ## Jogar no Quest 2
 
-Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.0.0 no navegador do Quest e confira **VR / 1.0.0**.
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.1.0 no navegador do Quest e confira **VR / 1.1.0**.
 
-1. A experiência abre diretamente em **Construir deck**, com a coleção e os presets da main.
-2. Monte **Seu deck** e **Deck do bot** separadamente. Cada um precisa de 12 cartas únicas. Os decks salvos na main neste mesmo navegador também aparecem para escolha.
-3. Pressione **Confirmar decks e ir para a mesa** e depois **Entrar em VR**.
-4. Olhe para a frente ao iniciar. Confirme que vê o painel de posição; selecione **JOGAR** para fechá-lo.
-5. Levante o controle esquerdo: o leque acompanha essa mão, com manopla egípcia em preto, ouro e azul.
-6. Aponte o controle direito para qualquer carta e clique no gatilho. Ela passa para a mão direita para leitura, mesmo sem energia suficiente.
-7. Aponte para uma via iluminada e clique novamente. A carta ocupa automaticamente o primeiro espaço livre: cima esquerda, cima direita, baixo esquerda, baixo direita.
-8. Pressione **FINALIZAR TURNO**. O bot joga usando o deck escolhido, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original.
+1. Pressione **Entrar na câmara em VR**. A escolha acontece dentro de uma câmara de pirâmide, diante de uma mesa esculpida em pedra.
+2. Use o controle direito para selecionar **Seu deck** ou **Deck do bot**.
+3. Escolha um preset, percorra as páginas de cartas ou monte manualmente cada lista. **DECKS** percorre presets e decks salvos; as setas percorrem a coleção.
+4. Cada lado precisa de 12 cartas únicas. Pressione **Iniciar partida** na mesa.
+5. A câmara dá lugar ao tabuleiro e abre o ajuste de posição. Confirme **JOGAR** para começar.
+6. Levante o controle esquerdo para ver o leque e use o direito para escolher cartas e vias.
+7. Pressione **FINALIZAR TURNO**. O bot joga usando o deck escolhido, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original.
+
+No desktop, **Jogar no desktop** mantém o construtor 2D como fallback.
 
 O Poder atual aparece em um medalhão acima de cada carta na mesa. Os totais de cada via ficam em placas ovais flutuantes, sem mastros, nas duas cabeceiras. Rodada e energia acompanham a mão esquerda em um painel avançado logo abaixo do leque. Ao selecionar uma carta, ela sai do leque, passa para a mão direita, aumenta de tamanho e mostra na própria face seu custo, Poder e texto de efeito.
 

@@ -1,10 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.0.0';
-import {createWorld} from './scene.js?v=1.0.0';
-import {createCalibration} from './calibration.js?v=1.0.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.0.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.0.0';
-import {registerTools} from './webmcp.js?v=1.0.0';
+import {MatchCore} from './core.js?v=1.1.0';
+import {createWorld} from './scene.js?v=1.1.0';
+import {createCalibration} from './calibration.js?v=1.1.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.1.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.1.0';
+import {createDeckRoom} from './deck-room.js?v=1.1.0';
+import {registerTools} from './webmcp.js?v=1.1.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -16,7 +17,7 @@ const world=createWorld(scene);const core=new MatchCore();
 const raycaster=new THREE.Raycaster();const pointer=new THREE.Vector2();const rotation=new THREE.Matrix4();
 const v=new THREE.Vector3(),worldPoint=new THREE.Vector3(),normal=new THREE.Vector3(0,1,0),plane=new THREE.Plane();
 const controllers=[];let held=null,hover=null,lastHighlight='',pendingRecenter=false,pendingPanel=false,alignAfter=0,resetSpace=null,zoom=1,mouseActive=false;
-const status=document.querySelector('#status'),vrButton=document.querySelector('#vr');
+const status=document.querySelector('#status'),vrButton=document.querySelector('#vr'),lobbyVrButton=document.querySelector('#enter-vr-lobby'),vrButtons=[vrButton,lobbyVrButton];
 function say(text){status.textContent=text;world.message.paint(text);}
 function desktopCamera(){camera.position.set(0,2.7*zoom,2.1*zoom);camera.lookAt(0,.72,-.85);camera.aspect=innerWidth/innerHeight;camera.fov=innerWidth<640?64:48;camera.updateProjectionMatrix();}
 desktopCamera();
@@ -24,7 +25,10 @@ let current=core.snapshot();
 function sync(){current=core.snapshot();world.sync(current,current.powers);say(current.message);document.querySelector('#end').textContent=current.ended?'Nova partida':'Finalizar turno';document.querySelector('#end').disabled=!current.ended&&current.phase!=='plan';document.querySelector('#reset').disabled=current.ended||current.phase!=='plan';}
 core.addEventListener('runtime:error',e=>say(e.detail.reason));
 core.addEventListener('state:changed',sync);sync();
-const deckBuilder=createDeckBuilder({root:document.querySelector('#deck-builder'),onStart(decks){cancel();const result=core.command('new-match',{decks});if(result.ok)say('Decks confirmados. Entre em VR ou jogue no desktop.');return result;}});
+let deckBuilder;
+const deckRoom=createDeckRoom(scene,{onStart(decks){cancel();const result=core.command('new-match',{decks});if(result.ok){deckBuilder?.setDecks(decks);document.querySelector('#deck-builder').hidden=true;document.body.classList.add('match-ready');world.stage.visible=true;const left=controllers.find(c=>c.userData.inputSource?.handedness==='left');if(left)mountCards(left.userData.grip);pendingRecenter=true;pendingPanel=true;alignAfter=performance.now()+100;say('Decks confirmados. Preparando a mesa de jogo.');}return result;}});
+world.stage.visible=false;
+deckBuilder=createDeckBuilder({root:document.querySelector('#deck-builder'),onStart(decks){cancel();const result=core.command('new-match',{decks});if(result.ok){deckRoom.setDecks(decks);deckRoom.hide();world.stage.visible=true;say('Decks confirmados. Entre em VR ou jogue no desktop.');}return result;}});
 document.querySelector('#decks').onclick=()=>deckBuilder.open();
 const calibration=createCalibration(scene,world,()=>cancel());
 function openCalibration(){
@@ -55,7 +59,7 @@ function rayFor(source){
 }
 function pick(source,excludeId=null){
   rayFor(source);scene.updateMatrixWorld(true);
-  const targets=[...world.cardTargets.filter(target=>target.visible&&target.userData.id!==excludeId),...world.controls.filter(c=>c.visible)];
+  const targets=deckRoom.visible?deckRoom.controls.filter(target=>target.visible):[...world.cardTargets.filter(target=>target.visible&&target.userData.id!==excludeId),...world.controls.filter(c=>c.visible)];
   return raycaster.intersectObjects(targets,false)[0];
 }
 function chooseCard(source,card){
@@ -79,6 +83,7 @@ function begin(source){
   rayFor(source);
   const panelAction=calibration.press(raycaster);
   if(panelAction){world.projection.hide();if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
+  if(deckRoom.visible){const hit=pick(source);if(hit?.object.userData.kind==='deck-room')deckRoom.activate(hit.object.userData.id,hit.object);return;}
   if(held){
     if(held.source!==source)return;
     const replacementHit=pick(source,held.card.definition.id);
@@ -137,7 +142,7 @@ function unmountCards(){leftGrip=null;world.stage.add(world.hand);world.hand.rot
 for(let i=0;i<2;i++){
   const c=renderer.xr.getController(i),grip=renderer.xr.getControllerGrip(i);scene.add(c,grip);controllers.push(c);c.userData.grip=grip;
   const line=new THREE.Line(lineGeometry,new THREE.LineBasicMaterial({color:0x72ddeb}));line.scale.z=2;c.add(line);c.userData.line=line;c.userData.buttons=new Set();
-  c.addEventListener('connected',e=>{c.userData.inputSource=e.data;c.visible=true;line.visible=e.data.handedness==='right';grip.clear();if(['left','right'].includes(e.data.handedness))grip.add(createGauntlet(e.data.handedness));if(e.data.handedness==='left')mountCards(grip);});
+  c.addEventListener('connected',e=>{c.userData.inputSource=e.data;c.visible=true;line.visible=e.data.handedness==='right';grip.clear();if(['left','right'].includes(e.data.handedness))grip.add(createGauntlet(e.data.handedness));if(e.data.handedness==='left'&&!deckRoom.visible)mountCards(grip);});
   c.addEventListener('disconnected',()=>{if(held?.source===c)cancel();if(leftGrip===grip)unmountCards();c.userData.buttons.clear();c.userData.inputSource=null;c.visible=false;});
   for(const kind of ['select','squeeze']){
     c.addEventListener(kind+'start',()=>{c.userData.buttons.add(kind);if(c.userData.buttons.size===1)begin(c);});
@@ -150,37 +155,40 @@ function recenter(frame){
   const q=new THREE.Quaternion(orientation.x,orientation.y,orientation.z,orientation.w);
   v.set(0,0,-1).applyQuaternion(q);const yaw=Math.atan2(-v.x,-v.z);
   calibration.align(new THREE.Vector3(position.x,position.y,position.z),q,{center:true});
+  deckRoom.alignFrom(world.stage);
   if(pendingPanel){calibration.open(new THREE.Vector3(position.x,position.y,position.z),q);pendingPanel=false;}
-  pendingRecenter=false;say('Ajuste a posição e pressione JOGAR.');
+  pendingRecenter=false;say(deckRoom.visible?'Escolha o seu deck e o deck do bot na mesa de pedra.':'Ajuste a posição e pressione JOGAR.');
 }
-function onReferenceReset(){cancel();pendingRecenter=true;pendingPanel=calibration.panel.visible;alignAfter=performance.now()+250;}
-renderer.xr.addEventListener('sessionstart',()=>{cancel();document.body.classList.add('xr');camera.position.set(0,0,0);camera.quaternion.identity();pendingRecenter=true;pendingPanel=true;alignAfter=performance.now()+250;resetSpace=renderer.xr.getReferenceSpace();resetSpace?.addEventListener('reset',onReferenceReset);});
-renderer.xr.addEventListener('sessionend',()=>{resetSpace?.removeEventListener('reset',onReferenceReset);resetSpace=null;cancel();unmountCards();controllers.forEach(c=>c.userData.buttons.clear());calibration.panel.visible=false;document.body.classList.remove('xr');world.stage.position.set(0,0,0);world.stage.rotation.set(0,0,0);desktopCamera();vrButton.textContent='Entrar em VR';});
+function onReferenceReset(){cancel();pendingRecenter=true;pendingPanel=!deckRoom.visible&&calibration.panel.visible;alignAfter=performance.now()+250;}
+renderer.xr.addEventListener('sessionstart',()=>{cancel();document.body.classList.add('xr');camera.position.set(0,0,0);camera.quaternion.identity();const enterRoom=!document.querySelector('#deck-builder').hidden;if(enterRoom){deckRoom.show();world.stage.visible=false;}else{deckRoom.hide();world.stage.visible=true;}pendingRecenter=true;pendingPanel=!enterRoom;alignAfter=performance.now()+250;resetSpace=renderer.xr.getReferenceSpace();resetSpace?.addEventListener('reset',onReferenceReset);});
+renderer.xr.addEventListener('sessionend',()=>{resetSpace?.removeEventListener('reset',onReferenceReset);resetSpace=null;cancel();unmountCards();controllers.forEach(c=>c.userData.buttons.clear());calibration.panel.visible=false;document.body.classList.remove('xr');if(deckRoom.visible){deckRoom.hide();world.stage.visible=true;deckBuilder.open();}world.stage.position.set(0,0,0);world.stage.rotation.set(0,0,0);desktopCamera();vrButtons.forEach(button=>button.textContent=button===lobbyVrButton?'Entrar na câmara em VR':'Entrar em VR');});
 async function setupXR(){
-  if(!isSecureContext){vrButton.textContent='VR precisa de HTTPS';return;}
-  if(!navigator.xr){vrButton.textContent='Abra no Quest para VR';return;}
-  try{if(!await navigator.xr.isSessionSupported('immersive-vr')){vrButton.textContent='VR indisponível neste aparelho';return;}}
-  catch{vrButton.textContent='VR indisponível';return;}
-  vrButton.disabled=false;vrButton.textContent='Entrar em VR';
-  vrButton.onclick=async()=>{
-    vrButton.disabled=true;let session;
+  const setButtons=(text,disabled=true)=>vrButtons.forEach(button=>{button.textContent=button===lobbyVrButton&&text==='Entrar em VR'?'Entrar na câmara em VR':text;button.disabled=disabled;});
+  if(!isSecureContext){setButtons('VR precisa de HTTPS');return;}
+  if(!navigator.xr){setButtons('Abra no Quest para VR');return;}
+  try{if(!await navigator.xr.isSessionSupported('immersive-vr')){setButtons('VR indisponível neste aparelho');return;}}
+  catch{setButtons('VR indisponível');return;}
+  setButtons('Entrar em VR',false);
+  const enter=async()=>{
+    vrButtons.forEach(button=>button.disabled=true);let session;
     try{
       session=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local-floor']});
       await renderer.xr.setSession(session);
       if(session.supportedFrameRates?.includes(72)&&session.updateTargetFrameRate)await session.updateTargetFrameRate(72).catch(()=>{});
       session.addEventListener('visibilitychange',()=>{if(session.visibilityState!=='visible')cancel();});
     }catch(error){if(session)await session.end().catch(()=>{});say(`Não foi possível iniciar VR: ${error.message}`);}
-    finally{vrButton.disabled=false;}
+    finally{vrButtons.forEach(button=>button.disabled=false);}
   };
+  vrButtons.forEach(button=>button.onclick=enter);
 }
 setupXR();
 let previous=0,elapsed=0,frames=0,lastStats={fps:0,calls:0,triangles:0};
 renderer.setAnimationLoop((time,frame)=>{
   if(pendingRecenter&&frame&&time>=alignAfter)recenter(frame);
-  for(const c of controllers){const pressed=!!c.userData.inputSource?.gamepad?.buttons[3]?.pressed;if(pressed&&!c.userData.stickPressed)openCalibration();c.userData.stickPressed=pressed;}
+  for(const c of controllers){const pressed=!!c.userData.inputSource?.gamepad?.buttons[3]?.pressed;if(!deckRoom.visible&&pressed&&!c.userData.stickPressed)openCalibration();c.userData.stickPressed=pressed;}
   if(held)moveHeld();
   const delta=previous?Math.min((time-previous)/1000,.1):0;
-  if(!calibration.panel.visible)core.tick(delta);
+  if(!calibration.panel.visible&&!deckRoom.visible)core.tick(delta);
   if(leftGrip){world.hand.position.set(0,0,0);world.hand.rotation.set(0,0,0);}
   world.update(delta);
   if(world.hologram.visible)world.hologram.rotation.y=Math.sin(time*.0007)*.12;
@@ -191,7 +199,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.0.0',events:core,
+  version:'1.1.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

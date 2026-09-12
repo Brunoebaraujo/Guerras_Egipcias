@@ -1,3 +1,11 @@
+# 1.1.0 — câmara de preparação em VR
+
+- Entrar em VR antes da partida leva o jogador a uma câmara interna de pirâmide.
+- Uma mesa de pedra sustenta a interface espacial para escolher o deck do jogador e o deck do bot.
+- Presets e decks salvos são paginados; a coleção completa pode ser percorrida e editada com o controle direito.
+- Os decks continuam exigindo 12 cartas únicas e ficam sincronizados com o fallback desktop.
+- Ao confirmar, a câmara desaparece, o tabuleiro surge e o ajuste de posição é aberto antes da partida.
+
 # 1.0.0 — escolha dos decks antes da partida
 
 - A experiência abre diretamente na tela Construir deck, inspirada na tela da main e sem menu intermediário.
