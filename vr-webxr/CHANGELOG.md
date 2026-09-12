@@ -1,3 +1,10 @@
+# 1.3.0 — coleção rolável e leitura da rodada
+
+- O paredão mostra cinco cartas por linha e permite arrastar verticalmente a coleção com o controle direito.
+- A rodada aparece em um letreiro grande e elevado, perpendicular ao Rio Nilo; a mão exibe somente a energia.
+- O placar final compara as três vias em colunas e destaca o maior poder de cada uma.
+- A projeção da via do bot também informa o poder total atual da via.
+
 # 1.2.0 — coleção visual na câmara
 
 - As cartas da coleção agora mostram a arte, o custo e o poder no paredão da câmara.

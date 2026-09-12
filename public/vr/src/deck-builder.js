@@ -1,4 +1,4 @@
-import {CARD_CATALOG,DECK_SIZE,PRESETS,validateDecks} from './core.js?v=1.2.0';
+import {CARD_CATALOG,DECK_SIZE,PRESETS,validateDecks} from './core.js?v=1.3.0';
 
 const SELECTION_KEY='ge_vr_deck_selection';
 const byKey=new Map(CARD_CATALOG.map(card=>[card.key,card]));

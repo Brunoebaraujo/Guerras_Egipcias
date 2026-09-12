@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.2.0';
-import {createWorld} from './scene.js?v=1.2.0';
-import {createCalibration} from './calibration.js?v=1.2.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.2.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.2.0';
-import {createDeckRoom} from './deck-room.js?v=1.2.0';
-import {registerTools} from './webmcp.js?v=1.2.0';
+import {MatchCore} from './core.js?v=1.3.0';
+import {createWorld} from './scene.js?v=1.3.0';
+import {createCalibration} from './calibration.js?v=1.3.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.3.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.3.0';
+import {createDeckRoom} from './deck-room.js?v=1.3.0';
+import {registerTools} from './webmcp.js?v=1.3.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -83,7 +83,7 @@ function begin(source){
   rayFor(source);
   const panelAction=calibration.press(raycaster);
   if(panelAction){world.projection.hide();if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
-  if(deckRoom.visible){const hit=pick(source);if(hit?.object.userData.kind==='deck-room')deckRoom.activate(hit.object.userData.id,hit.object);return;}
+  if(deckRoom.visible){const hit=pick(source);if(hit?.object.userData.kind==='deck-room')deckRoom.pointerStart(source,hit);return;}
   if(held){
     if(held.source!==source)return;
     const replacementHit=pick(source,held.card.definition.id);
@@ -127,8 +127,8 @@ renderer.domElement.addEventListener('pointerdown',e=>{
   if(renderer.xr.isPresenting||e.button!==0)return;mouseActive=true;mousePosition(e);
   down={x:e.clientX,y:e.clientY};renderer.domElement.setPointerCapture(e.pointerId);begin('mouse');
 });
-renderer.domElement.addEventListener('pointermove',e=>{mousePosition(e);mouseActive=true;if(!held&&!renderer.xr.isPresenting)renderer.domElement.style.cursor=pick('mouse')?'pointer':'default';});
-renderer.domElement.addEventListener('pointerup',e=>{mousePosition(e);/* Click once on card, once on lane. */down=null;});
+renderer.domElement.addEventListener('pointermove',e=>{mousePosition(e);mouseActive=true;if(deckRoom.visible&&down){rayFor('mouse');deckRoom.pointerMove('mouse',raycaster.ray);}if(!held&&!renderer.xr.isPresenting)renderer.domElement.style.cursor=pick('mouse')?'pointer':'default';});
+renderer.domElement.addEventListener('pointerup',e=>{mousePosition(e);if(deckRoom.visible)deckRoom.pointerEnd('mouse');/* Click once on card, once on lane. */down=null;});
 renderer.domElement.addEventListener('pointercancel',()=>{down=null;cancel();});
 window.addEventListener('blur',()=>{down=null;cancel();});
 renderer.domElement.addEventListener('wheel',e=>{if(renderer.xr.isPresenting)return;e.preventDefault();zoom=THREE.MathUtils.clamp(zoom+e.deltaY*.0004,.75,1.4);desktopCamera();},{passive:false});
@@ -146,7 +146,7 @@ for(let i=0;i<2;i++){
   c.addEventListener('disconnected',()=>{if(held?.source===c)cancel();if(leftGrip===grip)unmountCards();c.userData.buttons.clear();c.userData.inputSource=null;c.visible=false;});
   for(const kind of ['select','squeeze']){
     c.addEventListener(kind+'start',()=>{c.userData.buttons.add(kind);if(c.userData.buttons.size===1)begin(c);});
-    c.addEventListener(kind+'end',()=>c.userData.buttons.delete(kind));
+    c.addEventListener(kind+'end',()=>{if(deckRoom.visible)deckRoom.pointerEnd(c);c.userData.buttons.delete(kind);});
   }
 }
 function recenter(frame){
@@ -192,6 +192,7 @@ renderer.setAnimationLoop((time,frame)=>{
       const axes=input.gamepad?.axes||[],axis=axes.length>=4?axes[3]:(axes[1]||0),direction=axis>.65?1:axis<-.65?-1:0;
       if(direction&&!c.userData.roomPageDirection)deckRoom.navigate(direction);c.userData.roomPageDirection=direction;
     }else c.userData.roomPageDirection=0;
+    if(deckRoom.visible&&deckRoom.isDragging(c)){rayFor(c);deckRoom.pointerMove(c,raycaster.ray);}
   }
   if(held)moveHeld();
   const delta=previous?Math.min((time-previous)/1000,.1):0;
@@ -206,7 +207,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.2.0',events:core,
+  version:'1.3.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

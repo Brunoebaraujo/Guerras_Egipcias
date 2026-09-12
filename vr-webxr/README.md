@@ -1,14 +1,14 @@
-# Guerras Egípcias VR — demo jogável 1.2.0
+# Guerras Egípcias VR — demo jogável 1.3.0
 
 Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
 ## Jogar no Quest 2
 
-Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.2.0 no navegador do Quest e confira **VR / 1.2.0**.
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.3.0 no navegador do Quest e confira **VR / 1.3.0**.
 
 1. Pressione **Entrar na câmara em VR**. A escolha acontece dentro de uma câmara de pirâmide, diante de uma mesa esculpida em pedra.
 2. Use o controle direito para selecionar **Seu deck** ou **Deck do bot**.
-3. Escolha um preset ou monte manualmente cada lista pelas cartas ilustradas no paredão. **DECKS** percorre presets e decks salvos; as setas ou o analógico direito percorrem a coleção em páginas de oito cartas.
+3. Escolha um preset ou monte manualmente cada lista pelas cartas ilustradas no paredão. São cinco cartas por linha; segure uma carta ou o espaço entre elas e arraste para cima ou para baixo. As setas e o analógico direito também percorrem a coleção.
 4. Cada lado precisa de 12 cartas únicas. Pressione o botão grande **Iniciar partida** sobre a frente da mesa de pedra.
 5. A câmara dá lugar ao tabuleiro e abre o ajuste de posição. Confirme **JOGAR** para começar.
 6. Levante o controle esquerdo para ver o leque e use o direito para escolher cartas e vias.
@@ -16,13 +16,13 @@ Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.2.0 no navegador d
 
 No desktop, **Jogar no desktop** mantém o construtor 2D como fallback.
 
-O Poder atual aparece em um medalhão acima de cada carta na mesa. Os totais de cada via ficam em placas ovais flutuantes, sem mastros, nas duas cabeceiras. Rodada e energia acompanham a mão esquerda em um painel avançado logo abaixo do leque. Ao selecionar uma carta, ela sai do leque, passa para a mão direita, aumenta de tamanho e mostra na própria face seu custo, Poder e texto de efeito.
+O Poder atual aparece em um medalhão acima de cada carta na mesa. Os totais de cada via ficam em placas ovais flutuantes, sem mastros, nas duas cabeceiras. A rodada aparece em um letreiro grande e elevado sobre o Nilo; o painel abaixo do leque mostra somente a energia. Ao selecionar uma carta, ela sai do leque, passa para a mão direita, aumenta de tamanho e mostra na própria face seu custo, Poder e texto de efeito.
 
 Uma carta cara também pode ser examinada. Se ela não puder ser jogada na rodada atual, nenhuma via será iluminada e a carta continuará na mão direita. Selecione outra carta no leque ou finalize o turno para passar.
 
-Selecione a cabeceira ou uma área livre de qualquer via do bot para abrir, diante do jogador, uma projeção vertical das cartas e dos Poderes daquela via. A projeção tem fundo próprio, fica à frente dos elementos do tabuleiro e reproduz a matriz 2×2: superior esquerda, superior direita, inferior esquerda e inferior direita. Ela troca de via quando outra cabeceira adversária é selecionada e desaparece no próximo clique em qualquer outro lugar.
+Selecione a cabeceira ou uma área livre de qualquer via do bot para abrir, diante do jogador, uma projeção vertical das cartas, dos Poderes e do total atual daquela via. A projeção tem fundo próprio, fica à frente dos elementos do tabuleiro e reproduz a matriz 2×2: superior esquerda, superior direita, inferior esquerda e inferior direita. Ela troca de via quando outra cabeceira adversária é selecionada e desaparece no próximo clique em qualquer outro lugar.
 
-As placas ovais do bot são maiores e usam números mais largos. Ao final da sexta rodada, o painel de vitória, derrota ou empate cresce, sobe e ocupa o centro da mesa acima do Nilo, cobrindo os números que ficam atrás dele. Sempre que uma carta é destruída ou muda de via, cada lado é compactado novamente na ordem registrada pelo motor, sem deixar buracos entre os quatro espaços.
+As placas ovais do bot são maiores e usam números mais largos. Ao final da sexta rodada, o painel de vitória, derrota ou empate cresce, sobe e ocupa o centro da mesa acima do Nilo. As três vias aparecem em colunas; cada coluna compara o Poder do jogador e do bot e amplia o maior valor. Sempre que uma carta é destruída ou muda de via, cada lado é compactado novamente na ordem registrada pelo motor, sem deixar buracos entre os quatro espaços.
 
 Escaravelho pode ser selecionado no tabuleiro e movido para outra via quando sua regra permitir. A interface também suporta escolha de alvos e pular alvo quando o motor solicitar. Os decks atuais usam predominantemente efeitos automáticos. As cartas ocultas do bot aparecem de costas e não expõem nome, arte ou poder na interface pública.
 
