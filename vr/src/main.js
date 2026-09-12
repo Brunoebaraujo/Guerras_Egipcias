@@ -1,9 +1,9 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=0.8.0';
-import {createWorld} from './scene.js?v=0.8.0';
-import {createCalibration} from './calibration.js?v=0.8.0';
-import {createGauntlet,canInteract} from './hands.js?v=0.8.0';
-import {registerTools} from './webmcp.js?v=0.8.0';
+import {MatchCore} from './core.js?v=0.9.0';
+import {createWorld} from './scene.js?v=0.9.0';
+import {createCalibration} from './calibration.js?v=0.9.0';
+import {createGauntlet,canInteract} from './hands.js?v=0.9.0';
+import {registerTools} from './webmcp.js?v=0.9.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -50,17 +50,39 @@ function rayFor(source){
   if(source==='mouse')raycaster.setFromCamera(pointer,camera);
   else {source.updateWorldMatrix(true,false);rotation.extractRotation(source.matrixWorld);raycaster.ray.origin.setFromMatrixPosition(source.matrixWorld);raycaster.ray.direction.set(0,0,-1).applyMatrix4(rotation).normalize();}
 }
-function pick(source){
+function pick(source,excludeId=null){
   rayFor(source);scene.updateMatrixWorld(true);
-  const targets=[...world.cardTargets.filter(target=>target.visible),...world.controls.filter(c=>c.visible)];
+  const targets=[...world.cardTargets.filter(target=>target.visible&&target.userData.id!==excludeId),...world.controls.filter(c=>c.visible)];
   return raycaster.intersectObjects(targets,false)[0];
+}
+function chooseCard(source,card){
+  const id=card.definition.id;
+  world.inspection.show(card.definition);
+  if(current.aim?.side===0){const r=core.command('aim',{cardId:id});if(!r.ok)say(r.reason);return;}
+  if(card.definition.pickup){const r=core.command('pickup',{cardId:id});if(!r.ok)say(r.reason);return;}
+  const valid=core.validSlots(id);
+  if(!valid.length&&card.definition.zone!=='hand'){say(card.definition.hidden?'Carta do bot ainda oculta.':card.definition.text+' · '+(current.phase==='plan'?'Sem jogada disponível.':'Aguarde a revelação.'));return;}
+  if(card.definition.zone==='hand'&&current.phase!=='plan'){say('Aguarde a revelação antes de escolher outra carta.');return;}
+  held={source,card,valid};if(source!=='mouse')world.attachSelected(id,source.userData.grip);
+  if(valid.length)say(card.definition.name+': aponte e confirme uma via.');
+  else if(card.definition.cost>current.energy)say(`${card.definition.name} custa ${card.definition.cost} de energia. Você tem ${current.energy}. Escolha outra carta ou finalize o turno.`);
+  else say(`${card.definition.name} não pode ser jogada agora. Escolha outra carta ou finalize o turno.`);
+  highlight();
+  const gamepad=source?.userData?.inputSource?.gamepad;
+  gamepad?.hapticActuators?.[0]?.pulse(.25,35)?.catch(()=>{});
 }
 function begin(source){
   if(!canInteract(source))return;
   rayFor(source);
   const panelAction=calibration.press(raycaster);
   if(panelAction){world.projection.hide();if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
-  if(held){if(held.source===source)release(source);return;}
+  if(held){
+    if(held.source!==source)return;
+    const replacementHit=pick(source,held.card.definition.id);
+    const replacement=replacementHit?.object.userData.kind==='card'?world.cards.find(c=>c.definition.id===replacementHit.object.userData.id&&c.definition.zone==='hand'):null;
+    if(replacement){held=null;hover=null;world.clearSelected();chooseCard(source,replacement);return;}
+    release(source);return;
+  }
   const hit=pick(source);
   if(hit?.object.userData.kind==='opponent-lane'){cancel();world.showOpponentLane(hit.object.userData.lane);say(`Cartas do bot na via ${hit.object.userData.lane+1}. Selecione a via novamente para fechar.`);return;}
   if(world.projection.group.visible)world.projection.hide();
@@ -68,14 +90,7 @@ function begin(source){
   if(hit.object.userData.kind==='button'){act(hit.object.userData.id);return;}
   const id=hit.object.userData.id;
   const card=world.cards.find(c=>c.definition.id===id);if(!card)return;
-  world.inspection.show(card.definition);
-  if(current.aim?.side===0){const r=core.command('aim',{cardId:id});if(!r.ok)say(r.reason);return;}
-  if(card.definition.pickup){const r=core.command('pickup',{cardId:id});if(!r.ok)say(r.reason);return;}
-  const valid=core.validSlots(id);
-  if(!valid.length){say(card.definition.hidden?'Carta do bot ainda oculta.':card.definition.text+' · '+(current.phase==='plan'?'Sem jogada disponível.':'Aguarde a revelação.'));return;}
-  held={source,card,valid};if(source!=='mouse')world.attachSelected(id,source.userData.grip);say(card.definition.name+': aponte e confirme uma via.');highlight();
-  const gamepad=source?.userData?.inputSource?.gamepad;
-  gamepad?.hapticActuators?.[0]?.pulse(.25,35)?.catch(()=>{});
+  chooseCard(source,card);
 }
 function moveHeld(){
   if(!held)return;rayFor(held.source);
@@ -90,7 +105,8 @@ function moveHeld(){
 }
 function release(source){
   if(!held||held.source!==source)return;
-  const target=pick(source);if(target?.object.userData.kind==='button'){act(target.object.userData.id);return;}
+  const target=pick(source,held.card.definition.id);if(target?.object.userData.kind==='button'){act(target.object.userData.id);return;}
+  if(!held.valid.length){hover=null;highlight();say(`${held.card.definition.name} continua selecionada, mas não pode ser jogada nesta rodada. Escolha outra carta ou finalize o turno.`);return;}
   moveHeld();const card={definition:{...held.card.definition}};const lane=hover;held=null;hover=null;world.clearSelected();world.inspection.show(null);
   if(lane!==null){const r=core.command('play-lane',{cardId:card.definition.id,lane});say(r.ok?`${card.definition.name} em campo. ${current.energy} de energia restante.`:r.reason);if(!r.ok)sync();}
   else {sync();say('Carta devolvida à mão. Escolha uma via disponível.');}
@@ -172,7 +188,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.8.0',events:core,
+  version:'0.9.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
