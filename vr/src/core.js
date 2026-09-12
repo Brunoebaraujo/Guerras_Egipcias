@@ -1,6 +1,6 @@
 // Presentation adapter. Rules and bot decisions are unmodified modules from main.
 import {freshMatch,applyAction,isAimable} from '../game-core/src/match/index.js';
-import {byKey,ctxOf,laneScore,laneWins,matchResult,power,custoDe} from '../game-core/src/domain/engine.js';
+import {CARDS,byKey,ctxOf,laneScore,laneWins,matchResult,power,custoDe} from '../game-core/src/domain/engine.js';
 import {decideFacil} from '../game-core/src/domain/bots/index.js';
 import {runBotPlanning} from '../game-core/src/match/bots/controller.js';
 import {createRng,randomSeed} from '../game-core/src/domain/rng.js';
@@ -8,12 +8,27 @@ export const DECKS=Object.freeze([
  ['servo','arqueiro','lanceiro','carruagem','guardareal','montu','hathor','escaravelho','heka','mumia','sobek','anubis'],
  ['cao','cabra-nilo','ganso','gato','macaco','hiena','garca','rebanho','domador','apis','amon','escaravelho']
 ]);
+export const DECK_SIZE=12;
+export const PRESETS=Object.freeze({
+ 'Padrão':['montu','carruagem','guardareal','armadura','escaravelho','heh','enxame','mumia','sobek','hathor','set','selo'],
+ 'Exército':['servo','arqueiro','escaravelho','heka','lanceiro','carruagem','enxame','montu','guardareal','amon','general','colosso'],
+ 'Sacrifício':['servo','bennu','mumia','armadura','heka','sobek','enxame','sekhmet','apofis','osiris','diluvio','amheh'],
+ 'Controle':['anubis','maat','selo','sekhmet','amon','hathor','montu','osiris','guardareal','colosso','general','set'],
+ 'Bênção':['renenutet','hathor','heka','armadura','servo','arqueiro','lanceiro','carruagem','guardareal','escaravelho','montu','amon'],
+ 'Assassinos':['servo','arqueiro','sicario','heka','senti','enxame','hemsu','montu','semerj','akhu','general','seqer-mau'],
+ 'Pragas':['moises','servo','arqueiro','lanceiro','carruagem','guardareal','general','montu','armadura','hathor','escaravelho','selo'],
+ 'Animais':['cao','cabra-nilo','ganso','gato','macaco','hiena','garca','rebanho','domador','apis','amon','escaravelho'],
+});
+export const CARD_CATALOG=Object.freeze(CARDS.map(d=>Object.freeze({key:d.key,name:d.nome,cost:d.custo,power:d.poder,type:d.tipo,arch:d.arch,art:d.arte||d.key,text:d.texto||'Sem efeito.'})).sort((a,b)=>a.cost-b.cost||a.name.localeCompare(b.name)));
+const SELECTABLE=new Set(CARD_CATALOG.map(card=>card.key));
+export function validateDeck(deck){if(!Array.isArray(deck)||deck.length!==DECK_SIZE)return {ok:false,reason:`Cada deck precisa ter exatamente ${DECK_SIZE} cartas.`};if(new Set(deck).size!==deck.length)return {ok:false,reason:'Um deck não pode ter cartas repetidas.'};const unknown=deck.find(key=>!SELECTABLE.has(key));return unknown?{ok:false,reason:`Carta desconhecida no deck: ${unknown}.`}:{ok:true};}
+export function validateDecks(decks){if(!Array.isArray(decks)||decks.length!==2)return {ok:false,reason:'Escolha o seu deck e o deck do bot.'};for(const deck of decks){const result=validateDeck(deck);if(!result.ok)return result;}return {ok:true};}
 export const SLOT_IDS=Object.freeze(Array.from({length:12},(_,i)=>`p-${Math.floor(i/4)}-${i%4}`));
 export class MatchCore extends EventTarget {
- #state; #slots=new Map(); #botRng; #wait=0; #revealTotal=0; #seed;
- constructor({seed=randomSeed()}={}){super();this.newMatch(seed);}
+ #state; #slots=new Map(); #botRng; #wait=0; #revealTotal=0; #seed; #decks;
+ constructor({seed=randomSeed(),decks=DECKS}={}){super();this.newMatch(seed,decks);}
  emit(type,detail){this.dispatchEvent(new CustomEvent(type,{detail:structuredClone(detail)}));}
- newMatch(seed=randomSeed()){this.#seed=seed;this.#state=freshMatch(DECKS,{seed});this.#botRng=createRng(`${seed}:bot`);this.#slots.clear();this.#wait=0;this.#revealTotal=0;this.changed();return {ok:true};}
+ newMatch(seed=randomSeed(),decks=this.#decks||DECKS){const valid=validateDecks(decks);if(!valid.ok)return valid;this.#decks=decks.map(deck=>deck.slice());this.#seed=seed;this.#state=freshMatch(this.#decks,{seed});this.#botRng=createRng(`${seed}:bot`);this.#slots.clear();this.#wait=0;this.#revealTotal=0;this.changed();return {ok:true};}
  changed(){this.assignSlots();this.emit('state:changed',this.snapshot());}
  assignSlots(){
   const s=this.#state;
@@ -46,7 +61,7 @@ export class MatchCore extends EventTarget {
  apply(action){const r=applyAction(this.#state,action);if(r.error)return {ok:false,reason:r.error};this.#state=r.state;return {ok:true};}
  command(type,payload={}){
   this.emit('intent',{type,payload});let result;
-  if(type==='new-match')return this.newMatch();
+  if(type==='new-match')return this.newMatch(randomSeed(),payload.decks||this.#decks);
   if(this.#state.finished)return {ok:false,reason:'Partida encerrada. Selecione NOVA PARTIDA.'};
   if(type==='play-lane'){
    const {cardId,lane}=payload;if(!Number.isInteger(lane)||!this.nextSlot(cardId,lane))return {ok:false,reason:'Via indisponível ou energia insuficiente.'};

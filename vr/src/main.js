@@ -1,9 +1,10 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=0.9.0';
-import {createWorld} from './scene.js?v=0.9.0';
-import {createCalibration} from './calibration.js?v=0.9.0';
-import {createGauntlet,canInteract} from './hands.js?v=0.9.0';
-import {registerTools} from './webmcp.js?v=0.9.0';
+import {MatchCore} from './core.js?v=1.0.0';
+import {createWorld} from './scene.js?v=1.0.0';
+import {createCalibration} from './calibration.js?v=1.0.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.0.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.0.0';
+import {registerTools} from './webmcp.js?v=1.0.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -23,6 +24,8 @@ let current=core.snapshot();
 function sync(){current=core.snapshot();world.sync(current,current.powers);say(current.message);document.querySelector('#end').textContent=current.ended?'Nova partida':'Finalizar turno';document.querySelector('#end').disabled=!current.ended&&current.phase!=='plan';document.querySelector('#reset').disabled=current.ended||current.phase!=='plan';}
 core.addEventListener('runtime:error',e=>say(e.detail.reason));
 core.addEventListener('state:changed',sync);sync();
+const deckBuilder=createDeckBuilder({root:document.querySelector('#deck-builder'),onStart(decks){cancel();const result=core.command('new-match',{decks});if(result.ok)say('Decks confirmados. Entre em VR ou jogue no desktop.');return result;}});
+document.querySelector('#decks').onclick=()=>deckBuilder.open();
 const calibration=createCalibration(scene,world,()=>cancel());
 function openCalibration(){
   cancel();
@@ -124,7 +127,7 @@ renderer.domElement.addEventListener('pointerup',e=>{mousePosition(e);/* Click o
 renderer.domElement.addEventListener('pointercancel',()=>{down=null;cancel();});
 window.addEventListener('blur',()=>{down=null;cancel();});
 renderer.domElement.addEventListener('wheel',e=>{if(renderer.xr.isPresenting)return;e.preventDefault();zoom=THREE.MathUtils.clamp(zoom+e.deltaY*.0004,.75,1.4);desktopCamera();},{passive:false});
-window.addEventListener('keydown',e=>{if(/INPUT|BUTTON|SUMMARY/.test(document.activeElement.tagName))return;if(e.key==='Escape')cancel();if(e.key.toLowerCase()==='r')act('reset');if(e.key==='Enter')act('end');});
+window.addEventListener('keydown',e=>{if(!document.querySelector('#deck-builder').hidden||/INPUT|BUTTON|SUMMARY/.test(document.activeElement.tagName))return;if(e.key==='Escape')cancel();if(e.key.toLowerCase()==='r')act('reset');if(e.key==='Enter')act('end');});
 window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);if(!renderer.xr.isPresenting)desktopCamera();});
 
 const lineGeometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,-1)]);
@@ -188,7 +191,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.9.0',events:core,
+  version:'1.0.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
