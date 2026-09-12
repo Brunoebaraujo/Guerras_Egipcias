@@ -1,4 +1,4 @@
-import {CARD_CATALOG,DECK_SIZE,PRESETS,validateDecks} from './core.js?v=1.0.0';
+import {CARD_CATALOG,DECK_SIZE,PRESETS,validateDecks} from './core.js?v=1.1.0';
 
 const SELECTION_KEY='ge_vr_deck_selection';
 const byKey=new Map(CARD_CATALOG.map(card=>[card.key,card]));
@@ -66,5 +66,5 @@ export function createDeckBuilder({root,onStart,storage=globalThis.localStorage}
  root.querySelector('#clear-deck').onclick=()=>setDeck([],'Deck vazio');
  start.onclick=()=>{const valid=validateDecks(decks);if(!valid.ok){flash(valid.reason);return;}persist();const result=onStart(decks.map(deck=>deck.slice()));if(result?.ok===false){flash(result.reason);return;}root.hidden=true;document.body.classList.add('match-ready');};
  renderChoices();render();
- return {open(){root.hidden=false;document.body.classList.remove('match-ready');render();},getDecks:()=>decks.map(deck=>deck.slice())};
+ return {open(){root.hidden=false;document.body.classList.remove('match-ready');render();},setDecks(next){if(validateDecks(next).ok){decks=next.map(deck=>deck.slice());persist();render();}},getDecks:()=>decks.map(deck=>deck.slice())};
 }
