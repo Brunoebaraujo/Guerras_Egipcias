@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {createHash} from 'node:crypto';
-import {MatchCore,DECKS} from '../../public/vr/src/core.js';
+import {MatchCore,DECKS,PRESETS,validateDeck,validateDecks} from '../../public/vr/src/core.js';
 import {freshMatch,applyAction,isAimable} from '../../public/vr/game-core/src/match/index.js';
 import {ctxOf,laneScore,matchResult} from '../../public/vr/game-core/src/domain/engine.js';
 import {runBotPlanning} from '../../public/vr/game-core/src/match/bots/controller.js';
@@ -20,6 +20,16 @@ test('reset refunds only this round, invalid lanes fail, unrevealed power does n
  assert.equal(c.command('play-lane',{cardId:id,lane:0}).ok,true);assert.deepEqual(c.powers(),[0,0,0]);
  assert.equal(Object.keys(c.snapshot().board)[0],'p-0-0');
  assert.equal(c.command('reset').ok,true);assert.equal(c.snapshot().energy,s.energy);assert.equal(c.snapshot().hand.length,s.hand.length);
+});
+test('player and bot decks are chosen independently before a match',()=>{
+ for(const [name,deck] of Object.entries(PRESETS))assert.equal(validateDeck(deck).ok,true,name);
+ const decks=[PRESETS.Controle,PRESETS.Animais],c=new MatchCore({seed:19,decks}),initial=c.snapshot();
+ assert.ok(initial.cards.filter(card=>card.zone==='hand').every(card=>decks[0].includes(card.key)));
+ assert.equal(validateDeck(decks[0]).ok,true);assert.equal(validateDecks(decks).ok,true);
+ const before=JSON.stringify(initial);assert.equal(c.command('new-match',{decks:[['servo'],decks[1]]}).ok,false);assert.equal(JSON.stringify(c.snapshot()),before);
+ assert.equal(c.command('end-turn').ok,true);for(let i=0;c.snapshot().phase!=='plan'&&i<80;i++)c.tick(1);
+ const botCards=c.snapshot().cards.filter(card=>card.owner===1&&card.zone==='board');assert.ok(botCards.length>0);assert.ok(botCards.every(card=>decks[1].includes(card.key)));
+ const replacement=[PRESETS.Exército,PRESETS.Sacrifício];assert.equal(c.command('new-match',{decks:replacement}).ok,true);assert.ok(c.snapshot().cards.filter(card=>card.zone==='hand').every(card=>replacement[0].includes(card.key)));
 });
 test('full matches against bot agree with direct main engine, including queue and final result',()=>{
  for(let seed=0;seed<40;seed++){

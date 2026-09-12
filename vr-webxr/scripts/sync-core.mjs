@@ -8,7 +8,7 @@ const sha=execFileSync('git',['-c',`safe.directory=${source.replaceAll('\\','/')
 async function copy(dir){for(const ent of await readdir(resolve(source,dir),{withFileTypes:true})){const rel=dir+'/'+ent.name;if(ent.isDirectory())await copy(rel);else if(ent.name.endsWith('.js')&&!ent.name.endsWith('.test.js')){const data=await readFile(resolve(source,rel));await mkdir(dirname(resolve(target,rel)),{recursive:true});await writeFile(resolve(target,rel),data);files[rel]=createHash('sha256').update(data).digest('hex');}}}
 await copy('src/domain');await copy('src/match');
 await mkdir(resolve(dist,'card-art'),{recursive:true});
-const keys=['servo','arqueiro','lanceiro','carruagem','guardareal','montu','hathor','escaravelho','heka','mumia','sobek','anubis','cao','cabra-nilo','ganso','gato','macaco','hiena','garca','rebanho','domador','apis','amon'];
-for(const key of keys)await copyFile(resolve(source,'public/cartas/256',key+'.webp'),resolve(dist,'card-art',key+'.webp'));
+const artFiles=(await readdir(resolve(source,'public/cartas/256'))).filter(name=>name.endsWith('.webp'));
+for(const name of artFiles)await copyFile(resolve(source,'public/cartas/256',name),resolve(dist,'card-art',name));
 await writeFile(resolve(target,'provenance.json'),JSON.stringify({repository:'Brunoebaraujo/Guerras_Egipcias',commit:sha,files},null,2)+'\n');
-console.log(`Copied ${Object.keys(files).length} unmodified engine modules from ${sha}; ${keys.length} illustrations.`);
+console.log(`Copied ${Object.keys(files).length} unmodified engine modules from ${sha}; ${artFiles.length} illustrations.`);

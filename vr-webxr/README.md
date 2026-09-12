@@ -1,18 +1,19 @@
-# Guerras Egípcias VR — demo jogável 0.9.0
+# Guerras Egípcias VR — demo jogável 1.0.0
 
 Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
 ## Jogar no Quest 2
 
-Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=0.9.0 no navegador do Quest, confira **VR / 0.9.0** e pressione **Entrar em VR**.
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.0.0 no navegador do Quest e confira **VR / 1.0.0**.
 
-1. Olhe para a frente ao iniciar. Confirme que vê o painel de posição; selecione **JOGAR** para fechá-lo.
-2. Levante o controle esquerdo: o leque acompanha essa mão, com manopla egípcia em preto, ouro e azul.
-3. Aponte o controle direito para qualquer carta e clique no gatilho. Ela passa para a mão direita para leitura, mesmo sem energia suficiente.
-4. Aponte para uma via iluminada e clique novamente. A carta ocupa automaticamente o primeiro espaço livre: cima esquerda, cima direita, baixo esquerda, baixo direita.
-5. Clique numa carta sua recém-posicionada para recolhê-la. **REINICIAR JOGADA** devolve somente as jogadas ainda não reveladas desta rodada e reembolsa sua energia.
-6. Pressione **FINALIZAR TURNO**. O bot planeja suas jogadas, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original. O painel à direita mostra a fila e a prioridade.
-7. A próxima rodada começa automaticamente após a resolução. Após a sexta, aparecem vitória, derrota ou empate e o placar por via. O mesmo botão passa a ser **NOVA PARTIDA**.
+1. A experiência abre diretamente em **Construir deck**, com a coleção e os presets da main.
+2. Monte **Seu deck** e **Deck do bot** separadamente. Cada um precisa de 12 cartas únicas. Os decks salvos na main neste mesmo navegador também aparecem para escolha.
+3. Pressione **Confirmar decks e ir para a mesa** e depois **Entrar em VR**.
+4. Olhe para a frente ao iniciar. Confirme que vê o painel de posição; selecione **JOGAR** para fechá-lo.
+5. Levante o controle esquerdo: o leque acompanha essa mão, com manopla egípcia em preto, ouro e azul.
+6. Aponte o controle direito para qualquer carta e clique no gatilho. Ela passa para a mão direita para leitura, mesmo sem energia suficiente.
+7. Aponte para uma via iluminada e clique novamente. A carta ocupa automaticamente o primeiro espaço livre: cima esquerda, cima direita, baixo esquerda, baixo direita.
+8. Pressione **FINALIZAR TURNO**. O bot joga usando o deck escolhido, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original.
 
 O Poder atual aparece em um medalhão acima de cada carta na mesa. Os totais de cada via ficam em placas ovais flutuantes, sem mastros, nas duas cabeceiras. Rodada e energia acompanham a mão esquerda em um painel avançado logo abaixo do leque. Ao selecionar uma carta, ela sai do leque, passa para a mão direita, aumenta de tamanho e mostra na própria face seu custo, Poder e texto de efeito.
 
@@ -40,7 +41,7 @@ Abra http://localhost:8080. Clique na carta e depois na via. Esc cancela seleç�
 
 Os 24 módulos em `dist/game-core/src/domain/` e `dist/game-core/src/match/` são cópias **sem alterações** do commit `30f6e39f75a9c4fcfdc1f987694dac3b0c7ae39f` da main de `Brunoebaraujo/Guerras_Egipcias`. `provenance.json` registra o SHA do commit e o SHA-256 de cada arquivo. O adaptador VR não redefine regras.
 
-- Decks fixos de 12 cartas: guerreiros/divindades para o jogador, animais para o bot.
+- Cada lado usa o deck de 12 cartas escolhido no construtor. A coleção, os oito presets e o formato dos decks salvos vêm da main.
 - Abertura, compra e energia seguem a main: três cartas iniciais mais a compra da primeira rodada, uma energia na rodada 1. O leque cresce até o limite real de sete cartas.
 - Totais consideram cartas reveladas e todos os modificadores/auras do motor.
 - Vence quem ganhar mais vias; empate de vias usa o saldo de poder, conforme a main.

@@ -1,3 +1,11 @@
+# 1.0.0 — escolha dos decks antes da partida
+
+- A experiência abre diretamente na tela Construir deck, inspirada na tela da main e sem menu intermediário.
+- Seu deck e o deck do bot são montados separadamente com as 65 cartas construíveis da coleção atual.
+- Os oito presets da main, suas sobrescritas e decks salvos em `ge_decks` podem ser usados nos dois lados.
+- O motor recebe os dois decks escolhidos e o bot joga somente com o deck definido para ele.
+- A escolha fica salva no navegador e pode ser reaberta pelo botão Construir deck.
+
 # 0.9.0 — resultado em primeiro plano e inspeção livre
 
 - O painel final subiu e agora é composto depois dos totais e poderes, cobrindo corretamente os elementos atrás dele.
