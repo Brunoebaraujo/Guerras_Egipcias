@@ -17,8 +17,11 @@ export class MatchCore extends EventTarget {
  changed(){this.assignSlots();this.emit('state:changed',this.snapshot());}
  assignSlots(){
   const s=this.#state;
-  for(const [uid,id] of this.#slots){const c=s.board.find(c=>c.uid===uid&&!c.dying);if(!c||id.split('-')[1]!==String(c.lane))this.#slots.delete(uid);}
-  for(const c of s.board.filter(c=>!c.dying))if(!this.#slots.has(c.uid)){const prefix=`${c.owner?'o':'p'}-${c.lane}-`;const id=Array.from({length:4},(_,i)=>prefix+i).find(id=>![...this.#slots.values()].includes(id));if(id)this.#slots.set(c.uid,id);}
+  this.#slots.clear();
+  for(const side of [0,1])for(const lane of [0,1,2]){
+   const ordered=s.board.filter(c=>!c.dying&&c.owner===side&&c.lane===lane);
+   ordered.forEach((c,index)=>this.#slots.set(c.uid,`${side?'o':'p'}-${lane}-${index}`));
+  }
  }
  powers(){return [0,1,2].map(l=>laneScore(ctxOf(this.#state),l,0));}
  snapshot(){

@@ -41,14 +41,15 @@ test('full matches against bot agree with direct main engine, including queue an
    const snap=c.snapshot();assert.equal(snap.turn,ref.round);assert.equal(snap.phase,ref.phase);assert.equal(snap.queue.remaining,ref.queue.length);
    assert.deepEqual(snap.powers,[0,1,2].map(l=>laneScore(ctxOf(ref),l,0)));assert.deepEqual(snap.opponentPower,[0,1,2].map(l=>laneScore(ctxOf(ref),l,1)));
    assert.equal(new Set(Object.values(snap.board)).size,Object.keys(snap.board).length);assert.ok(snap.cards.length<=31);
+   for(const side of [0,1])for(const lane of [0,1,2]){const cells=snap.cards.filter(card=>card.zone==='board'&&card.owner===side&&Number(card.slot.split('-')[1])===lane).map(card=>Number(card.slot.split('-')[2])).sort((a,b)=>a-b);assert.deepEqual(cells,Array.from({length:cells.length},(_,i)=>i));}
   }
   assert.ok(ref.finished,'seed '+seed+' stalled');assert.deepEqual(c.snapshot().result,matchResult(ref));assert.equal(c.snapshot().turn,6);
   assert.equal(c.command('reset').ok,false);assert.equal(c.command('new-match').ok,true);assert.equal(c.snapshot().turn,1);assert.equal(Object.keys(c.snapshot().board).length,0);
  }
 });
 test('revealed Escaravelho can move once on a following round and does not duplicate',()=>{
- const c=new MatchCore({seed:123});const card=c.snapshot().cards.find(c=>c.key==='escaravelho');
- c.command('play-lane',{cardId:card.id,lane:0});c.command('end-turn');for(let i=0;c.snapshot().phase!=='plan'&&i<50;i++)c.tick(1);
+ const c=new MatchCore({seed:123});const card=c.snapshot().cards.find(c=>c.key==='escaravelho'),servo=c.snapshot().cards.find(c=>c.key==='servo');
+ c.command('play-lane',{cardId:servo.id,lane:0});c.command('play-lane',{cardId:card.id,lane:0});c.command('end-turn');for(let i=0;c.snapshot().phase!=='plan'&&i<50;i++)c.tick(1);
  const b=c.snapshot().cards.find(c=>c.key==='escaravelho'&&c.owner===0);assert.ok(b.movable);assert.ok(c.command('play-lane',{cardId:b.id,lane:1}).ok);
- assert.equal(c.snapshot().cards.filter(c=>c.id===b.id).length,1);assert.equal(c.validSlots(b.id).length,0);
+ const moved=c.snapshot();assert.equal(moved.cards.filter(c=>c.id===b.id).length,1);assert.equal(c.validSlots(b.id).length,0);assert.equal(moved.cards.find(card=>card.key==='servo'&&card.owner===0).slot,'p-0-0');assert.equal(moved.cards.find(card=>card.id===b.id).slot,'p-1-0');
 });
