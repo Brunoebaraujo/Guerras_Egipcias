@@ -56,19 +56,21 @@ export function createOpponentProjection(table,cardView){
  const group=new THREE.Group();table.add(group);group.visible=false;
  const titleCanvas=document.createElement('canvas');titleCanvas.width=512;titleCanvas.height=128;const titleCtx=titleCanvas.getContext('2d');
  const titleTexture=new THREE.CanvasTexture(titleCanvas);titleTexture.colorSpace=THREE.SRGBColorSpace;
- const title=new THREE.Mesh(new THREE.PlaneGeometry(.62,.155),new THREE.MeshBasicMaterial({map:titleTexture,transparent:true,side:THREE.DoubleSide,depthTest:false}));group.add(title);
- const clones=Array.from({length:4},()=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.22,.29),cardView.material);mesh.renderOrder=20;group.add(mesh);return mesh;});
+ const title=new THREE.Mesh(new THREE.PlaneGeometry(.62,.155),new THREE.MeshBasicMaterial({map:titleTexture,transparent:true,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));title.renderOrder=120;group.add(title);
+ const backdrop=new THREE.Mesh(new THREE.PlaneGeometry(.68,.82),new THREE.MeshBasicMaterial({color:0x081820,transparent:true,opacity:.96,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));backdrop.position.z=-.012;backdrop.renderOrder=90;group.add(backdrop);
+ const projectionMaterial=cardView.material.clone();projectionMaterial.transparent=true;projectionMaterial.depthTest=false;projectionMaterial.depthWrite=false;
+ const clones=Array.from({length:4},()=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.22,.29),projectionMaterial);mesh.renderOrder=100;group.add(mesh);return mesh;});
  const badges=Array.from({length:4},()=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.105,.105),cardView.powerMaterial);mesh.renderOrder=31;group.add(mesh);return mesh;});
  let lane=null;
  function hide(){lane=null;group.visible=false;for(const mesh of [...clones,...badges])mesh.visible=false;}
  function show(nextLane,state,refresh=false){
   if(lane===nextLane&&group.visible&&!refresh){hide();return;}
   lane=nextLane;group.visible=true;group.position.set(0,.52,-.08);group.rotation.set(0,0,0);
-  titleCtx.fillStyle='#102733ee';titleCtx.fillRect(0,0,512,128);titleCtx.strokeStyle='#72dfea';titleCtx.lineWidth=6;titleCtx.strokeRect(4,4,504,120);titleCtx.fillStyle='#fff0bd';titleCtx.font='bold 34px Georgia';titleCtx.textAlign='center';titleCtx.textBaseline='middle';titleCtx.fillText(`VIA ${lane+1} · BOT`,256,64);titleTexture.needsUpdate=true;title.position.set(0,.255,0);
-  const defs=state.cards.filter(d=>d.zone==='board'&&d.owner===1&&Number(d.slot.split('-')[1])===lane);
-  clones.forEach((clone,index)=>{const def=defs[index],badge=badges[index];clone.visible=badge.visible=!!def;if(!def)return;const source=cardView.cards.find(c=>c.definition.id===def.id);clone.geometry.dispose();clone.geometry=source.mesh.geometry.clone();clone.userData={kind:'card',id:def.id};clone.position.set((index-(defs.length-1)/2)*.225,0,index*.002);clone.scale.set(1.12,1.12,1.12);badge.geometry.dispose();badge.geometry=source.badge.geometry.clone();badge.userData={kind:'card',id:def.id};badge.position.set(clone.position.x+.085,.105,.008+index*.002);});
+  titleCtx.fillStyle='#102733ee';titleCtx.fillRect(0,0,512,128);titleCtx.strokeStyle='#72dfea';titleCtx.lineWidth=6;titleCtx.strokeRect(4,4,504,120);titleCtx.fillStyle='#fff0bd';titleCtx.font='bold 38px Georgia';titleCtx.textAlign='center';titleCtx.textBaseline='middle';titleCtx.fillText(`VIA ${lane+1} · BOT`,256,64);titleTexture.needsUpdate=true;title.position.set(0,.485,.01);
+  const defs=state.cards.filter(d=>d.zone==='board'&&d.owner===1&&Number(d.slot.split('-')[1])===lane).sort((a,b)=>Number(a.slot.split('-')[2])-Number(b.slot.split('-')[2]));
+  clones.forEach((clone,index)=>{const def=defs[index],badge=badges[index];clone.visible=badge.visible=!!def;if(!def)return;const source=cardView.cards.find(c=>c.definition.id===def.id),col=index%2,row=Math.floor(index/2),x=col? .145:-.145,y=row?-.205:.155;clone.geometry.dispose();clone.geometry=source.mesh.geometry.clone();clone.userData={kind:'card',id:def.id};clone.position.set(x,y,.002+index*.002);clone.scale.set(1.18,1.18,1.18);badge.geometry.dispose();badge.geometry=source.badge.geometry.clone();badge.userData={kind:'card',id:def.id};badge.position.set(x+.085,y+.105,.01+index*.002);badge.renderOrder=110;});
  }
- return {group,clones,badges,title,get lane(){return lane;},show,hide,targets:[...clones,...badges]};
+ return {group,clones,badges,title,backdrop,get lane(){return lane;},show,hide,targets:[...clones,...badges]};
 }
 export function createInspection(parent){
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;const ctx=canvas.getContext('2d');
@@ -79,11 +81,11 @@ export function createInspection(parent){
 export function createMatchPanel(parent){
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;
  const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;
- const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.85,.425),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide}));parent.add(mesh);mesh.position.set(1.55,.65,-1.3);mesh.rotation.set(-.15,-.25,0);
- return {mesh,paint(s){ctx.fillStyle='#112733';ctx.fillRect(0,0,1024,512);ctx.strokeStyle='#c7aa6b';ctx.lineWidth=7;ctx.strokeRect(5,5,1014,502);ctx.textAlign='left';ctx.fillStyle='#ffe5ab';ctx.font='bold 48px Georgia';ctx.fillText(s.ended?(s.result.side===0?'VITÓRIA':s.result.side===1?'DERROTA':'EMPATE'):'RODADA '+s.turn+' / 6',35,65);
- ctx.font='34px sans-serif';ctx.fillStyle='#80e4ef';ctx.fillText(s.ended?'Vias: você '+s.wins[0]+' × '+s.wins[1]+' bot':'Revela primeiro: '+(s.priority===0?'você':'bot'),35,120);
+ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.85,.425),new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));parent.add(mesh);mesh.position.set(1.55,.65,-1.3);mesh.rotation.set(-.15,-.25,0);mesh.renderOrder=80;
+ return {mesh,paint(s){if(s.ended){mesh.position.set(0,.58,-1.05);mesh.rotation.set(0,0,0);mesh.scale.set(1.55,1.55,1.55);mesh.renderOrder=130;}else{mesh.position.set(1.55,.65,-1.3);mesh.rotation.set(-.15,-.25,0);mesh.scale.set(1,1,1);mesh.renderOrder=80;}ctx.fillStyle='#112733';ctx.fillRect(0,0,1024,512);ctx.strokeStyle='#c7aa6b';ctx.lineWidth=7;ctx.strokeRect(5,5,1014,502);ctx.textAlign='left';ctx.fillStyle='#ffe5ab';ctx.font=s.ended?'bold 82px Georgia':'bold 48px Georgia';ctx.fillText(s.ended?(s.result.side===0?'VITÓRIA':s.result.side===1?'DERROTA':'EMPATE'):'RODADA '+s.turn+' / 6',35,s.ended?100:65);
+ ctx.font=s.ended?'bold 40px sans-serif':'34px sans-serif';ctx.fillStyle='#80e4ef';ctx.fillText(s.ended?'Vias: você '+s.wins[0]+' × '+s.wins[1]+' bot':'Revela primeiro: '+(s.priority===0?'você':'bot'),35,s.ended?160:120);
  ctx.fillStyle='#edf4ee';ctx.font='32px sans-serif';
  const rows=s.ended?['Poder nas vias (você / bot)',...s.powers.map((p,i)=>'Via '+(i+1)+': '+p+' / '+s.opponentPower[i]),s.result.tiebreak?'Desempate por saldo de poder':'Selecione NOVA PARTIDA na mesa']:s.phase==='plan'?['1. Escolha uma carta na mão esquerda.','2. Aponte a direita para uma via.','3. Confirme com o gatilho direito.','Finalize para revelar os dois lados.']:['FILA · '+s.queue.remaining+' por revelar',...s.queue.items.slice(0,3).map((c,i)=>(i+1)+'. '+(c.owner===0?'Você':'Bot')+' · '+c.name+' · via '+(c.lane+1)),s.effect||'Resolvendo efeitos…'];
- rows.forEach((line,i)=>ctx.fillText(line,35,195+i*58,954));texture.needsUpdate=true;
+ rows.forEach((line,i)=>ctx.fillText(line,35,(s.ended?225:195)+i*(s.ended?52:58),954));texture.needsUpdate=true;
  }};
 }

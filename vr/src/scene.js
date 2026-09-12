@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=0.7.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=0.8.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -63,13 +63,13 @@ export function createWorld(scene){
       if(opts.shape==='oval'){ctx.beginPath();ctx.ellipse(ax+256,ay+128,245,116,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
       else {ctx.fillRect(ax,ay,512,256);ctx.strokeRect(ax+7,ay+7,498,242);}
       const rows=Array.isArray(text)?text:[text];
-      rows.forEach((line,i)=>{ctx.fillStyle=i===0?(opts.color||'#e9cb8c'):'#d4e7e9';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`${rows.length===1?36: i===0?32:44}px ${i===0?'Georgia':'sans-serif'}`;ctx.fillText(line,ax+256,ay+256*(i+1)/(rows.length+1),475);});texture.needsUpdate=true;
+      rows.forEach((line,i)=>{ctx.fillStyle=i===0?(opts.color||'#e9cb8c'):'#d4e7e9';ctx.textAlign='center';ctx.textBaseline='middle';const size=rows.length===1?(opts.singleSize||36):i===0?(opts.titleSize||32):(opts.valueSize||44);ctx.font=`${size}px ${i===0?'Georgia':'sans-serif'}`;ctx.fillText(line,ax+256,ay+256*(i+1)/(rows.length+1),475);});texture.needsUpdate=true;
     };paint(lines);return {mesh:m,paint};
   }
   const controls=[];
   const laneLabels=[];for(let lane=0;lane<3;lane++){
     const own=label(.3,.15,(lane-1)*.67,.17,-.25,['VOCÊ','0'],{flat:false,shape:'oval',bg:'#102a34',border:'#d8b46d'});
-    const enemy=label(.3,.15,(lane-1)*.67,.17,-1.86,['BOT','0'],{flat:false,shape:'oval',bg:'#102a34',border:'#63ddea'});
+    const enemy=label(.46,.23,(lane-1)*.67,.22,-1.84,['BOT','0'],{flat:false,shape:'oval',titleSize:42,valueSize:76,bg:'#102a34',border:'#63ddea'});
     enemy.mesh.userData={kind:'opponent-lane',lane};controls.push(enemy.mesh);laneLabels.push(own,enemy);
   }
   label(.32,.065,0,.034,-1.05,'RIO NILO',{bg:'#107991',border:'#107991',color:'#d1fcff'});
@@ -125,6 +125,7 @@ export function createWorld(scene){
   function sync(state,powers){
     currentState=state;
     cardView.sync(state);matchPanel.paint(state);
+    if(state.ended)projection.hide();
     if(state.turn===1&&state.phase==='plan'&&!state.cards.some(card=>card.zone==='board'))projection.hide();
     if(projection.group.visible)projection.show(projection.lane,state,true);
     const revealed=state.cards.find(c=>c.id===state.lastReveal&&c.key==='anubis'&&c.revealed);
@@ -144,5 +145,5 @@ export function createWorld(scene){
   function clearSelected(){cardView.clearSelected();}
   function setHandMounted(value){cardView.setMounted(value);energy.mesh.rotation.x=value?-.35:-.74;}
   const cardTargets=[...cards.flatMap(card=>[card.mesh,card.badge]),...projection.targets];
-  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,energy,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,attachSelected,clearSelected,setHandMounted};
+  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,energy,matchPanel,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,attachSelected,clearSelected,setHandMounted};
 }
