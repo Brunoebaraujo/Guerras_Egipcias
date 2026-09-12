@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=0.6.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=0.7.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -51,7 +51,7 @@ export function createWorld(scene){
   // One canvas atlas and one material for every text surface, including card faces.
   const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=2048;
   const ctx=atlas.getContext('2d');const texture=new THREE.CanvasTexture(atlas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=2;
-  const labelMat=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});let cellIndex=0;
+  const labelMat=new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.DoubleSide});let cellIndex=0;
   function label(width,height,x,y,z,lines,opts={}){
     const id=cellIndex++;const ax=id%4*512,ay=Math.floor(id/4)*256;
     if(id>=32)throw new Error('Text atlas full');
@@ -59,21 +59,21 @@ export function createWorld(scene){
     for(let i=0;i<uv.count;i++)uv.setXY(i,(ax+uv.getX(i)*512)/2048,1-(ay+(1-uv.getY(i))*256)/2048);
     const m=mesh(opts.parent||table,g,labelMat,x,y,z);m.rotation.x=opts.flat===false?0:-Math.PI/2;
     const paint=(text)=>{
-      ctx.fillStyle=opts.bg||'#142029';ctx.fillRect(ax,ay,512,256);
-      ctx.strokeStyle=opts.border||'#b9995e';ctx.lineWidth=5;ctx.strokeRect(ax+7,ay+7,498,242);
+      ctx.clearRect(ax,ay,512,256);ctx.fillStyle=opts.bg||'#142029';ctx.strokeStyle=opts.border||'#b9995e';ctx.lineWidth=5;
+      if(opts.shape==='oval'){ctx.beginPath();ctx.ellipse(ax+256,ay+128,245,116,0,0,Math.PI*2);ctx.fill();ctx.stroke();}
+      else {ctx.fillRect(ax,ay,512,256);ctx.strokeRect(ax+7,ay+7,498,242);}
       const rows=Array.isArray(text)?text:[text];
       rows.forEach((line,i)=>{ctx.fillStyle=i===0?(opts.color||'#e9cb8c'):'#d4e7e9';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`${rows.length===1?36: i===0?32:44}px ${i===0?'Georgia':'sans-serif'}`;ctx.fillText(line,ax+256,ay+256*(i+1)/(rows.length+1),475);});texture.needsUpdate=true;
     };paint(lines);return {mesh:m,paint};
   }
   const controls=[];
   const laneLabels=[];for(let lane=0;lane<3;lane++){
-    box(table,(lane-1)*.67,.095,-.25,.012,.15,.012,GOLD);box(table,(lane-1)*.67,.095,-1.86,.012,.15,.012,GOLD);
-    const own=label(.27,.16,(lane-1)*.67,.18,-.25,['VOCÊ','0'],{flat:false,bg:'#102a34',border:'#d8b46d'});
-    const enemy=label(.27,.16,(lane-1)*.67,.18,-1.86,['BOT','0'],{flat:false,bg:'#102a34',border:'#63ddea'});
+    const own=label(.3,.15,(lane-1)*.67,.17,-.25,['VOCÊ','0'],{flat:false,shape:'oval',bg:'#102a34',border:'#d8b46d'});
+    const enemy=label(.3,.15,(lane-1)*.67,.17,-1.86,['BOT','0'],{flat:false,shape:'oval',bg:'#102a34',border:'#63ddea'});
     enemy.mesh.userData={kind:'opponent-lane',lane};controls.push(enemy.mesh);laneLabels.push(own,enemy);
   }
   label(.32,.065,0,.034,-1.05,'RIO NILO',{bg:'#107991',border:'#107991',color:'#d1fcff'});
-  const energy=label(.38,.105,0,-.19,.015,['RODADA 1 / 6','1 ENERGIA'],{parent:hand,flat:false,bg:'#102a34',border:'#63ddea'});energy.mesh.rotation.x=-.74;
+  const energy=label(.42,.11,0,-.24,.11,['RODADA 1 / 6','1 ENERGIA'],{parent:hand,flat:false,bg:'#102a34',border:'#63ddea'});energy.mesh.rotation.x=-.74;energy.mesh.renderOrder=60;energy.mesh.material=energy.mesh.material.clone();energy.mesh.material.depthTest=false;
   for(let i=0;i<6;i++)box(table,1.3,.035+i*.009,-.56,.23,.009,.32,i%2?INK:GOLD);
   const deckLabel=label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
   const stateLabel=label(.69,.13,0,.09,-1.97,['OPONENTE','Guardião do horizonte'],{flat:false});
@@ -140,7 +140,9 @@ export function createWorld(scene){
     highlight();
   }
   function showOpponentLane(lane){if(!currentState)return;projection.show(lane,currentState);}
+  function attachSelected(id,parent){cardView.attachSelected(id,parent);}
+  function clearSelected(){cardView.clearSelected();}
   function setHandMounted(value){cardView.setMounted(value);energy.mesh.rotation.x=value?-.35:-.74;}
   const cardTargets=[...cards.flatMap(card=>[card.mesh,card.badge]),...projection.targets];
-  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,energy,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,setHandMounted};
+  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,energy,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,attachSelected,clearSelected,setHandMounted};
 }

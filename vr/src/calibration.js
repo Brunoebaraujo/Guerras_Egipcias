@@ -19,7 +19,7 @@ export function createCalibration(scene,world,onChange){
   ];
   function draw(){
     ctx.fillStyle='#10222e';ctx.fillRect(0,0,1024,1024);ctx.textAlign='center';ctx.textBaseline='middle';
-    ctx.fillStyle='#f0cf8c';ctx.font='bold 38px sans-serif';ctx.fillText('AJUSTAR POSIÇÃO • 0.6.0',512,48);
+    ctx.fillStyle='#f0cf8c';ctx.font='bold 38px sans-serif';ctx.fillText('AJUSTAR POSIÇÃO • 0.7.0',512,48);
     ctx.fillStyle='#d4f4f7';ctx.font='25px sans-serif';ctx.fillText(`Mesa: ${Math.round(settings.height*100)} cm altura · ${Math.round(settings.distance*100)} cm distância`,512,103);
     ctx.fillText(`Lateral ${Math.round(settings.lateral*100)} cm · Giro ${settings.angle}° · Cartas ${Math.round(settings.handDistance*100)} cm`,512,141);
     if(armed)entries.forEach(([name],i)=>{const x=18+(i%4)*250,y=195+Math.floor(i/4)*124;ctx.fillStyle=i===19?'#29677a':'#243e4b';ctx.fillRect(x,y,238,108);ctx.strokeStyle='#91c4ce';ctx.lineWidth=2;ctx.strokeRect(x,y,238,108);ctx.fillStyle='#fff0d1';ctx.font='bold 24px sans-serif';ctx.fillText(name,x+119,y+54,224);});
@@ -39,7 +39,7 @@ export function createCalibration(scene,world,onChange){
     world.stage.updateMatrixWorld(true);onChange?.();draw();
     const slider=document.querySelector('#height');if(slider)slider.value=settings.height;
   }
-  function current(){return {version:'0.6.0',code:placementCode(settings),settings:{...settings},eyeHeight,anchor:{...anchor},table:tableTransform(settings),hand:handTransform(settings,eyeHeight)};}
+  function current(){return {version:'0.7.0',code:placementCode(settings),settings:{...settings},eyeHeight,anchor:{...anchor},table:tableTransform(settings),hand:handTransform(settings,eyeHeight)};}
   function report(){return {...(savedSnapshot||current()),exportedFrom:savedSnapshot?'confirmed-save':'current-unsaved',savedSnapshot:savedSnapshot?structuredClone(savedSnapshot):null,current:current(),unsavedChanges:!saved};}
   function align(position,orientation,{center=false}={}){
     if(center){settings=normalizePlacement({...settings,lateral:0,playerX:0,angle:0});saved=false;notice="Mesa centralizada no olhar. Altura e distância mantidas.";}

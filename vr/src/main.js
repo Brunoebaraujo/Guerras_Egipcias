@@ -1,9 +1,9 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=0.6.0';
-import {createWorld} from './scene.js?v=0.6.0';
-import {createCalibration} from './calibration.js?v=0.6.0';
-import {createGauntlet,canInteract} from './hands.js?v=0.6.0';
-import {registerTools} from './webmcp.js?v=0.6.0';
+import {MatchCore} from './core.js?v=0.7.0';
+import {createWorld} from './scene.js?v=0.7.0';
+import {createCalibration} from './calibration.js?v=0.7.0';
+import {createGauntlet,canInteract} from './hands.js?v=0.7.0';
+import {registerTools} from './webmcp.js?v=0.7.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -29,7 +29,7 @@ function openCalibration(){
   const cam=renderer.xr.isPresenting?renderer.xr.getCamera():camera;
   calibration.open(cam.getWorldPosition(new THREE.Vector3()),cam.getWorldQuaternion(new THREE.Quaternion()));
 }
-function cancel(){held=null;world.inspection.show(null);hover=null;highlight();}
+function cancel(){held=null;world.clearSelected();world.inspection.show(null);hover=null;highlight();}
 function act(id){
   if(id==='reset'){cancel();const r=core.command('reset');say(r.ok?'Jogadas desta rodada devolvidas à mão.':r.reason);}
   if(id==='end'){cancel();const r=core.command(current.ended?'new-match':'end-turn');if(!r.ok)say(r.reason);}
@@ -59,10 +59,12 @@ function begin(source){
   if(!canInteract(source))return;
   rayFor(source);
   const panelAction=calibration.press(raycaster);
-  if(panelAction){if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
+  if(panelAction){world.projection.hide();if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
   if(held){if(held.source===source)release(source);return;}
-  const hit=pick(source);if(!hit)return;
-  if(hit.object.userData.kind==='opponent-lane'){cancel();world.showOpponentLane(hit.object.userData.lane);say(`Cartas do bot na via ${hit.object.userData.lane+1}. Selecione a via novamente para fechar.`);return;}
+  const hit=pick(source);
+  if(hit?.object.userData.kind==='opponent-lane'){cancel();world.showOpponentLane(hit.object.userData.lane);say(`Cartas do bot na via ${hit.object.userData.lane+1}. Selecione a via novamente para fechar.`);return;}
+  if(world.projection.group.visible)world.projection.hide();
+  if(!hit)return;
   if(hit.object.userData.kind==='button'){act(hit.object.userData.id);return;}
   const id=hit.object.userData.id;
   const card=world.cards.find(c=>c.definition.id===id);if(!card)return;
@@ -71,7 +73,7 @@ function begin(source){
   if(card.definition.pickup){const r=core.command('pickup',{cardId:id});if(!r.ok)say(r.reason);return;}
   const valid=core.validSlots(id);
   if(!valid.length){say(card.definition.hidden?'Carta do bot ainda oculta.':card.definition.text+' · '+(current.phase==='plan'?'Sem jogada disponível.':'Aguarde a revelação.'));return;}
-  held={source,card,valid};say(card.definition.name+': aponte e confirme uma via.');highlight();
+  held={source,card,valid};if(source!=='mouse')world.attachSelected(id,source.userData.grip);say(card.definition.name+': aponte e confirme uma via.');highlight();
   const gamepad=source?.userData?.inputSource?.gamepad;
   gamepad?.hapticActuators?.[0]?.pulse(.25,35)?.catch(()=>{});
 }
@@ -89,7 +91,7 @@ function moveHeld(){
 function release(source){
   if(!held||held.source!==source)return;
   const target=pick(source);if(target?.object.userData.kind==='button'){act(target.object.userData.id);return;}
-  moveHeld();const card={definition:{...held.card.definition}};const lane=hover;held=null;hover=null;world.inspection.show(null);
+  moveHeld();const card={definition:{...held.card.definition}};const lane=hover;held=null;hover=null;world.clearSelected();world.inspection.show(null);
   if(lane!==null){const r=core.command('play-lane',{cardId:card.definition.id,lane});say(r.ok?`${card.definition.name} em campo. ${current.energy} de energia restante.`:r.reason);if(!r.ok)sync();}
   else {sync();say('Carta devolvida à mão. Escolha uma via disponível.');}
   highlight();
@@ -170,7 +172,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.6.0',events:core,
+  version:'0.7.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
