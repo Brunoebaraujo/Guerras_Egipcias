@@ -1,14 +1,14 @@
-# Guerras Egípcias VR — demo jogável 0.8.0
+# Guerras Egípcias VR — demo jogável 0.9.0
 
 Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
 ## Jogar no Quest 2
 
-Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=0.8.0 no navegador do Quest, confira **VR / 0.8.0** e pressione **Entrar em VR**.
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=0.9.0 no navegador do Quest, confira **VR / 0.9.0** e pressione **Entrar em VR**.
 
 1. Olhe para a frente ao iniciar. Confirme que vê o painel de posição; selecione **JOGAR** para fechá-lo.
 2. Levante o controle esquerdo: o leque acompanha essa mão, com manopla egípcia em preto, ouro e azul.
-3. Aponte o controle direito para uma carta e clique no gatilho. Leia o efeito no painel lateral.
+3. Aponte o controle direito para qualquer carta e clique no gatilho. Ela passa para a mão direita para leitura, mesmo sem energia suficiente.
 4. Aponte para uma via iluminada e clique novamente. A carta ocupa automaticamente o primeiro espaço livre: cima esquerda, cima direita, baixo esquerda, baixo direita.
 5. Clique numa carta sua recém-posicionada para recolhê-la. **REINICIAR JOGADA** devolve somente as jogadas ainda não reveladas desta rodada e reembolsa sua energia.
 6. Pressione **FINALIZAR TURNO**. O bot planeja suas jogadas, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original. O painel à direita mostra a fila e a prioridade.
@@ -16,9 +16,11 @@ Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=0.8.0 no navegador d
 
 O Poder atual aparece em um medalhão acima de cada carta na mesa. Os totais de cada via ficam em placas ovais flutuantes, sem mastros, nas duas cabeceiras. Rodada e energia acompanham a mão esquerda em um painel avançado logo abaixo do leque. Ao selecionar uma carta, ela sai do leque, passa para a mão direita, aumenta de tamanho e mostra na própria face seu custo, Poder e texto de efeito.
 
+Uma carta cara também pode ser examinada. Se ela não puder ser jogada na rodada atual, nenhuma via será iluminada e a carta continuará na mão direita. Selecione outra carta no leque ou finalize o turno para passar.
+
 Selecione a cabeceira ou uma área livre de qualquer via do bot para abrir, diante do jogador, uma projeção vertical das cartas e dos Poderes daquela via. A projeção tem fundo próprio, fica à frente dos elementos do tabuleiro e reproduz a matriz 2×2: superior esquerda, superior direita, inferior esquerda e inferior direita. Ela troca de via quando outra cabeceira adversária é selecionada e desaparece no próximo clique em qualquer outro lugar.
 
-As placas ovais do bot são maiores e usam números mais largos. Ao final da sexta rodada, o painel de vitória, derrota ou empate cresce e ocupa o centro da mesa acima do Nilo. Sempre que uma carta é destruída ou muda de via, cada lado é compactado novamente na ordem registrada pelo motor, sem deixar buracos entre os quatro espaços.
+As placas ovais do bot são maiores e usam números mais largos. Ao final da sexta rodada, o painel de vitória, derrota ou empate cresce, sobe e ocupa o centro da mesa acima do Nilo, cobrindo os números que ficam atrás dele. Sempre que uma carta é destruída ou muda de via, cada lado é compactado novamente na ordem registrada pelo motor, sem deixar buracos entre os quatro espaços.
 
 Escaravelho pode ser selecionado no tabuleiro e movido para outra via quando sua regra permitir. A interface também suporta escolha de alvos e pular alvo quando o motor solicitar. Os decks atuais usam predominantemente efeitos automáticos. As cartas ocultas do bot aparecem de costas e não expõem nome, arte ou poder na interface pública.
 

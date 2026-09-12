@@ -1,3 +1,10 @@
+# 0.9.0 — resultado em primeiro plano e inspeção livre
+
+- O painel final subiu e agora é composto depois dos totais e poderes, cobrindo corretamente os elementos atrás dele.
+- Qualquer carta da mão pode ser escolhida e lida, mesmo sem energia suficiente para jogá-la.
+- Cartas indisponíveis permanecem selecionadas na mão direita; o jogador deve escolher outra carta ou finalizar o turno.
+- É possível trocar diretamente a carta selecionada apontando para outra carta no leque.
+
 # 0.2.0 — ergonomia e escolha de via
 
 - Mesa 30 cm mais distante; o leque permanece próximo do jogador. Centralizar mantém esse afastamento.

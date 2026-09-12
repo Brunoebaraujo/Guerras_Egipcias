@@ -38,10 +38,11 @@ test('opponent lane projection works for all lanes in a frontmost 2x2 layout',()
 });
 test('final result panel becomes a large centered projection over the Nile',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:8}),state=c.snapshot();state.ended=true;state.result={side:0,tiebreak:false,margin:0};state.wins=[2,1];w.sync(state,state.powers);
- assert.equal(w.matchPanel.mesh.position.x,0);assert.equal(w.matchPanel.mesh.position.z,-1.05);assert.ok(w.matchPanel.mesh.position.y>.5);assert.ok(w.matchPanel.mesh.scale.x>1.5);assert.ok(w.matchPanel.mesh.renderOrder>w.projection.title.renderOrder);
+ assert.equal(w.matchPanel.mesh.position.x,0);assert.equal(w.matchPanel.mesh.position.z,-1.05);assert.ok(w.matchPanel.mesh.position.y>.7);assert.ok(w.matchPanel.mesh.scale.x>=1.65);assert.equal(w.matchPanel.mesh.material.transparent,true);assert.ok(w.matchPanel.mesh.renderOrder>w.projection.title.renderOrder);
 });
-test('selected hand card moves to the right grip, enlarges, then returns to the fan',()=>{
- const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());const id=c.snapshot().hand[0],card=w.cards.find(card=>card.definition.id===id),grip=new THREE.Group();
+test('an unaffordable hand card can still move to the right grip for reading',()=>{
+ const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:0});w.sync(c.snapshot(),c.powers());const id=c.snapshot().hand.find(id=>c.validSlots(id).length===0),card=w.cards.find(card=>card.definition.id===id),grip=new THREE.Group();
+ assert.ok(id);assert.equal(c.validSlots(id).length,0);
  w.attachSelected(id,grip);assert.equal(card.mesh.parent,grip);assert.equal(card.mesh.scale.x,1.5);assert.ok(card.mesh.position.y>0);
  w.clearSelected();assert.equal(card.mesh.parent,w.hand);assert.equal(card.mesh.scale.x,1);
 });
