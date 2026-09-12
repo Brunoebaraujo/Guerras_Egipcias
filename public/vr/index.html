@@ -4,15 +4,15 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="theme-color" content="#101820">
   <meta name="description" content="Guerras Egípcias VR — um tabuleiro à beira do Nilo. Protótipo interativo para Quest e desktop.">
-  <title>Guerras Egípcias • VR 0.6.0</title>
-  <link rel="stylesheet" href="./style.css?v=0.6.0">
+  <title>Guerras Egípcias • VR 0.7.0</title>
+  <link rel="stylesheet" href="./style.css?v=0.7.0">
 </head>
 <body>
   <main id="game" aria-label="Tabuleiro 3D de Guerras Egípcias"></main>
-  <header><div class="brand"><span class="ankh">☥</span><div>GUERRAS <strong>EGÍPCIAS</strong></div><small>VR / 0.6.0</small></div><button id="vr" disabled>Verificando VR…</button></header>
+  <header><div class="brand"><span class="ankh">☥</span><div>GUERRAS <strong>EGÍPCIAS</strong></div><small>VR / 0.7.0</small></div><button id="vr" disabled>Verificando VR…</button></header>
   <aside id="help"><span class="eyebrow">ÀS MARGENS DO NILO</span><h1>Você contra o guardião.</h1><p>Selecione uma carta e depois uma via azul.<br>No Quest, as cartas acompanham sua mão esquerda. Use o gatilho direito para escolher carta e via.</p><details><summary>Controles e conforto</summary><p>Mouse: clique na carta e depois na via. Esc cancela. R reinicia. Enter finaliza. Roda do mouse ajusta a distância.</p><p>VR: levante a mão esquerda para ver as cartas. Aponte com a direita: clique na carta e depois na via. Clique numa carta recém-posicionada para recolhê-la. Use os botões na mesa para ajustar sua altura. Selecione AJUSTAR POSIÇÃO olhando para a frente.</p></details><label>Altura da mesa <input id="height" type="range" min="0.4" max="1.3" step="0.05" value="0.8"></label><button id="placement">Ajustar posição</button><details><summary>Coordenadas da posição</summary><p>Ajuste e salve no Quest. Copie este texto no mesmo navegador e envie na conversa.</p><p id="placement-status" role="status"></p><div id="flat-placement"></div><textarea id="coordinates" readonly aria-label="Coordenadas da mesa e jogador"></textarea><button id="copy-coordinates">Copiar coordenadas</button><button id="download-coordinates">Baixar JSON</button></details></aside>
   <footer><div><span class="eyebrow">SEU TURNO</span><p id="status" role="status">Preparando o templo…</p></div><div class="actions"><button id="reset">Reiniciar jogada</button><button id="end">Finalizar turno</button></div></footer>
   <div id="fatal" hidden role="alert"></div>
-  <script type="module">import('./src/main.js?v=0.6.0').catch(error => { document.querySelector('#fatal').hidden=false; document.querySelector('#fatal').textContent='Não foi possível abrir o tabuleiro. Use um navegador com WebGL 2 e abra pelo servidor HTTP/HTTPS, não como arquivo. '+error.message; document.querySelector('#status').textContent='Falha ao carregar'; });</script>
+  <script type="module">import('./src/main.js?v=0.7.0').catch(error => { document.querySelector('#fatal').hidden=false; document.querySelector('#fatal').textContent='Não foi possível abrir o tabuleiro. Use um navegador com WebGL 2 e abra pelo servidor HTTP/HTTPS, não como arquivo. '+error.message; document.querySelector('#status').textContent='Falha ao carregar'; });</script>
 </body></html>
 

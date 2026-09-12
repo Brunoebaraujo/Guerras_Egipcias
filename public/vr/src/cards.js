@@ -4,7 +4,7 @@ export function createCardView(table,hand,slots){
  const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=2048;
  const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=2;
  const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});
- const images=new Map(),cards=[];let state=null,mounted=false;
+ const images=new Map(),cards=[];let state=null,mounted=false,focusedId=null;
  const powerCanvas=document.createElement('canvas');powerCanvas.width=1024;powerCanvas.height=512;
  const powerCtx=powerCanvas.getContext('2d'),powerTexture=new THREE.CanvasTexture(powerCanvas);powerTexture.colorSpace=THREE.SRGBColorSpace;
  const powerMaterial=new THREE.MeshBasicMaterial({map:powerTexture,transparent:true,side:THREE.DoubleSide,depthTest:false});
@@ -30,7 +30,13 @@ export function createCardView(table,hand,slots){
   const img=images.get(d.key);
   if(!d.hidden&&img?.complete&&img.naturalWidth)ctx.drawImage(img,x+5,y+6,246,500);
   if(d.hidden){ctx.strokeStyle='#aa8955';ctx.lineWidth=4;ctx.strokeRect(x+20,y+28,216,456);ctx.font='100px Georgia';ctx.fillStyle='#e0bc79';ctx.textAlign='center';ctx.fillText('☥',x+128,y+270);}
-  else {
+  else if(focusedId===d.id){
+   ctx.fillStyle='#10202ef2';ctx.fillRect(x+5,y+5,246,66);ctx.fillRect(x+5,y+282,246,224);
+   ctx.fillStyle='#fff0c6';ctx.textAlign='center';ctx.font='bold 25px sans-serif';ctx.fillText(d.name,x+128,y+44,234);
+   ctx.fillStyle='#72e5ed';ctx.font='bold 25px sans-serif';ctx.fillText(`${d.cost} ENERGIA  ·  ${d.power} PODER`,x+128,y+318,234);
+   ctx.fillStyle='#f2f5ed';ctx.font='18px sans-serif';ctx.textAlign='left';let line='',ty=y+354;
+   for(const word of d.text.split(' ')){const next=line+word+' ';if(ctx.measureText(next).width>220){ctx.fillText(line,x+18,ty);ty+=23;line=word+' ';}else line=next;if(ty>y+486)break;}if(ty<=y+486)ctx.fillText(line,x+18,ty);
+  }else {
    ctx.fillStyle='#10202eef';ctx.fillRect(x+5,y+5,246,66);ctx.fillRect(x+5,y+430,246,76);
    ctx.fillStyle='#fff0c6';ctx.textAlign='center';ctx.font='bold 25px sans-serif';ctx.fillText(d.name,x+128,y+44,234);
    ctx.font='bold 29px sans-serif';ctx.fillText(`${d.cost} EN  ·  ${d.power} POD`,x+128,y+478,234);
@@ -38,10 +44,12 @@ export function createCardView(table,hand,slots){
   ctx.lineWidth=d.aimable?10:5;ctx.strokeStyle=d.aimable||d.active?'#72fff0':d.zone==='board'&&!d.revealed?'#6fa3c6':'#dab66b';ctx.strokeRect(x+3,y+3,250,506);texture.needsUpdate=true;
  }
  function ensureImage(key){if(!key||images.has(key)||typeof Image==='undefined')return;const img=new Image();images.set(key,img);img.onload=()=>{for(const card of cards)if(card.mesh.visible&&card.definition.key===key)paint(card);};img.src=new URL('../card-art/'+(key==='token-cabra'?'cabra-nilo':key)+'.webp',import.meta.url).href;}
- function arrangeHand(ids){ids.forEach((id,index)=>{const card=cards.find(c=>c.mesh.visible&&c.definition.id===id);if(!card)return;const a=(index-(ids.length-1)/2)*.16;hand.add(card.mesh);card.home.set(Math.sin(a)*.63,-Math.abs(a)*.06,index*.001);card.rotation.set(mounted?-.35:-.74,0,-a*.65);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);});}
- function sync(s){state=s;for(let i=0;i<cards.length;i++){const card=cards[i],d=s.cards[i];card.mesh.visible=!!d;card.badge.visible=!!d&&d.zone==='board';if(!d){card.definition={id:null};card.signature='';continue;}card.definition=d;card.mesh.userData={kind:'card',id:d.id};card.badge.userData={kind:'card',id:d.id};const signature=JSON.stringify(d);if(signature!==card.signature){card.signature=signature;paint(card);paintPower(card);ensureImage(d.key);}if(d.zone==='board'){const slot=slots.find(slot=>slot.id===d.slot);table.add(card.mesh,card.badge);card.mesh.position.copy(slot.position).y+=.016;card.mesh.rotation.set(-Math.PI/2,0,0);card.badge.position.copy(slot.position);card.badge.position.setX(card.badge.position.x+.075);card.badge.position.y=.115;card.badge.position.z+=d.owner===0?.075:-.075;card.badge.rotation.set(0,0,0);}}arrangeHand(s.hand);}
+ function arrangeHand(ids){ids.forEach((id,index)=>{const card=cards.find(c=>c.mesh.visible&&c.definition.id===id);if(!card||id===focusedId)return;const a=(index-(ids.length-1)/2)*.16;hand.add(card.mesh);card.home.set(Math.sin(a)*.63,-Math.abs(a)*.06,index*.001);card.rotation.set(mounted?-.35:-.74,0,-a*.65);card.mesh.scale.setScalar(1);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);});}
+ function sync(s){state=s;if(focusedId&&!s.hand.includes(focusedId))focusedId=null;for(let i=0;i<cards.length;i++){const card=cards[i],d=s.cards[i];card.mesh.visible=!!d;card.badge.visible=!!d&&d.zone==='board';if(!d){card.definition={id:null};card.signature='';continue;}card.definition=d;card.mesh.userData={kind:'card',id:d.id};card.badge.userData={kind:'card',id:d.id};const signature=JSON.stringify(d);if(signature!==card.signature){card.signature=signature;paint(card);paintPower(card);ensureImage(d.key);}if(d.zone==='board'){const slot=slots.find(slot=>slot.id===d.slot);table.add(card.mesh,card.badge);card.mesh.scale.setScalar(1);card.mesh.position.copy(slot.position).y+=.016;card.mesh.rotation.set(-Math.PI/2,0,0);card.badge.position.copy(slot.position);card.badge.position.setX(card.badge.position.x+.075);card.badge.position.y=.115;card.badge.position.z+=d.owner===0?.075:-.075;card.badge.rotation.set(0,0,0);}}arrangeHand(s.hand);}
+ function attachSelected(id,parent){const card=cards.find(c=>c.mesh.visible&&c.definition.id===id);if(!card||!parent)return;focusedId=id;paint(card);parent.add(card.mesh);card.mesh.position.set(.075,.145,-.09);card.mesh.rotation.set(-.18,0,.08);card.mesh.scale.setScalar(1.5);card.mesh.renderOrder=50;}
+ function clearSelected(){if(!focusedId)return;const old=cards.find(c=>c.definition.id===focusedId);focusedId=null;if(old){old.mesh.renderOrder=0;paint(old);}if(state)sync(state);}
  function setMounted(value){mounted=value;if(state)arrangeHand(state.hand);}
- return {cards,sync,arrangeHand,setMounted,material};
+ return {cards,sync,arrangeHand,setMounted,attachSelected,clearSelected,material,powerMaterial};
 }
 
 export function createOpponentProjection(table,cardView){
@@ -50,16 +58,17 @@ export function createOpponentProjection(table,cardView){
  const titleTexture=new THREE.CanvasTexture(titleCanvas);titleTexture.colorSpace=THREE.SRGBColorSpace;
  const title=new THREE.Mesh(new THREE.PlaneGeometry(.62,.155),new THREE.MeshBasicMaterial({map:titleTexture,transparent:true,side:THREE.DoubleSide,depthTest:false}));group.add(title);
  const clones=Array.from({length:4},()=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.22,.29),cardView.material);mesh.renderOrder=20;group.add(mesh);return mesh;});
+ const badges=Array.from({length:4},()=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.105,.105),cardView.powerMaterial);mesh.renderOrder=31;group.add(mesh);return mesh;});
  let lane=null;
- function hide(){lane=null;group.visible=false;for(const clone of clones)clone.visible=false;}
+ function hide(){lane=null;group.visible=false;for(const mesh of [...clones,...badges])mesh.visible=false;}
  function show(nextLane,state,refresh=false){
   if(lane===nextLane&&group.visible&&!refresh){hide();return;}
-  lane=nextLane;group.visible=true;group.position.set((lane-1)*.67,.31,-1.56);group.rotation.set(0,0,0);
+  lane=nextLane;group.visible=true;group.position.set(0,.52,-.08);group.rotation.set(0,0,0);
   titleCtx.fillStyle='#102733ee';titleCtx.fillRect(0,0,512,128);titleCtx.strokeStyle='#72dfea';titleCtx.lineWidth=6;titleCtx.strokeRect(4,4,504,120);titleCtx.fillStyle='#fff0bd';titleCtx.font='bold 34px Georgia';titleCtx.textAlign='center';titleCtx.textBaseline='middle';titleCtx.fillText(`VIA ${lane+1} · BOT`,256,64);titleTexture.needsUpdate=true;title.position.set(0,.255,0);
   const defs=state.cards.filter(d=>d.zone==='board'&&d.owner===1&&Number(d.slot.split('-')[1])===lane);
-  clones.forEach((clone,index)=>{const def=defs[index];clone.visible=!!def;if(!def)return;const source=cardView.cards.find(c=>c.definition.id===def.id);clone.geometry.dispose();clone.geometry=source.mesh.geometry.clone();clone.userData={kind:'card',id:def.id};clone.position.set((index-(defs.length-1)/2)*.16,0,index*.002);clone.scale.set(1.1,1.1,1.1);});
+  clones.forEach((clone,index)=>{const def=defs[index],badge=badges[index];clone.visible=badge.visible=!!def;if(!def)return;const source=cardView.cards.find(c=>c.definition.id===def.id);clone.geometry.dispose();clone.geometry=source.mesh.geometry.clone();clone.userData={kind:'card',id:def.id};clone.position.set((index-(defs.length-1)/2)*.225,0,index*.002);clone.scale.set(1.12,1.12,1.12);badge.geometry.dispose();badge.geometry=source.badge.geometry.clone();badge.userData={kind:'card',id:def.id};badge.position.set(clone.position.x+.085,.105,.008+index*.002);});
  }
- return {group,clones,title,get lane(){return lane;},show,hide,targets:clones};
+ return {group,clones,badges,title,get lane(){return lane;},show,hide,targets:[...clones,...badges]};
 }
 export function createInspection(parent){
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;const ctx=canvas.getContext('2d');
