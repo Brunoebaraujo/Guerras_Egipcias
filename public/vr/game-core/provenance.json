@@ -1,0 +1,30 @@
+{
+  "repository": "Brunoebaraujo/Guerras_Egipcias",
+  "commit": "30f6e39f75a9c4fcfdc1f987694dac3b0c7ae39f",
+  "files": {
+    "src/domain/bots/decide.js": "3d8d8d24a35ed7ccdd568a299886d83312d6f73dba0ac703d940f178bb7f19cb",
+    "src/domain/bots/evaluate.js": "6ed646c17672bc64b73ba0ca9a427e20271bb83d1d62e9a2ad50e006bbea1e84",
+    "src/domain/bots/index.js": "08495e44dd907c2701170cc63cfa8132133f90e3247c17e64a545993b16f0f8e",
+    "src/domain/cards/ammit-devoradora.js": "1b1da7259b59c1667dcc8bf7688b69ca3c0799cd649eeb928de54267155068f9",
+    "src/domain/cards/apep.js": "953d3434705a13707aeb9aa355029a18d501ecab0302a01b34d26d66cce9c4c7",
+    "src/domain/cards/ibis.js": "3189a2baf212c4a12b7261e97395c7e0485dfbc98e85116a7dec54d9f1e8dc33",
+    "src/domain/cards/ladrao-de-ka.js": "ac40a0e64f81ff1ba52723717bb1bd2e53a166bacb9e7221c1543fb81ac63d6f",
+    "src/domain/cards/lamina-oferenda.js": "a56c72ead69cd132d5815c1e2f3a7b12ea7b9a84842b2696503cb26d3ecaac45",
+    "src/domain/cards/schema.js": "f178b6417cda86a00d818a73aa3c4c824c743b8af206c15add9af7116f359883",
+    "src/domain/cards/sekhem.js": "51b481803ef79c59f6df132b72347ddab0ae2857340c66343e4a8cc75644a76e",
+    "src/domain/cards/sia.js": "25cb633e9ac2b16c64c9e3918ad69cebd69a188ce00ab198eb3eeb71adfbde29",
+    "src/domain/cards/tech-cards.js": "272d457e0ddc912dec6b29f8c17e40334d83bee75d01510f7fe47b0260e7e444",
+    "src/domain/effects/index.js": "e3006dc8fc17245c087de2cf4a9c7d8dde8d62406d4440ed2fac2c3dde4b5bd3",
+    "src/domain/effects/registry.js": "270bea3118ebd5345558fbe33d1ef57f58998ba5473fc0f7c2d553705747af8d",
+    "src/domain/effects/targets.js": "09ca7f2d98a7ad5ace5095f1f297222722b775518207702fa7ad6af2ff8dcc21",
+    "src/domain/engine.js": "5e0aa15b731d4a40c6b7e8fabec92146d93111b90c98c777c52b4033d501c62f",
+    "src/domain/events.js": "88de0dfd9525652f9112ea6c68285b4233218dffed0059660cea20661d07afcd",
+    "src/domain/postRevealEffects.js": "1a4cd782a036ed557bb340d947bafbf170c019df39f604ff42dc13c83020cbed",
+    "src/domain/rng.js": "bdc6bc4a21cf5a1d80cd8b131632a87ddd66671be016ea6c3df506465dcac991",
+    "src/domain/rules.js": "95bfbb7e901cd896c0d045bc02a359be309a1c4db3f7fcafa262eb4f52b92d19",
+    "src/match/bots/controller.js": "f8c6d713f779e215615776147498a0e562d64880f3a8846828bee6373f8f33e0",
+    "src/match/index.js": "e9f139345320dfab3723e1b73a9b5f9085d3789a8b7b163e0714e5c80bc5adfb",
+    "src/match/phases.js": "c08f2338ffe8d1496c72d9d4905420661556c60ec4df13368d77e83d7bd106bf",
+    "src/match/revealPipeline.js": "2b95a407a2fd80e657642ebd13f271e1af4fbf99d5c513655e7e24a09e9ffdfc"
+  }
+}
