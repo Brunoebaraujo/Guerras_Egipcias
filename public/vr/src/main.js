@@ -1,9 +1,9 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=0.5.0';
-import {createWorld} from './scene.js?v=0.5.0';
-import {createCalibration} from './calibration.js?v=0.5.0';
-import {createGauntlet,canInteract} from './hands.js?v=0.5.0';
-import {registerTools} from './webmcp.js?v=0.5.0';
+import {MatchCore} from './core.js?v=0.6.0';
+import {createWorld} from './scene.js?v=0.6.0';
+import {createCalibration} from './calibration.js?v=0.6.0';
+import {createGauntlet,canInteract} from './hands.js?v=0.6.0';
+import {registerTools} from './webmcp.js?v=0.6.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -52,7 +52,7 @@ function rayFor(source){
 }
 function pick(source){
   rayFor(source);scene.updateMatrixWorld(true);
-  const targets=[...world.cards.filter(c=>c.mesh.visible).map(c=>c.mesh),...world.controls.filter(c=>c.visible)];
+  const targets=[...world.cardTargets.filter(target=>target.visible),...world.controls.filter(c=>c.visible)];
   return raycaster.intersectObjects(targets,false)[0];
 }
 function begin(source){
@@ -62,6 +62,7 @@ function begin(source){
   if(panelAction){if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
   if(held){if(held.source===source)release(source);return;}
   const hit=pick(source);if(!hit)return;
+  if(hit.object.userData.kind==='opponent-lane'){cancel();world.showOpponentLane(hit.object.userData.lane);say(`Cartas do bot na via ${hit.object.userData.lane+1}. Selecione a via novamente para fechar.`);return;}
   if(hit.object.userData.kind==='button'){act(hit.object.userData.id);return;}
   const id=hit.object.userData.id;
   const card=world.cards.find(c=>c.definition.id===id);if(!card)return;
@@ -169,7 +170,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'0.5.0',events:core,
+  version:'0.6.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

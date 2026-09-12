@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel} from './cards.js?v=0.5.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=0.6.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -65,24 +65,31 @@ export function createWorld(scene){
       rows.forEach((line,i)=>{ctx.fillStyle=i===0?(opts.color||'#e9cb8c'):'#d4e7e9';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font=`${rows.length===1?36: i===0?32:44}px ${i===0?'Georgia':'sans-serif'}`;ctx.fillText(line,ax+256,ay+256*(i+1)/(rows.length+1),475);});texture.needsUpdate=true;
     };paint(lines);return {mesh:m,paint};
   }
+  const controls=[];
   const laneLabels=[];for(let lane=0;lane<3;lane++){
-    laneLabels.push(label(.54,.095,(lane-1)*.67,.036,-.32,[['ESQUERDA','CENTRO','DIREITA'][lane],'VOCÊ  0']));
-    laneLabels.push(label(.54,.095,(lane-1)*.67,.036,-1.82,['OPONENTE','PODER  0']));
+    box(table,(lane-1)*.67,.095,-.25,.012,.15,.012,GOLD);box(table,(lane-1)*.67,.095,-1.86,.012,.15,.012,GOLD);
+    const own=label(.27,.16,(lane-1)*.67,.18,-.25,['VOCÊ','0'],{flat:false,bg:'#102a34',border:'#d8b46d'});
+    const enemy=label(.27,.16,(lane-1)*.67,.18,-1.86,['BOT','0'],{flat:false,bg:'#102a34',border:'#63ddea'});
+    enemy.mesh.userData={kind:'opponent-lane',lane};controls.push(enemy.mesh);laneLabels.push(own,enemy);
   }
   label(.32,.065,0,.034,-1.05,'RIO NILO',{bg:'#107991',border:'#107991',color:'#d1fcff'});
-  const energy=label(.32,.16,-1.31,.14,-.47,['ENERGIA','6 / 6'],{flat:false});energy.mesh.rotation.x=-.5;
+  const energy=label(.38,.105,0,-.19,.015,['RODADA 1 / 6','1 ENERGIA'],{parent:hand,flat:false,bg:'#102a34',border:'#63ddea'});energy.mesh.rotation.x=-.74;
   for(let i=0;i<6;i++)box(table,1.3,.035+i*.009,-.56,.23,.009,.32,i%2?INK:GOLD);
   const deckLabel=label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
   const stateLabel=label(.69,.13,0,.09,-1.97,['OPONENTE','Guardião do horizonte'],{flat:false});
   const message=label(.78,.1,0,.055,-.155,'SELECIONE UMA CARTA');
-  const controls=[];
   function button(id,text,x,z,width=.43){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce'});b.mesh.userData={kind:'button',id};controls.push(b.mesh);return b;}
   button('reset','REINICIAR JOGADA',-.78,-.03,.5);const endButton=button('end','FINALIZAR TURNO',.78,-.03,.5);
   const skipButton=button('skip','PULAR ALVO',0,.095,.42);skipButton.mesh.visible=false;
   button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);
   button('recenter','AJUSTAR POSIÇÃO',1.3,-.93,.32);
   const performance=label(.38,.13,1.31,.06,-1.19,['DESEMPENHO','Aguardando']);
+  for(let lane=0;lane<3;lane++){
+    const hit=mesh(table,new THREE.PlaneGeometry(.61,.59),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}), (lane-1)*.67,.046,-1.56);
+    hit.rotation.x=-Math.PI/2;hit.userData={kind:'opponent-lane',lane};controls.push(hit);
+  }
   const cardView=createCardView(table,hand,slots),cards=cardView.cards;
+  const projection=createOpponentProjection(table,cardView);
   const inspection=createInspection(table),matchPanel=createMatchPanel(table);
   const arrangeHand=cardView.arrangeHand;
   function jackal(parent,scale,material){
@@ -114,8 +121,12 @@ export function createWorld(scene){
     hologram.traverse(object=>{if(object.isMesh)object.material.opacity=opacity;});
     if(progress>=1)hologram.visible=false;
   }
+  let currentState=null;
   function sync(state,powers){
+    currentState=state;
     cardView.sync(state);matchPanel.paint(state);
+    if(state.turn===1&&state.phase==='plan'&&!state.cards.some(card=>card.zone==='board'))projection.hide();
+    if(projection.group.visible)projection.show(projection.lane,state,true);
     const revealed=state.cards.find(c=>c.id===state.lastReveal&&c.key==='anubis'&&c.revealed);
     const marker=revealed?state.seed+':'+revealed.id:null;
     if(marker&&marker!==anubisSlot){anubisSlot=marker;hologramElapsed=0;hologram.visible=true;hologram.scale.setScalar(.064);hologram.position.copy(slots.find(s=>s.id===revealed.slot).position).y+=.03;}
@@ -125,8 +136,11 @@ export function createWorld(scene){
     stateLabel.paint(['BOT · '+state.opponentHand+' NA MÃO',state.ended?'PARTIDA ENCERRADA':'PRIORIDADE: '+(state.priority===0?'VOCÊ':'BOT')]);
     endButton.paint(state.ended?'NOVA PARTIDA':state.phase==='plan'?'FINALIZAR TURNO':'REVELANDO…');
     skipButton.mesh.visible=state.aim?.side===0;
-    for(let i=0;i<3;i++){laneLabels[i*2].paint([['ESQUERDA','CENTRO','DIREITA'][i],'VOCÊ  '+powers[i]]);laneLabels[i*2+1].paint(['OPONENTE','PODER  '+state.opponentPower[i]]);}
+    for(let i=0;i<3;i++){laneLabels[i*2].paint(['VOCÊ',String(powers[i])]);laneLabels[i*2+1].paint(['BOT',String(state.opponentPower[i])]);}
     highlight();
   }
-  return {stage,table,hand,opponent,slots,slotMesh,cards,controls,hologram,performance,highlight,sync,update,message,arrangeHand,river,inspection,setHandMounted:cardView.setMounted};
+  function showOpponentLane(lane){if(!currentState)return;projection.show(lane,currentState);}
+  function setHandMounted(value){cardView.setMounted(value);energy.mesh.rotation.x=value?-.35:-.74;}
+  const cardTargets=[...cards.flatMap(card=>[card.mesh,card.badge]),...projection.targets];
+  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,energy,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,setHandMounted};
 }

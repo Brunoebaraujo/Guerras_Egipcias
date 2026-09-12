@@ -5,11 +5,24 @@ export function createCardView(table,hand,slots){
  const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=2;
  const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});
  const images=new Map(),cards=[];let state=null,mounted=false;
+ const powerCanvas=document.createElement('canvas');powerCanvas.width=1024;powerCanvas.height=512;
+ const powerCtx=powerCanvas.getContext('2d'),powerTexture=new THREE.CanvasTexture(powerCanvas);powerTexture.colorSpace=THREE.SRGBColorSpace;
+ const powerMaterial=new THREE.MeshBasicMaterial({map:powerTexture,transparent:true,side:THREE.DoubleSide,depthTest:false});
  for(let i=0;i<32;i++){
   const geometry=new THREE.PlaneGeometry(.19,.25),uv=geometry.attributes.uv,ax=i%8*256,ay=Math.floor(i/8)*512;
   for(let j=0;j<uv.count;j++)uv.setXY(j,(ax+2+uv.getX(j)*252)/2048,1-(ay+2+(1-uv.getY(j))*508)/2048);
   const mesh=new THREE.Mesh(geometry,material);mesh.visible=false;table.add(mesh);
-  cards.push({mesh,definition:{id:null},home:new THREE.Vector3(),rotation:new THREE.Euler(),ax,ay,signature:''});
+  const bx=i%8*128,by=Math.floor(i/8)*128,badgeGeometry=new THREE.PlaneGeometry(.105,.105),badgeUv=badgeGeometry.attributes.uv;
+  for(let j=0;j<badgeUv.count;j++)badgeUv.setXY(j,(bx+badgeUv.getX(j)*128)/1024,1-(by+(1-badgeUv.getY(j))*128)/512);
+  const badge=new THREE.Mesh(badgeGeometry,powerMaterial);badge.visible=false;badge.renderOrder=30;table.add(badge);
+  cards.push({mesh,badge,definition:{id:null},home:new THREE.Vector3(),rotation:new THREE.Euler(),ax,ay,bx,by,signature:''});
+ }
+ function paintPower(card){
+  const {bx:x,by:y,definition:d}=card;powerCtx.clearRect(x,y,128,128);
+  powerCtx.fillStyle=d.hidden?'#2b3640':'#102733';powerCtx.beginPath();powerCtx.arc(x+64,y+64,56,0,Math.PI*2);powerCtx.fill();
+  powerCtx.strokeStyle=d.active?'#72fff0':'#e0bd72';powerCtx.lineWidth=9;powerCtx.stroke();
+  powerCtx.fillStyle=d.hidden?'#b8c2c8':'#fff0bd';powerCtx.textAlign='center';powerCtx.textBaseline='middle';powerCtx.font='bold 72px sans-serif';powerCtx.fillText(d.hidden?'?':String(d.power),x+64,y+66);
+  powerTexture.needsUpdate=true;
  }
  function paint(card){
   const {ax:x,ay:y,definition:d}=card;
@@ -26,9 +39,27 @@ export function createCardView(table,hand,slots){
  }
  function ensureImage(key){if(!key||images.has(key)||typeof Image==='undefined')return;const img=new Image();images.set(key,img);img.onload=()=>{for(const card of cards)if(card.mesh.visible&&card.definition.key===key)paint(card);};img.src=new URL('../card-art/'+(key==='token-cabra'?'cabra-nilo':key)+'.webp',import.meta.url).href;}
  function arrangeHand(ids){ids.forEach((id,index)=>{const card=cards.find(c=>c.mesh.visible&&c.definition.id===id);if(!card)return;const a=(index-(ids.length-1)/2)*.16;hand.add(card.mesh);card.home.set(Math.sin(a)*.63,-Math.abs(a)*.06,index*.001);card.rotation.set(mounted?-.35:-.74,0,-a*.65);card.mesh.position.copy(card.home);card.mesh.rotation.copy(card.rotation);});}
- function sync(s){state=s;for(let i=0;i<cards.length;i++){const card=cards[i],d=s.cards[i];card.mesh.visible=!!d;if(!d){card.definition={id:null};card.signature='';continue;}card.definition=d;card.mesh.userData={kind:'card',id:d.id};const signature=JSON.stringify(d);if(signature!==card.signature){card.signature=signature;paint(card);ensureImage(d.key);}if(d.zone==='board'){const slot=slots.find(slot=>slot.id===d.slot);table.add(card.mesh);card.mesh.position.copy(slot.position).y+=.016;card.mesh.rotation.set(-Math.PI/2,0,0);}}arrangeHand(s.hand);}
+ function sync(s){state=s;for(let i=0;i<cards.length;i++){const card=cards[i],d=s.cards[i];card.mesh.visible=!!d;card.badge.visible=!!d&&d.zone==='board';if(!d){card.definition={id:null};card.signature='';continue;}card.definition=d;card.mesh.userData={kind:'card',id:d.id};card.badge.userData={kind:'card',id:d.id};const signature=JSON.stringify(d);if(signature!==card.signature){card.signature=signature;paint(card);paintPower(card);ensureImage(d.key);}if(d.zone==='board'){const slot=slots.find(slot=>slot.id===d.slot);table.add(card.mesh,card.badge);card.mesh.position.copy(slot.position).y+=.016;card.mesh.rotation.set(-Math.PI/2,0,0);card.badge.position.copy(slot.position);card.badge.position.setX(card.badge.position.x+.075);card.badge.position.y=.115;card.badge.position.z+=d.owner===0?.075:-.075;card.badge.rotation.set(0,0,0);}}arrangeHand(s.hand);}
  function setMounted(value){mounted=value;if(state)arrangeHand(state.hand);}
- return {cards,sync,arrangeHand,setMounted};
+ return {cards,sync,arrangeHand,setMounted,material};
+}
+
+export function createOpponentProjection(table,cardView){
+ const group=new THREE.Group();table.add(group);group.visible=false;
+ const titleCanvas=document.createElement('canvas');titleCanvas.width=512;titleCanvas.height=128;const titleCtx=titleCanvas.getContext('2d');
+ const titleTexture=new THREE.CanvasTexture(titleCanvas);titleTexture.colorSpace=THREE.SRGBColorSpace;
+ const title=new THREE.Mesh(new THREE.PlaneGeometry(.62,.155),new THREE.MeshBasicMaterial({map:titleTexture,transparent:true,side:THREE.DoubleSide,depthTest:false}));group.add(title);
+ const clones=Array.from({length:4},()=>{const mesh=new THREE.Mesh(new THREE.PlaneGeometry(.22,.29),cardView.material);mesh.renderOrder=20;group.add(mesh);return mesh;});
+ let lane=null;
+ function hide(){lane=null;group.visible=false;for(const clone of clones)clone.visible=false;}
+ function show(nextLane,state,refresh=false){
+  if(lane===nextLane&&group.visible&&!refresh){hide();return;}
+  lane=nextLane;group.visible=true;group.position.set((lane-1)*.67,.31,-1.56);group.rotation.set(0,0,0);
+  titleCtx.fillStyle='#102733ee';titleCtx.fillRect(0,0,512,128);titleCtx.strokeStyle='#72dfea';titleCtx.lineWidth=6;titleCtx.strokeRect(4,4,504,120);titleCtx.fillStyle='#fff0bd';titleCtx.font='bold 34px Georgia';titleCtx.textAlign='center';titleCtx.textBaseline='middle';titleCtx.fillText(`VIA ${lane+1} · BOT`,256,64);titleTexture.needsUpdate=true;title.position.set(0,.255,0);
+  const defs=state.cards.filter(d=>d.zone==='board'&&d.owner===1&&Number(d.slot.split('-')[1])===lane);
+  clones.forEach((clone,index)=>{const def=defs[index];clone.visible=!!def;if(!def)return;const source=cardView.cards.find(c=>c.definition.id===def.id);clone.geometry.dispose();clone.geometry=source.mesh.geometry.clone();clone.userData={kind:'card',id:def.id};clone.position.set((index-(defs.length-1)/2)*.16,0,index*.002);clone.scale.set(1.1,1.1,1.1);});
+ }
+ return {group,clones,title,get lane(){return lane;},show,hide,targets:clones};
 }
 export function createInspection(parent){
  const canvas=document.createElement('canvas');canvas.width=1024;canvas.height=512;const ctx=canvas.getContext('2d');

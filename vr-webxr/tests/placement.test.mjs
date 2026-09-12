@@ -6,7 +6,7 @@ import {createWorld} from '../../public/vr/src/scene.js';
 import {createCalibration} from '../../public/vr/src/calibration.js';
 import {MatchCore} from '../../public/vr/src/core.js';
 const memory=new Map();globalThis.localStorage={getItem:k=>memory.get(k)||null,setItem:(k,v)=>memory.set(k,v)};
-globalThis.document={querySelector:()=>null,createElement:()=>({getContext:()=>({fillRect(){},strokeRect(){},fillText(){}})})};
+globalThis.document={querySelector:()=>null,createElement:()=>({getContext:()=>({fillRect(){},clearRect(){},strokeRect(){},fillText(){},drawImage(){},beginPath(){},arc(){},fill(){},stroke(){},measureText(t){return {width:t.length*16};}})})};
 test('more distance moves the near table edge away for any viewing direction without changing height',()=>{
   for(const yaw of [0,Math.PI/2,-Math.PI/2,Math.PI]){
     const before=tableTransform(DEFAULT_PLACEMENT),after=tableTransform({...DEFAULT_PLACEMENT,distance:DEFAULT_PLACEMENT.distance+.3});
