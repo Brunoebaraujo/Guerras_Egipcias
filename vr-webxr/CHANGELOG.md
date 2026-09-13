@@ -1,3 +1,10 @@
+# 1.5.0 — inspeção completa e cartas ativáveis
+
+- A projeção da carta na câmara sobe para liberar o acesso aos filtros e presets; todos os controles da mesa ficam agrupados perto de INICIAR PARTIDA.
+- Selecionar qualquer carta no tabuleiro abre uma versão ampliada com a moldura da edição desktop, arte, custo, Poder, tipo e texto completo.
+- Cartas ocultas do bot continuam protegidas e aparecem com o verso egípcio na inspeção.
+- Hu ganha o botão ATIVAR no corpo da carta após ser revelado. A ação usa o comando original do motor e o contrato também atende futuras cartas ativáveis.
+
 # 1.4.0 — mesa de filtros e inspeção de cartas
 
 - Os oito filtros de custo e os oito presets ficam sobre a mesa de pedra, todos visíveis ao mesmo tempo e com tipografia ampliada.

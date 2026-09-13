@@ -1,15 +1,15 @@
-# Guerras Egípcias VR — demo jogável 1.4.0
+# Guerras Egípcias VR — demo jogável 1.5.0
 
 Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
 ## Jogar no Quest 2
 
-Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.4.0 no navegador do Quest e confira **VR / 1.4.0**.
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.5.0 no navegador do Quest e confira **VR / 1.5.0**.
 
 1. Pressione **Entrar na câmara em VR**. A escolha acontece dentro de uma câmara de pirâmide, diante de uma mesa esculpida em pedra.
 2. Use o controle direito para selecionar **Seu deck** ou **Deck do bot**.
-3. Escolha um dos oito presets na mesa ou monte manualmente cada lista. Acima dos presets ficam os oito filtros de custo. O paredão mostra oito cartas por linha; segure uma carta ou o espaço entre elas e arraste para cima ou para baixo.
-4. Selecione uma carta do paredão para abrir sua projeção central. Leia a arte, custo, poder, tipo e efeito, depois escolha **Adicionar** ou **Retirar**.
+3. Escolha um dos oito presets na mesa ou monte manualmente cada lista. Filtros e presets ficam agrupados perto de **Iniciar partida**. O paredão mostra oito cartas por linha; segure uma carta ou o espaço entre elas e arraste para cima ou para baixo.
+4. Selecione uma carta do paredão para abrir sua projeção acima da mesa, sem bloquear os controles. Leia a arte, custo, poder, tipo e efeito, depois escolha **Adicionar** ou **Retirar**.
 5. Cada lado precisa de 12 cartas únicas. Pressione o botão grande **Iniciar partida** sobre a frente da mesa de pedra.
 6. A câmara dá lugar ao tabuleiro e abre o ajuste de posição. Confirme **JOGAR** para começar.
 7. Levante o controle esquerdo para ver o leque e use o direito para escolher cartas e vias.
@@ -26,6 +26,8 @@ Selecione a cabeceira ou uma área livre de qualquer via do bot para abrir, dian
 As placas ovais do bot são maiores e usam números mais largos. Ao final da sexta rodada, o painel de vitória, derrota ou empate cresce, sobe e ocupa o centro da mesa acima do Nilo. As três vias aparecem em colunas; cada coluna compara o Poder do jogador e do bot e amplia o maior valor. Sempre que uma carta é destruída ou muda de via, cada lado é compactado novamente na ordem registrada pelo motor, sem deixar buracos entre os quatro espaços.
 
 Escaravelho pode ser selecionado no tabuleiro e movido para outra via quando sua regra permitir. A interface também suporta escolha de alvos e pular alvo quando o motor solicitar. Os decks atuais usam predominantemente efeitos automáticos. As cartas ocultas do bot aparecem de costas e não expõem nome, arte ou poder na interface pública.
+
+Selecione qualquer carta sua ou do bot no tabuleiro para abrir uma reprodução ampliada da carta desktop à sua frente. A projeção mantém moldura, arte, custo e Poder nos vértices superiores, tipo e texto na área inferior. Cartas ocultas continuam mostrando somente o verso. Para mover ou devolver uma carta própria, use o botão exibido no corpo da projeção. Hu revelado também apresenta **ATIVAR**; o botão aciona a habilidade real no motor e muda para **DESATIVAR** enquanto ela aguarda a próxima carta.
 
 As mãos são modelos 3D leves de manoplas, ligados aos controles Touch; não há rastreamento óptico dos dedos. A mão direita é a única que ativa cartas e botões. Troca de mão ainda não está incluída. Incline o pulso esquerdo para ajustar o ângulo das cartas. A mão flutuante anterior permanece como fallback desktop ou na ausência do controle esquerdo.
 
@@ -102,6 +104,6 @@ Neste repositório, os arquivos de distribuição ficam em `public/vr/` na branc
 node --test tests/*.test.mjs
 ```
 
-Os testes verificam hashes do core, 40 partidas completas em comparação com execução direta do motor, fila, totais, resultado, reset, movimento do Escaravelho, limites, cartas ocultas, geometria, seleção pela direita e preservação da calibração. Testes geométricos não substituem teste físico no Quest.
+Os 25 testes verificam hashes do core, 40 partidas completas em comparação com execução direta do motor, fila, totais, resultado, reset, movimento do Escaravelho, ativação de Hu, inspeção ampliada, limites, cartas ocultas, geometria, seleção pela direita e preservação da calibração. Testes geométricos não substituem teste físico no Quest.
 
 Three.js r170 está incluído com licença MIT. Sem sombras, pós-processamento ou modelos externos de mãos. Arquitetura e manoplas usam instâncias; cartas compartilham atlas e material. A sessão solicita 72 Hz quando disponível. FPS e draw calls aparecem na mesa; 72 FPS no aparelho precisam ser medidos no Quest 2.

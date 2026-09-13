@@ -63,3 +63,11 @@ test('revealed Escaravelho can move once on a following round and does not dupli
  const b=c.snapshot().cards.find(c=>c.key==='escaravelho'&&c.owner===0);assert.ok(b.movable);assert.ok(c.command('play-lane',{cardId:b.id,lane:1}).ok);
  const moved=c.snapshot();assert.equal(moved.cards.filter(c=>c.id===b.id).length,1);assert.equal(c.validSlots(b.id).length,0);assert.equal(moved.cards.find(card=>card.key==='servo'&&card.owner===0).slot,'p-0-0');assert.equal(moved.cards.find(card=>card.id===b.id).slot,'p-1-0');
 });
+test('Hu exposes a reusable activation command after reveal',()=>{
+ const deck=['hu',...PRESETS.Controle.slice(0,11).filter(key=>key!=='hu')],c=new MatchCore({seed:2,decks:[deck,PRESETS.Animais]});
+ for(let round=0;round<2;round++){assert.equal(c.command('end-turn').ok,true);for(let i=0;c.snapshot().phase!=='plan'&&i<100;i++)c.tick(1);}
+ const handHu=c.snapshot().cards.find(card=>card.key==='hu'&&card.zone==='hand');assert.ok(handHu);assert.equal(c.command('play-lane',{cardId:handHu.id,lane:0}).ok,true);assert.equal(c.command('end-turn').ok,true);for(let i=0;c.snapshot().phase!=='plan'&&i<100;i++)c.tick(1);
+ let hu=c.snapshot().cards.find(card=>card.key==='hu'&&card.zone==='board');assert.deepEqual(hu.activation,{action:'activate-card',enabled:true,active:false,used:false,label:'ATIVAR'});
+ assert.equal(c.command('activate-card',{cardId:hu.id}).ok,true);hu=c.snapshot().cards.find(card=>card.id===hu.id);assert.equal(hu.activation.active,true);assert.equal(hu.activation.label,'DESATIVAR');
+ assert.equal(c.command('activate-card',{cardId:hu.id}).ok,true);assert.equal(c.snapshot().cards.find(card=>card.id===hu.id).activation.active,false);
+});

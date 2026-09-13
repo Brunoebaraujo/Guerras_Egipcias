@@ -1,6 +1,6 @@
 // Presentation adapter. Rules and bot decisions are unmodified modules from main.
 import {freshMatch,applyAction,isAimable} from '../game-core/src/match/index.js';
-import {CARDS,byKey,ctxOf,laneScore,laneWins,matchResult,power,custoDe} from '../game-core/src/domain/engine.js';
+import {CARDS,byKey,ctxOf,laneScore,laneWins,matchResult,power,custoDe,cartaTemEfeito} from '../game-core/src/domain/engine.js';
 import {decideFacil} from '../game-core/src/domain/bots/index.js';
 import {runBotPlanning} from '../game-core/src/match/bots/controller.js';
 import {createRng,randomSeed} from '../game-core/src/domain/rng.js';
@@ -41,11 +41,13 @@ export class MatchCore extends EventTarget {
  powers(){return [0,1,2].map(l=>laneScore(ctxOf(this.#state),l,0));}
  snapshot(){
   const s=this.#state,ctx=ctxOf(s),board={},cards=[];
-  const describe=(c,id,hidden=false)=>{const d=hidden?null:byKey[c.key];return {id,key:d?.key??null,name:d?.nome??'Carta oculta',text:d?.texto||'Sem efeito.',cost:d?custoDe(c):null,power:d?(c.uid?power(c,ctx):c.printed+(c.baked||0)):null,hidden};};
+  const describe=(c,id,hidden=false)=>{const d=hidden?null:byKey[c.key];return {id,key:d?.key??null,name:d?.nome??'Carta oculta',type:d?.tipo??null,text:d?.texto||'Sem efeito.',cost:d?custoDe(c):null,power:d?(c.uid?power(c,ctx):c.printed+(c.baked||0)):null,hidden};};
   for(const h of s.hand[0])cards.push({...describe(h,'h-'+h.hid),zone:'hand'});
   for(const c of s.board.filter(c=>!c.dying)){
    const id='b-'+c.uid,slot=this.#slots.get(c.uid);if(!slot)continue;board[slot]=id;
-   cards.push({...describe(c,id,c.owner===1&&!c.revealed),zone:'board',slot,active:s.lastReveal?.uid===c.uid,owner:c.owner,revealed:c.revealed,aimable:s.awaitingAim?.side===0&&isAimable(s,c),movable:this.moveLanes(c.uid).length>0,pickup:s.phase==='plan'&&!s.finished&&c.owner===0&&!c.revealed&&c.enteredRound===s.round});
+   const d=byKey[c.key],canActivate=c.owner===0&&c.revealed&&cartaTemEfeito(d,'activateTransferPower');
+   const activation=canActivate?{action:'activate-card',enabled:!applyAction(s,{t:'toggleActivate',side:0,uid:c.uid}).error,active:!!c.aguardandoProxima,used:!!c.jaBufou,label:c.jaBufou?'USADA':c.aguardandoProxima?'DESATIVAR':'ATIVAR'}:null;
+   cards.push({...describe(c,id,c.owner===1&&!c.revealed),zone:'board',slot,active:s.lastReveal?.uid===c.uid,owner:c.owner,revealed:c.revealed,aimable:s.awaitingAim?.side===0&&isAimable(s,c),movable:this.moveLanes(c.uid).length>0,pickup:s.phase==='plan'&&!s.finished&&c.owner===0&&!c.revealed&&c.enteredRound===s.round,activation});
   }
   const aim=s.awaitingAim;
   return {seed:this.#seed,turn:s.round,phase:s.phase,energy:s.energy[0],deck:s.deck[0].length,opponentDeck:s.deck[1].length,opponentHand:s.hand[1].length,hand:s.hand[0].map(h=>'h-'+h.hid),cards,board,opponentPower:[0,1,2].map(l=>laneScore(ctx,l,1)),powers:this.powers(),wins:laneWins(s),priority:s.priority,ended:s.finished,result:s.finished?matchResult(s):null,queue:{remaining:s.queue.length,total:this.#revealTotal,items:s.queue.map(uid=>s.board.find(c=>c.uid===uid)).filter(Boolean).map(c=>({owner:c.owner,lane:c.lane,name:c.owner===0||c.revealed?byKey[c.key].nome:'Carta oculta'}))},aim:aim?{side:aim.side,name:aim.srcNome,needs:aim.needs}:null,lastReveal:s.lastReveal?('b-'+s.lastReveal.uid):null,effect:s.phase==='revealing'?s.effect?.text||'':'',message:this.message()};
@@ -67,6 +69,7 @@ export class MatchCore extends EventTarget {
    const {cardId,lane}=payload;if(!Number.isInteger(lane)||!this.nextSlot(cardId,lane))return {ok:false,reason:'Via indisponível ou energia insuficiente.'};
    result=this.apply(cardId.startsWith('h-')?{t:'place',side:0,hid:Number(cardId.slice(2)),lane}:{t:'move',side:0,uid:Number(cardId.slice(2)),lane});
   }else if(type==='pickup')result=this.apply({t:'pickup',side:0,uid:Number(payload.cardId?.slice(2))});
+  else if(type==='activate-card')result=this.apply({t:'toggleActivate',side:0,uid:Number(payload.cardId?.slice(2))});
   else if(type==='reset')result=this.apply({t:'resetPlan',side:0});
   else if(type==='aim'&&this.#state.awaitingAim?.side===0)result=this.apply({t:'aim',targetUid:Number(payload.cardId?.slice(2))});
   else if(type==='skip-aim'&&this.#state.awaitingAim?.side===0)result=this.apply({t:'skipAim'});

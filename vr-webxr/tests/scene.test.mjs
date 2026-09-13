@@ -46,6 +46,14 @@ test('an unaffordable hand card can still move to the right grip for reading',()
  w.attachSelected(id,grip);assert.equal(card.mesh.parent,grip);assert.equal(card.mesh.scale.x,1.5);assert.ok(card.mesh.position.y>0);
  w.clearSelected();assert.equal(card.mesh.parent,w.hand);assert.equal(card.mesh.scale.x,1);
 });
+test('game card inspection uses a frontmost portrait card and exposes body actions',()=>{
+ const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());const base=c.snapshot().cards[0];
+ const hu={...base,id:'b-900',key:'hu',name:'Hu',type:'Divindade',zone:'board',owner:0,hidden:false,cost:3,power:3,text:'Texto completo do efeito.',activation:{action:'activate-card',enabled:true,active:false,used:false,label:'ATIVAR'},pickup:false,movable:true};w.inspection.show(hu);
+ assert.equal(w.inspection.visible,true);assert.equal(w.inspection.cardId,hu.id);assert.equal(w.inspection.mesh.geometry.parameters.width,.72);assert.equal(w.inspection.mesh.geometry.parameters.height,1.08);assert.equal(w.inspection.mesh.material.depthTest,false);assert.ok(w.inspection.mesh.renderOrder>=200);
+ const visible=w.inspection.targets.filter(mesh=>mesh.visible);assert.equal(visible.length,2);assert.ok(visible.every(mesh=>mesh.userData.kind==='inspection-action'&&mesh.userData.cardId===hu.id));assert.ok(visible.some(mesh=>mesh.userData.action==='activate-card'));
+ w.inspection.show({...hu,id:'b-901',hidden:true,key:null,name:'Carta oculta',activation:null,movable:false});assert.equal(w.inspection.visible,true);assert.equal(w.inspection.targets.filter(mesh=>mesh.visible).length,0);
+ w.inspection.hide();assert.equal(w.inspection.visible,false);
+});
 test('right hand exclusively activates controls, with mirrored low-poly hand artwork',()=>{
  assert.equal(canInteract('mouse'),true);assert.equal(canInteract({userData:{inputSource:{handedness:'right'}}}),true);assert.equal(canInteract({userData:{inputSource:{handedness:'left'}}}),false);assert.equal(canInteract({}),false);
  for(const side of ['left','right']){const hand=createGauntlet(side);assert.ok(hand.children.length>=4);assert.ok(hand.children.length<10);const bounds=new THREE.Box3().setFromObject(hand);assert.ok(bounds.getSize(new THREE.Vector3()).length()<.3);}

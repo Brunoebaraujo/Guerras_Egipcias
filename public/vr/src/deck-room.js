@@ -1,6 +1,6 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.4.0';
-import {effectivePresets,initialDecks} from './deck-builder.js?v=1.4.0';
+import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.5.0';
+import {effectivePresets,initialDecks} from './deck-builder.js?v=1.5.0';
 
 const STORAGE_KEY='ge_vr_deck_selection',catalog=[...CARD_CATALOG],FILTERS=[{label:'TODAS',accept:()=>true},...Array.from({length:7},(_,cost)=>({label:`CUSTO ${cost}`,accept:card=>card.cost===cost}))];
 function box(parent,x,y,z,w,h,d,color){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.9,metalness:0}));mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
@@ -25,12 +25,12 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
  const scrollSurface=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.2),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));scrollSurface.position.set(0,-.14,.012);scrollSurface.userData={kind:'deck-room',id:'scroll-area'};ui.add(scrollSurface);
  const cards=Array.from({length:16},(_,i)=>{const p=textPanel(ui,'card-'+i,.35,.49,{pixelsX:384,pixelsY:512});p.mesh.position.set(-1.47+(i%8)*.42,.28-Math.floor(i/8)*.54,.025);return p;});
  const previous=textPanel(ui,'previous',.34,.18),pageLabel=textPanel(ui,'none',.42,.18),next=textPanel(ui,'next',.34,.18);previous.mesh.position.set(-.4,-.73,.02);pageLabel.mesh.position.set(0,-.73,.02);pageLabel.mesh.raycast=()=>{};next.mesh.position.set(.4,-.73,.02);
- const filterButtons=FILTERS.map((_,i)=>{const p=textPanel(stage,'filter-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-2.06);p.mesh.rotation.x=-Math.PI/2;return p;});
+ const filterButtons=FILTERS.map((_,i)=>{const p=textPanel(stage,'filter-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-1.43);p.mesh.rotation.x=-Math.PI/2;return p;});
  const presetEntries=Object.entries(effectivePresets(storage?.getItem?.('ge_preset_overrides')));
- const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-1.79);p.mesh.rotation.x=-Math.PI/2;return p;});
- const random=textPanel(stage,'random',.78,.22),clear=textPanel(stage,'clear',.66,.22);random.mesh.position.set(-.46,.675,-1.48);clear.mesh.position.set(.46,.675,-1.48);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
+ const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-1.16);p.mesh.rotation.x=-Math.PI/2;return p;});
+ const random=textPanel(stage,'random',.78,.2),clear=textPanel(stage,'clear',.66,.2);random.mesh.position.set(-.46,.675,-.88);clear.mesh.position.set(.46,.675,-.88);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
  const start=textPanel(stage,'start',1.62,.32,{pixelsX:1024,pixelsY:220});start.mesh.position.set(0,.68,-.64);start.mesh.rotation.x=-Math.PI/2;
- const detail=new THREE.Group();detail.position.set(0,1.55,-.92);stage.add(detail);detail.visible=false;
+ const detail=new THREE.Group();detail.position.set(0,2.25,-1.05);stage.add(detail);detail.visible=false;
  const detailHit=new THREE.Mesh(new THREE.PlaneGeometry(1.02,1.16),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));detailHit.userData={kind:'deck-room',id:'detail-close'};detailHit.renderOrder=190;detail.add(detailHit);
  const detailCard=textPanel(detail,'none',.96,.86,{pixelsX:1024,pixelsY:1024});detailCard.mesh.position.y=.13;detailCard.mesh.raycast=()=>{};detailCard.mesh.material.depthTest=false;detailCard.mesh.renderOrder=200;
  const detailAdd=textPanel(detail,'detail-add',.44,.19),detailRemove=textPanel(detail,'detail-remove',.44,.19);detailAdd.mesh.position.set(-.25,-.43,.025);detailRemove.mesh.position.set(.25,-.43,.025);for(const panel of [detailAdd,detailRemove]){panel.mesh.material.depthTest=false;panel.mesh.renderOrder=210;}
@@ -71,5 +71,5 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
  function pointerMove(source,ray){if(!drag||drag.source!==source)return false;ui.updateWorldMatrix(true,false);ui.getWorldPosition(dragOrigin);ui.getWorldQuaternion(dragQuaternion);dragNormal.set(0,0,1).applyQuaternion(dragQuaternion);dragPlane.setFromNormalAndCoplanarPoint(dragNormal,dragOrigin);if(!ray.intersectPlane(dragPlane,dragPoint))return false;const y=ui.worldToLocal(dragPoint).y,steps=Math.trunc((y-drag.startY)/.1),maxRow=Math.max(0,Math.ceil(filteredCards().length/8)-2),next=Math.max(0,Math.min(maxRow,drag.startRow+steps));if(next!==row){row=next;drag.moved=true;message=`Coleção · posição ${row+1} de ${maxRow+1}.`;render();}return true;}
  function pointerEnd(source){if(!drag||drag.source!==source)return false;const finished=drag;drag=null;if(!finished.moved&&finished.id.startsWith('card-'))activate(finished.id,finished.object);return true;}
  render();
- return {stage,controls,activate,navigate,pointerStart,pointerMove,pointerEnd,isDragging:source=>drag?.source===source,show(){stage.visible=true;render();},hide(){drag=null;stage.visible=false;},alignFrom(source){stage.position.copy(source.position);stage.rotation.copy(source.rotation);stage.updateMatrixWorld(true);},setDecks(next){if(validateDecks(next).ok){decks=next.map(deck=>deck.slice());persist();render();}},get visible(){return stage.visible;},get page(){return row;},get detailKey(){return detailKey;},get filter(){return FILTERS[filterIndex].label;},getDecks:()=>decks.map(deck=>deck.slice())};
+ return {stage,controls,detail,activate,navigate,pointerStart,pointerMove,pointerEnd,isDragging:source=>drag?.source===source,show(){stage.visible=true;render();},hide(){drag=null;stage.visible=false;},alignFrom(source){stage.position.copy(source.position);stage.rotation.copy(source.rotation);stage.updateMatrixWorld(true);},setDecks(next){if(validateDecks(next).ok){decks=next.map(deck=>deck.slice());persist();render();}},get visible(){return stage.visible;},get page(){return row;},get detailKey(){return detailKey;},get filter(){return FILTERS[filterIndex].label;},getDecks:()=>decks.map(deck=>deck.slice())};
 }
