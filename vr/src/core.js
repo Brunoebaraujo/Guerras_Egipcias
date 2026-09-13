@@ -9,6 +9,7 @@ export const DECKS=Object.freeze([
  ['cao','cabra-nilo','ganso','gato','macaco','hiena','garca','rebanho','domador','apis','amon','escaravelho']
 ]);
 export const DECK_SIZE=12;
+// Espelho de DEFAULT_PRESETS em src/ui/decks/DeckUi.jsx da main (commit 30f6e39).
 export const PRESETS=Object.freeze({
  'Padrão':['montu','carruagem','guardareal','armadura','escaravelho','heh','enxame','mumia','sobek','hathor','set','selo'],
  'Exército':['servo','arqueiro','escaravelho','heka','lanceiro','carruagem','enxame','montu','guardareal','amon','general','colosso'],

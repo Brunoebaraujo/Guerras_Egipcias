@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.5.0';
-import {createWorld} from './scene.js?v=1.5.0';
-import {createCalibration} from './calibration.js?v=1.5.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.5.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.5.0';
-import {createDeckRoom} from './deck-room.js?v=1.5.0';
-import {registerTools} from './webmcp.js?v=1.5.0';
+import {MatchCore} from './core.js?v=1.6.0';
+import {createWorld} from './scene.js?v=1.6.0';
+import {createCalibration} from './calibration.js?v=1.6.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.6.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.6.0';
+import {createDeckRoom} from './deck-room.js?v=1.6.0';
+import {registerTools} from './webmcp.js?v=1.6.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -148,8 +148,9 @@ function mountCards(grip){leftGrip=grip;grip.add(handMount);handMount.position.s
 function unmountCards(){leftGrip=null;world.stage.add(world.hand);world.hand.rotation.set(0,0,0);world.setHandMounted(false);calibration.apply();}
 for(let i=0;i<2;i++){
   const c=renderer.xr.getController(i),grip=renderer.xr.getControllerGrip(i);scene.add(c,grip);controllers.push(c);c.userData.grip=grip;
-  const line=new THREE.Line(lineGeometry,new THREE.LineBasicMaterial({color:0x72ddeb}));line.scale.z=2;c.add(line);c.userData.line=line;c.userData.buttons=new Set();
-  c.addEventListener('connected',e=>{c.userData.inputSource=e.data;c.visible=true;line.visible=e.data.handedness==='right';grip.clear();if(['left','right'].includes(e.data.handedness))grip.add(createGauntlet(e.data.handedness));if(e.data.handedness==='left'&&!deckRoom.visible)mountCards(grip);});
+  const line=new THREE.Line(lineGeometry,new THREE.LineBasicMaterial({color:0x72ddeb,depthTest:false,transparent:true,opacity:.92}));line.scale.z=2;line.renderOrder=300;c.add(line);c.userData.line=line;c.userData.buttons=new Set();
+  const pointerGlow=new THREE.Mesh(new THREE.RingGeometry(.009,.021,18),new THREE.MeshBasicMaterial({color:0xffe29a,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));pointerGlow.position.z=-2;pointerGlow.renderOrder=301;pointerGlow.visible=false;c.add(pointerGlow);c.userData.pointerGlow=pointerGlow;
+  c.addEventListener('connected',e=>{c.userData.inputSource=e.data;c.visible=true;line.visible=e.data.handedness==='right';pointerGlow.visible=false;grip.clear();if(['left','right'].includes(e.data.handedness))grip.add(createGauntlet(e.data.handedness));if(e.data.handedness==='left'&&!deckRoom.visible)mountCards(grip);});
   c.addEventListener('disconnected',()=>{if(held?.source===c)cancel();if(leftGrip===grip)unmountCards();c.userData.buttons.clear();c.userData.inputSource=null;c.visible=false;});
   for(const kind of ['select','squeeze']){
     c.addEventListener(kind+'start',()=>{c.userData.buttons.add(kind);if(c.userData.buttons.size===1)begin(c);});
@@ -190,6 +191,7 @@ async function setupXR(){
 }
 setupXR();
 let previous=0,elapsed=0,frames=0,lastStats={fps:0,calls:0,triangles:0};
+function updatePointer(controller,time){const line=controller.userData.line,glow=controller.userData.pointerGlow;if(!line?.visible)return;rayFor(controller);const hit=calibration.panel.visible?raycaster.intersectObject(calibration.panel,false)[0]:pick(controller);const distance=Math.min(hit?.distance??2,2);line.scale.z=distance;line.material.color.setHex(hit?0xffd783:0x72ddeb);glow.visible=!!hit;glow.position.z=-distance;if(hit){const pulse=1+Math.sin(time*.012)*.18;glow.scale.setScalar(pulse);}}
 renderer.setAnimationLoop((time,frame)=>{
   if(pendingRecenter&&frame&&time>=alignAfter)recenter(frame);
   for(const c of controllers){
@@ -200,6 +202,7 @@ renderer.setAnimationLoop((time,frame)=>{
       if(direction&&!c.userData.roomPageDirection)deckRoom.navigate(direction);c.userData.roomPageDirection=direction;
     }else c.userData.roomPageDirection=0;
     if(deckRoom.visible&&deckRoom.isDragging(c)){rayFor(c);deckRoom.pointerMove(c,raycaster.ray);}
+    updatePointer(c,time);
   }
   if(held)moveHeld();
   const delta=previous?Math.min((time-previous)/1000,.1):0;
@@ -214,7 +217,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.5.0',events:core,
+  version:'1.6.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
