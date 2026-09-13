@@ -31,6 +31,18 @@ test('player and bot decks are chosen independently before a match',()=>{
  const botCards=c.snapshot().cards.filter(card=>card.owner===1&&card.zone==='board');assert.ok(botCards.length>0);assert.ok(botCards.every(card=>decks[1].includes(card.key)));
  const replacement=[PRESETS.Exército,PRESETS.Sacrifício];assert.equal(c.command('new-match',{decks:replacement}).ok,true);assert.ok(c.snapshot().cards.filter(card=>card.zone==='hand').every(card=>replacement[0].includes(card.key)));
 });
+test('the eight presets match the desktop source order and contents',()=>{
+ assert.deepEqual(PRESETS,{
+  'Padrão':['montu','carruagem','guardareal','armadura','escaravelho','heh','enxame','mumia','sobek','hathor','set','selo'],
+  'Exército':['servo','arqueiro','escaravelho','heka','lanceiro','carruagem','enxame','montu','guardareal','amon','general','colosso'],
+  'Sacrifício':['servo','bennu','mumia','armadura','heka','sobek','enxame','sekhmet','apofis','osiris','diluvio','amheh'],
+  'Controle':['anubis','maat','selo','sekhmet','amon','hathor','montu','osiris','guardareal','colosso','general','set'],
+  'Bênção':['renenutet','hathor','heka','armadura','servo','arqueiro','lanceiro','carruagem','guardareal','escaravelho','montu','amon'],
+  'Assassinos':['servo','arqueiro','sicario','heka','senti','enxame','hemsu','montu','semerj','akhu','general','seqer-mau'],
+  'Pragas':['moises','servo','arqueiro','lanceiro','carruagem','guardareal','general','montu','armadura','hathor','escaravelho','selo'],
+  'Animais':['cao','cabra-nilo','ganso','gato','macaco','hiena','garca','rebanho','domador','apis','amon','escaravelho'],
+ });
+});
 test('full matches against bot agree with direct main engine, including queue and final result',()=>{
  for(let seed=0;seed<40;seed++){
   const c=new MatchCore({seed});let ref=freshMatch(DECKS,{seed});const rng=createRng(`${seed}:bot`);

@@ -1,3 +1,10 @@
+# 1.6.0 — leitura, apontador e ordem da mão
+
+- O texto da carta ampliada fica centralizado e preto dentro da área reservada da moldura.
+- O preset carregado recebe fundo e contorno luminosos; as oito listas e suas ordens foram conferidas com `DEFAULT_PRESETS` da versão desktop.
+- O laser da mão direita termina na primeira superfície interativa e mostra um anel pulsante no ponto atingido.
+- O leque cresce da esquerda para a direita e de baixo para cima; a carta comprada por último permanece na frente sem inverter a curva após a terceira carta.
+
 # 1.5.0 — inspeção completa e cartas ativáveis
 
 - A projeção da carta na câmara sobe para liberar o acesso aos filtros e presets; todos os controles da mesa ficam agrupados perto de INICIAR PARTIDA.
