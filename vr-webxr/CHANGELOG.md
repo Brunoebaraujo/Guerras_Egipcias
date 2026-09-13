@@ -1,3 +1,10 @@
+# 1.4.0 — mesa de filtros e inspeção de cartas
+
+- Os oito filtros de custo e os oito presets ficam sobre a mesa de pedra, todos visíveis ao mesmo tempo e com tipografia ampliada.
+- O paredão passa a exibir oito cartas por linha, mantendo a rolagem vertical.
+- Selecionar uma carta abre uma projeção central com arte, custo, poder, tipo e texto do efeito.
+- O deck só muda pelos botões ADICIONAR e RETIRAR da projeção.
+
 # 1.3.0 — coleção rolável e leitura da rodada
 
 - O paredão mostra cinco cartas por linha e permite arrastar verticalmente a coleção com o controle direito.
