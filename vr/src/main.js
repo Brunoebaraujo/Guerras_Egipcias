@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.3.0';
-import {createWorld} from './scene.js?v=1.3.0';
-import {createCalibration} from './calibration.js?v=1.3.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.3.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.3.0';
-import {createDeckRoom} from './deck-room.js?v=1.3.0';
-import {registerTools} from './webmcp.js?v=1.3.0';
+import {MatchCore} from './core.js?v=1.4.0';
+import {createWorld} from './scene.js?v=1.4.0';
+import {createCalibration} from './calibration.js?v=1.4.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.4.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.4.0';
+import {createDeckRoom} from './deck-room.js?v=1.4.0';
+import {registerTools} from './webmcp.js?v=1.4.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -207,7 +207,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.3.0',events:core,
+  version:'1.4.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });
