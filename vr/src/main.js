@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.4.0';
-import {createWorld} from './scene.js?v=1.4.0';
-import {createCalibration} from './calibration.js?v=1.4.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.4.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.4.0';
-import {createDeckRoom} from './deck-room.js?v=1.4.0';
-import {registerTools} from './webmcp.js?v=1.4.0';
+import {MatchCore} from './core.js?v=1.5.0';
+import {createWorld} from './scene.js?v=1.5.0';
+import {createCalibration} from './calibration.js?v=1.5.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.5.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.5.0';
+import {createDeckRoom} from './deck-room.js?v=1.5.0';
+import {registerTools} from './webmcp.js?v=1.5.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -36,7 +36,7 @@ function openCalibration(){
   const cam=renderer.xr.isPresenting?renderer.xr.getCamera():camera;
   calibration.open(cam.getWorldPosition(new THREE.Vector3()),cam.getWorldQuaternion(new THREE.Quaternion()));
 }
-function cancel(){held=null;world.clearSelected();world.inspection.show(null);hover=null;highlight();}
+function cancel(){held=null;world.clearSelected();world.inspection.hide();hover=null;highlight();}
 function act(id){
   if(id==='reset'){cancel();const r=core.command('reset');say(r.ok?'Jogadas desta rodada devolvidas à mão.':r.reason);}
   if(id==='end'){cancel();const r=core.command(current.ended?'new-match':'end-turn');if(!r.ok)say(r.reason);}
@@ -62,10 +62,10 @@ function pick(source,excludeId=null){
   const targets=deckRoom.visible?deckRoom.controls.filter(target=>target.visible):[...world.cardTargets.filter(target=>target.visible&&target.userData.id!==excludeId),...world.controls.filter(c=>c.visible)];
   return raycaster.intersectObjects(targets,false)[0];
 }
-function chooseCard(source,card){
+function chooseCard(source,card,forceAction=false){
   const id=card.definition.id;
-  world.inspection.show(card.definition);
   if(current.aim?.side===0){const r=core.command('aim',{cardId:id});if(!r.ok)say(r.reason);return;}
+  if(card.definition.zone==='board'&&!forceAction){cancel();world.inspection.show(card.definition);say(card.definition.hidden?'Carta do bot ainda oculta.':`${card.definition.name} · ${card.definition.cost} energia · ${card.definition.power} poder.`);return;}
   if(card.definition.pickup){const r=core.command('pickup',{cardId:id});if(!r.ok)say(r.reason);return;}
   const valid=core.validSlots(id);
   if(!valid.length&&card.definition.zone!=='hand'){say(card.definition.hidden?'Carta do bot ainda oculta.':card.definition.text+' · '+(current.phase==='plan'?'Sem jogada disponível.':'Aguarde a revelação.'));return;}
@@ -92,6 +92,13 @@ function begin(source){
     release(source);return;
   }
   const hit=pick(source);
+  if(hit?.object.userData.kind==='inspection-action'){
+    const {action,cardId,enabled}=hit.object.userData;
+    if(!enabled){say('Esta habilidade não pode ser ativada agora.');return;}
+    if(action==='activate-card'){const r=core.command('activate-card',{cardId});say(r.ok?(current.cards.find(card=>card.id===cardId)?.activation?.active?'Habilidade ativada.':'Habilidade desativada.'):r.reason);return;}
+    const card=world.cards.find(card=>card.definition.id===cardId);world.inspection.hide();if(card)chooseCard(source,card,true);return;
+  }
+  if(world.inspection.visible)world.inspection.hide();
   if(hit?.object.userData.kind==='opponent-lane'){cancel();world.showOpponentLane(hit.object.userData.lane);say(`Cartas do bot na via ${hit.object.userData.lane+1}. Selecione a via novamente para fechar.`);return;}
   if(world.projection.group.visible)world.projection.hide();
   if(!hit)return;
@@ -207,7 +214,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.4.0',events:core,
+  version:'1.5.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

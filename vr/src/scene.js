@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.4.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.5.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -91,7 +91,7 @@ export function createWorld(scene){
   }
   const cardView=createCardView(table,hand,slots),cards=cardView.cards;
   const projection=createOpponentProjection(table,cardView);
-  const inspection=createInspection(table),matchPanel=createMatchPanel(table);
+  const inspection=createInspection(table),matchPanel=createMatchPanel(table);controls.push(...inspection.targets);
   const arrangeHand=cardView.arrangeHand;
   function jackal(parent,scale,material){
     const g=new THREE.Group();parent.add(g);g.scale.setScalar(scale);
@@ -125,7 +125,7 @@ export function createWorld(scene){
   let currentState=null;
   function sync(state,powers){
     currentState=state;
-    cardView.sync(state);matchPanel.paint(state);
+    cardView.sync(state);inspection.refresh(state);matchPanel.paint(state);
     if(state.ended)projection.hide();
     if(state.turn===1&&state.phase==='plan'&&!state.cards.some(card=>card.zone==='board'))projection.hide();
     if(projection.group.visible)projection.show(projection.lane,state,true);
