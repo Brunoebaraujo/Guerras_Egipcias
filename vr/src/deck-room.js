@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.10.0';
-import {effectivePresets,initialDecks} from './deck-builder.js?v=1.10.0';
-import {createInspection} from './cards.js?v=1.10.0';
+import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.11.0';
+import {effectivePresets,initialDecks} from './deck-builder.js?v=1.11.0';
+import {createInspection} from './cards.js?v=1.11.0';
 
 const STORAGE_KEY='ge_vr_deck_selection',catalog=[...CARD_CATALOG],FILTERS=[{label:'TODAS',accept:()=>true},...Array.from({length:7},(_,cost)=>({label:`CUSTO ${cost}`,accept:card=>card.cost===cost}))];
 function box(parent,x,y,z,w,h,d,color){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.9,metalness:0}));mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
@@ -13,7 +13,7 @@ function roundRect(ctx,x,y,w,h,r){ctx.beginPath();ctx.moveTo(x+r,y);ctx.lineTo(x
 function fit(ctx,text,maxWidth,start=34,min=15){let size=start;while(size>min){ctx.font=`bold ${size}px sans-serif`;if(ctx.measureText(text).width<=maxWidth)break;size--;}return size;}
 function shuffle(items){const out=items.slice();for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];}return out;}
 
-export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={}){
+export function createDeckRoom(scene,{onStart,onScreenshot,storage=globalThis.localStorage}={}){
  const stage=new THREE.Group();scene.add(stage);const controls=[];
  const shell=new THREE.Mesh(new THREE.ConeGeometry(7.2,5.5,4,1,true),new THREE.MeshStandardMaterial({color:0x40301f,side:THREE.BackSide,roughness:1}));shell.position.set(0,2.65,-2.2);shell.rotation.y=Math.PI/4;stage.add(shell);
  const floor=new THREE.Mesh(new THREE.PlaneGeometry(12,12),new THREE.MeshStandardMaterial({color:0x5c4932,roughness:1}));floor.rotation.x=-Math.PI/2;floor.position.set(0,-.015,-2);stage.add(floor);
@@ -26,14 +26,15 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
  const scrollSurface=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.2),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));scrollSurface.position.set(0,-.14,.012);scrollSurface.userData={kind:'deck-room',id:'scroll-area'};ui.add(scrollSurface);
  const cards=Array.from({length:16},(_,i)=>{const p=textPanel(ui,'card-'+i,.35,.49,{pixelsX:384,pixelsY:512});p.mesh.position.set(-1.47+(i%8)*.42,.28-Math.floor(i/8)*.54,.025);return p;});
  const previous=textPanel(ui,'previous',.34,.18),pageLabel=textPanel(ui,'none',.42,.18),next=textPanel(ui,'next',.34,.18);previous.mesh.position.set(-.4,-.73,.02);pageLabel.mesh.position.set(0,-.73,.02);pageLabel.mesh.raycast=()=>{};next.mesh.position.set(.4,-.73,.02);
- const filterButtons=FILTERS.map((_,i)=>{const p=textPanel(stage,'filter-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.7,-1.55);p.mesh.rotation.x=-Math.PI/2;return p;});
+ const filterButtons=FILTERS.map((_,i)=>{const p=textPanel(stage,'filter-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.7,-1.65);p.mesh.rotation.x=-Math.PI/2;return p;});
  const presetEntries=Object.entries(effectivePresets(storage?.getItem?.('ge_preset_overrides')));
- const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.7,-1.28);p.mesh.rotation.x=-Math.PI/2;return p;});
- const random=textPanel(stage,'random',.78,.2),clear=textPanel(stage,'clear',.66,.2);random.mesh.position.set(-.46,.7,-1);clear.mesh.position.set(.46,.7,-1);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
+ const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.7,-1.38);p.mesh.rotation.x=-Math.PI/2;return p;});
+ const random=textPanel(stage,'random',.78,.2),clear=textPanel(stage,'clear',.66,.2);random.mesh.position.set(-.46,.7,-1.1);clear.mesh.position.set(.46,.7,-1.1);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
  const start=textPanel(stage,'start',1.62,.32,{pixelsX:1024,pixelsY:220});start.mesh.position.set(0,.705,-.76);start.mesh.rotation.x=-Math.PI/2;
+ const screenshot=textPanel(stage,'screenshot',.72,.22);screenshot.mesh.position.set(1.28,.705,-.76);screenshot.mesh.rotation.x=-Math.PI/2;
  const deckPanels=[[-1.42,-.3,Math.PI/2,0],[1.42,-.3,-Math.PI/2,1]].map(([x,z,yaw,deckSide])=>{const group=new THREE.Group();group.position.set(x,0,z);group.rotation.y=yaw;stage.add(group);const panel=textPanel(group,'none',1.1,1.85,{pixelsX:1024,pixelsY:1536});panel.mesh.position.set(0,1.68,0);panel.mesh.raycast=()=>{};const hits=Array.from({length:12},(_,index)=>{const hit=new THREE.Mesh(new THREE.PlaneGeometry(.47,.24),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));const col=Math.floor(index/6),row=index%6;hit.position.set(col? .27:-.27,2.31-row*.276,.025);hit.userData={kind:'deck-room',id:`deck-card-${deckSide}-${index}`,deckSide,cardIndex:index};group.add(hit);return hit;});return {group,panel,hits,deckSide};});
  const inspection=createInspection(stage,{position:[0,1.55,-.98],controlKind:'deck-room'}),detail=inspection.group;inspection.mesh.userData={kind:'deck-room',id:'detail-body'};
- controls.push(...sideButtons.map(p=>p.mesh),scrollSurface,...cards.map(p=>p.mesh),previous.mesh,next.mesh,...filterButtons.map(p=>p.mesh),...presetButtons.map(p=>p.mesh),random.mesh,clear.mesh,start.mesh,...deckPanels.flatMap(panel=>panel.hits),inspection.mesh,...inspection.targets);
+ controls.push(...sideButtons.map(p=>p.mesh),scrollSurface,...cards.map(p=>p.mesh),previous.mesh,next.mesh,...filterButtons.map(p=>p.mesh),...presetButtons.map(p=>p.mesh),random.mesh,clear.mesh,start.mesh,screenshot.mesh,...deckPanels.flatMap(panel=>panel.hits),inspection.mesh,...inspection.targets);
  const artImages=new Map();
  let decks=initialDecks(storage?.getItem?.(STORAGE_KEY)),side=0,row=0,filterIndex=0,detailKey=null,drag=null,message='Use os filtros na mesa. Clique em uma carta para examiná-la.';
  function persist(){try{storage?.setItem?.(STORAGE_KEY,JSON.stringify({v:1,decks}));}catch{}}
@@ -49,7 +50,7 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
   paintButton(sideButtons[0],`SEU DECK · ${decks[0].length}/12`,{active:side===0});paintButton(sideButtons[1],`DECK DO BOT · ${decks[1].length}/12`,{active:side===1,accent:'#7dd3fc'});
   const offset=row*8;cards.forEach((panel,i)=>paintCard(panel,visibleCatalog[offset+i],offset+i));paintButton(previous,'▲',{enabled:row>0});paintButton(next,'▼',{enabled:row<maxRow});paintButton(pageLabel,`${row+1} / ${maxRow+1}`,{small:true});deckPanels.forEach(paintDeckPanel);
   filterButtons.forEach((button,i)=>paintButton(button,FILTERS[i].label,{active:i===filterIndex,fontSize:56}));presetButtons.forEach((button,i)=>{const [name,cards]=presetEntries[i],active=decks[side].length===cards.length&&decks[side].every((key,index)=>key===cards[index]);paintButton(button,name.toUpperCase(),{active,fontSize:56,accent:'#d8b46d'});});
-  paintButton(random,'ALEATÓRIO',{fontSize:64});paintButton(clear,'LIMPAR',{fontSize:64});paintButton(start,'INICIAR PARTIDA',{active:validateDecks(decks).ok,enabled:validateDecks(decks).ok});
+  paintButton(random,'ALEATÓRIO',{fontSize:64});paintButton(clear,'LIMPAR',{fontSize:64});paintButton(start,'INICIAR PARTIDA',{active:validateDecks(decks).ok,enabled:validateDecks(decks).ok});paintButton(screenshot,'FOTO EM 3S',{fontSize:42,accent:'#79dce8'});
   if(detailKey){const card=catalog.find(item=>item.key===detailKey),selected=decks[side].includes(card.key);inspection.show({...card,id:'deck-detail',hidden:false},[{action:selected?'detail-remove':'detail-add',label:selected?'RETIRAR':'ADICIONAR',enabled:selected||decks[side].length<DECK_SIZE}]);}else inspection.hide();
  }
  function activate(id,object){
@@ -63,6 +64,7 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
   if(id==='detail-remove'){const card=catalog.find(item=>item.key===detailKey),index=decks[side].indexOf(card?.key);if(index<0)return;decks[side].splice(index,1);message=`${card.name} retirada.`;detailKey=null;persist();render();return;}
   if(id==='random'){decks[side]=shuffle(catalog).slice(0,DECK_SIZE).map(card=>card.key);message='Deck aleatório montado.';persist();render();return;}
   if(id==='clear'){decks[side]=[];message='Deck limpo.';persist();render();return;}
+  if(id==='screenshot'){onScreenshot?.();return;}
   if(id==='start'){const valid=validateDecks(decks);if(!valid.ok){message=valid.reason;render();return;}persist();const result=onStart?.(decks.map(deck=>deck.slice()));if(result?.ok===false){message=result.reason;render();return;}stage.visible=false;}
  }
  function navigate(delta){const maxRow=Math.max(0,Math.ceil(filteredCards().length/8)-2),next=Math.max(0,Math.min(maxRow,row+Math.sign(delta)));if(next===row)return false;row=next;message=`Coleção · posição ${row+1} de ${maxRow+1}.`;render();return true;}
@@ -71,5 +73,5 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
  function pointerMove(source,ray){if(!drag||drag.source!==source)return false;ui.updateWorldMatrix(true,false);ui.getWorldPosition(dragOrigin);ui.getWorldQuaternion(dragQuaternion);dragNormal.set(0,0,1).applyQuaternion(dragQuaternion);dragPlane.setFromNormalAndCoplanarPoint(dragNormal,dragOrigin);if(!ray.intersectPlane(dragPlane,dragPoint))return false;const y=ui.worldToLocal(dragPoint).y,steps=Math.trunc((y-drag.startY)/.1),maxRow=Math.max(0,Math.ceil(filteredCards().length/8)-2),next=Math.max(0,Math.min(maxRow,drag.startRow+steps));if(next!==row){row=next;drag.moved=true;message=`Coleção · posição ${row+1} de ${maxRow+1}.`;render();}return true;}
  function pointerEnd(source){if(!drag||drag.source!==source)return false;const finished=drag;drag=null;if(!finished.moved&&finished.id.startsWith('card-'))activate(finished.id,finished.object);return true;}
  render();
- return {stage,controls,detail,deckPanels,activate,navigate,pointerStart,pointerMove,pointerEnd,isDragging:source=>drag?.source===source,show(){stage.visible=true;render();},hide(){drag=null;stage.visible=false;},alignFrom(source){stage.position.copy(source.position);stage.rotation.copy(source.rotation);stage.updateMatrixWorld(true);},setDecks(next){if(validateDecks(next).ok){decks=next.map(deck=>deck.slice());persist();render();}},get visible(){return stage.visible;},get page(){return row;},get detailKey(){return detailKey;},get filter(){return FILTERS[filterIndex].label;},getDecks:()=>decks.map(deck=>deck.slice())};
+ return {stage,controls,detail,deckPanels,activate,navigate,pointerStart,pointerMove,pointerEnd,isDragging:source=>drag?.source===source,show(){stage.visible=true;render();},hide(){drag=null;stage.visible=false;},alignFrom(source){stage.position.copy(source.position);stage.rotation.copy(source.rotation);stage.updateMatrixWorld(true);},setDecks(next){if(validateDecks(next).ok){decks=next.map(deck=>deck.slice());persist();render();}},notify(text){message=text;render();},get visible(){return stage.visible;},get message(){return message;},get page(){return row;},get detailKey(){return detailKey;},get filter(){return FILTERS[filterIndex].label;},getDecks:()=>decks.map(deck=>deck.slice())};
 }

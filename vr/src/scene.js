@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.10.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.11.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -84,6 +84,7 @@ export function createWorld(scene){
   const skipButton=button('skip','PULAR ALVO',0,.095,.42);skipButton.mesh.visible=false;
   button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);
   button('recenter','AJUSTAR POSIÇÃO',1.3,-.93,.32);
+  button('screenshot','FOTO EM 3S',1.3,-.27,.3,40);
   const performance=label(.38,.13,1.31,.06,-1.19,['DESEMPENHO','Aguardando']);
   for(let lane=0;lane<3;lane++){
     const hit=mesh(table,new THREE.PlaneGeometry(.61,.59),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}), (lane-1)*.67,.046,-1.56);
@@ -146,5 +147,5 @@ export function createWorld(scene){
   function clearSelected(){cardView.clearSelected();}
   function setHandMounted(value){cardView.setMounted(value);energy.mesh.rotation.x=value?-.35:-.74;}
   const cardTargets=[...cards.flatMap(card=>[card.mesh,card.badge]),...projection.targets];
-  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,roundBanner,energy,matchPanel,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,attachSelected,clearSelected,setHandMounted};
+  return {stage,table,hand,opponent,slots,slotMesh,cards,cardTargets,controls,hologram,performance,laneLabels,roundBanner,energy,deckLabel,matchPanel,highlight,sync,update,message,arrangeHand,river,inspection,projection,showOpponentLane,attachSelected,clearSelected,setHandMounted};
 }
