@@ -36,7 +36,7 @@ test('cards attached to left grip remain pickable from right controller',()=>{
  const scene=new THREE.Scene(),world=createWorld(scene),core=new MatchCore({seed:123});world.sync(core.snapshot(),core.powers());
  const grip=new THREE.Group();scene.add(grip);grip.position.set(-.24,1.05,-.35);grip.add(world.hand);world.hand.position.set(0,.18,-.06);world.hand.rotation.y=.65;world.setHandMounted(true);scene.updateMatrixWorld(true);
  const visible=world.cards.filter(c=>c.mesh.visible);
- for(const card of visible){const origin=new THREE.Vector3(.25,1.05,-.2),target=card.mesh.localToWorld(new THREE.Vector3(.09,-.12,0));const ray=new THREE.Raycaster(origin,target.sub(origin).normalize());const hits=ray.intersectObjects(visible.map(c=>c.mesh));assert.equal(hits[0]?.object.userData.id,card.definition.id);}
+ for(const [index,card] of visible.entries()){const origin=new THREE.Vector3(.25,1.05,-.2),target=card.mesh.localToWorld(new THREE.Vector3(-.08,index===visible.length-1?.124:-.124,0));const ray=new THREE.Raycaster(origin,target.sub(origin).normalize());const hits=ray.intersectObjects(visible.map(c=>c.mesh));assert.equal(hits[0]?.object.userData.id,card.definition.id);}
  const before=visible[0].mesh.getWorldPosition(new THREE.Vector3());grip.position.x+=.2;scene.updateMatrixWorld(true);const after=visible[0].mesh.getWorldPosition(new THREE.Vector3());assert.ok(Math.abs(after.x-before.x-.2)<1e-6);
 });
 

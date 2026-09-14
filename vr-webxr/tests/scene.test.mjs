@@ -9,7 +9,7 @@ test('24 slots, bounded card pool and desktop picking for every hand card',()=>{
  const scene=new THREE.Scene(),w=createWorld(scene),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());scene.updateMatrixWorld(true);
  assert.equal(w.slots.length,24);assert.equal(w.cards.length,32);
  const ray=new THREE.Raycaster(),origin=new THREE.Vector3(0,2.7,2.1);
- for(const card of w.cards.filter(c=>c.mesh.visible)){const target=card.mesh.localToWorld(new THREE.Vector3(.09,-.12,0));ray.set(origin,target.sub(origin).normalize());const hit=ray.intersectObjects(w.cards.filter(c=>c.mesh.visible).map(c=>c.mesh));assert.equal(hit[0].object.userData.id,card.definition.id);}
+ const visibleCards=w.cards.filter(c=>c.mesh.visible);for(const [index,card] of visibleCards.entries()){const target=card.mesh.localToWorld(new THREE.Vector3(-.08,index===visibleCards.length-1?.124:-.124,0));ray.set(origin,target.sub(origin).normalize());const hit=ray.intersectObjects(visibleCards.map(c=>c.mesh));assert.equal(hit[0].object.userData.id,card.definition.id);}
  for(let i=0;i<24;i++){const pos=w.table.localToWorld(w.slots[i].position.clone());ray.set(pos.clone().add(new THREE.Vector3(0,1,0)),new THREE.Vector3(0,-1,0));assert.equal(ray.intersectObject(w.slotMesh)[0].instanceId,i);}
 });
 test('card pool follows state changes and hides all unused meshes',()=>{
@@ -19,9 +19,9 @@ test('card pool follows state changes and hides all unused meshes',()=>{
  c.command('reset');sync();assert.equal(w.cards.filter(c=>c.mesh.visible).length,4);assert.ok(w.cards.filter(c=>c.mesh.visible).every(c=>c.mesh.parent===w.hand));
  w.setHandMounted(true);assert.equal(w.cards[0].mesh.rotation.x,-.35);
 });
-test('hand fan rises from the first left card to the newest right card',()=>{
+test('hand fan keeps draw order in depth while following a centered arc',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());const fan=c.snapshot().hand.map(id=>w.cards.find(card=>card.definition.id===id));
- assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.y>fan[i-1].home.y);assert.ok(fan[i].home.z>fan[i-1].home.z);}
+ assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));
 });
 test('floating lane totals, elevated round banner and hand energy stay readable',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:41});w.sync(c.snapshot(),c.powers());

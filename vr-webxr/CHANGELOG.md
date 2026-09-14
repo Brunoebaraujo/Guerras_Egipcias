@@ -1,3 +1,12 @@
+# 1.7.0 — painéis de deck e foco integral
+
+- O foco do laser cobre toda a superfície atingida em primeiro plano, além do ponto luminoso, e o feixe termina no contato.
+- Enquanto uma carta está na mão direita, o laser ignora as cartas e alcança a mesa para acompanhar a via realçada.
+- A câmara ganha um painel à esquerda para o deck do jogador e outro à direita para o deck do bot, com as 12 cartas escolhidas.
+- Selecionar uma carta dos painéis apenas abre sua inspeção; RETIRAR continua sendo uma ação separada.
+- A inspeção da câmara usa a mesma moldura e composição da partida e fica 39 cm mais baixa.
+- O leque mantém a ordem de profundidade, mas volta a formar um arco suave em vez de uma escada vertical.
+
 # 1.6.0 — leitura, apontador e ordem da mão
 
 - O texto da carta ampliada fica centralizado e preto dentro da área reservada da moldura.
