@@ -1,3 +1,10 @@
+# 1.8.0 — decks laterais e leque em camadas
+
+- Os painéis dos decks saem da parede frontal: ficam à esquerda e à direita do jogador, girados 90° e voltados para o centro da câmara.
+- Cada painel ordena suas cartas por custo crescente, preenchendo primeiro a coluna esquerda de cima para baixo e depois a direita.
+- A projeção de inspeção desce mais 31 cm e fecha ao clicar fora dela ou depois de ADICIONAR/RETIRAR.
+- O leque mantém o arco físico e usa uma ordem explícita de desenho, garantindo que cada carta nova permaneça sobre todas as anteriores.
+
 # 1.7.0 — painéis de deck e foco integral
 
 - O foco do laser cobre toda a superfície atingida em primeiro plano, além do ponto luminoso, e o feixe termina no contato.

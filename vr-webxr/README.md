@@ -1,15 +1,15 @@
-# Guerras Egípcias VR — demo jogável 1.7.0
+# Guerras Egípcias VR — demo jogável 1.8.0
 
 Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
 
 ## Jogar no Quest 2
 
-Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.7.0 no navegador do Quest e confira **VR / 1.7.0**.
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.8.0 no navegador do Quest e confira **VR / 1.8.0**.
 
 1. Pressione **Entrar na câmara em VR**. A escolha acontece dentro de uma câmara de pirâmide, diante de uma mesa esculpida em pedra.
 2. Use o controle direito para selecionar **Seu deck** ou **Deck do bot**.
 3. Escolha um dos oito presets na mesa ou monte manualmente cada lista. O preset carregado fica iluminado. As listas e a ordem das cartas são as mesmas de `DEFAULT_PRESETS` da versão desktop. Filtros e presets ficam agrupados perto de **Iniciar partida**. O paredão mostra oito cartas por linha; segure uma carta ou o espaço entre elas e arraste para cima ou para baixo.
-4. O painel à esquerda mostra somente as cartas do seu deck e o painel à direita mostra somente as cartas do bot. Selecione qualquer carta do paredão ou desses painéis para abrir a mesma projeção usada durante a partida, agora mais baixa. A seleção nunca altera o deck sozinha: use **Adicionar** ou **Retirar** depois da leitura.
+4. Vire-se para a esquerda para ver somente as cartas do seu deck e para a direita para ver somente as cartas do bot. Os painéis ficam a 90° da parede frontal e ordenam as cartas por custo, de cima para baixo na coluna esquerda e depois na direita. Selecione qualquer carta do paredão ou desses painéis para abrir a mesma projeção usada durante a partida, agora mais baixa. A seleção nunca altera o deck sozinha: use **Adicionar** ou **Retirar** depois da leitura. A projeção fecha após a ação ou ao selecionar qualquer área externa.
 5. Cada lado precisa de 12 cartas únicas. Pressione o botão grande **Iniciar partida** sobre a frente da mesa de pedra.
 6. A câmara dá lugar ao tabuleiro e abre o ajuste de posição. Confirme **JOGAR** para começar.
 7. Levante o controle esquerdo para ver o leque e use o direito para escolher cartas e vias.
@@ -29,7 +29,7 @@ Escaravelho pode ser selecionado no tabuleiro e movido para outra via quando sua
 
 Selecione qualquer carta sua ou do bot no tabuleiro para abrir uma reprodução ampliada da carta desktop à sua frente. A projeção mantém moldura, arte, custo e Poder nos vértices superiores, tipo e texto preto centralizado na área inferior. Cartas ocultas continuam mostrando somente o verso. Para mover ou devolver uma carta própria, use o botão exibido no corpo da projeção. Hu revelado também apresenta **ATIVAR**; o botão aciona a habilidade real no motor e muda para **DESATIVAR** enquanto ela aguarda a próxima carta.
 
-As mãos são modelos 3D leves de manoplas, ligados aos controles Touch; não há rastreamento óptico dos dedos. A mão direita é a única que ativa cartas e botões. Seu laser termina no primeiro controle atingido e aplica uma camada luminosa sobre toda a superfície em foco. Ao segurar uma carta, o feixe ignora as cartas e alcança a mesa, acompanhando a via realçada. Troca de mão ainda não está incluída. Incline o pulso esquerdo para ajustar o ângulo das cartas. O leque forma um arco e mantém a ordem de profundidade, com a carta comprada por último à frente. A mão flutuante anterior permanece como fallback desktop ou na ausência do controle esquerdo.
+As mãos são modelos 3D leves de manoplas, ligados aos controles Touch; não há rastreamento óptico dos dedos. A mão direita é a única que ativa cartas e botões. Seu laser termina no primeiro controle atingido e aplica uma camada luminosa sobre toda a superfície em foco. Ao segurar uma carta, o feixe ignora as cartas e alcança a mesa, acompanhando a via realçada. Troca de mão ainda não está incluída. Incline o pulso esquerdo para ajustar o ângulo das cartas. O leque forma um arco e usa camadas explícitas: cada carta nova permanece visualmente sobre todas as anteriores. A mão flutuante anterior permanece como fallback desktop ou na ausência do controle esquerdo.
 
 ## Desktop
 

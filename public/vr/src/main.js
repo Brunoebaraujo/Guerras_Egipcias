@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.7.0';
-import {createWorld} from './scene.js?v=1.7.0';
-import {createCalibration} from './calibration.js?v=1.7.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.7.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.7.0';
-import {createDeckRoom} from './deck-room.js?v=1.7.0';
-import {registerTools} from './webmcp.js?v=1.7.0';
+import {MatchCore} from './core.js?v=1.8.0';
+import {createWorld} from './scene.js?v=1.8.0';
+import {createCalibration} from './calibration.js?v=1.8.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.8.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.8.0';
+import {createDeckRoom} from './deck-room.js?v=1.8.0';
+import {registerTools} from './webmcp.js?v=1.8.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -83,7 +83,7 @@ function begin(source){
   rayFor(source);
   const panelAction=calibration.press(raycaster);
   if(panelAction){world.projection.hide();if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
-  if(deckRoom.visible){const hit=pick(source);if(hit?.object.userData.kind==='deck-room')deckRoom.pointerStart(source,hit);return;}
+  if(deckRoom.visible){const hit=pick(source);deckRoom.pointerStart(source,hit?.object.userData.kind==='deck-room'?hit:null);return;}
   if(held){
     if(held.source!==source)return;
     const replacementHit=pick(source,held.card.definition.id);
@@ -218,7 +218,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.7.0',events:core,
+  version:'1.8.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

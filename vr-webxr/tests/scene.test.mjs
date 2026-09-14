@@ -21,7 +21,7 @@ test('card pool follows state changes and hides all unused meshes',()=>{
 });
 test('hand fan keeps draw order in depth while following a centered arc',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());const fan=c.snapshot().hand.map(id=>w.cards.find(card=>card.definition.id===id));
- assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));
+ assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);assert.ok(fan[i].mesh.renderOrder>fan[i-1].mesh.renderOrder);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));assert.ok(fan.every(card=>card.mesh.material===w.cards[0].mesh.material&&card.mesh.material.depthTest===false));
 });
 test('floating lane totals, elevated round banner and hand energy stay readable',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:41});w.sync(c.snapshot(),c.powers());
