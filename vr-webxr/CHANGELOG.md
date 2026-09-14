@@ -1,3 +1,10 @@
+# 1.11.0 — captura da visão e hierarquia integral
+
+- Os filtros, presets, **ALEATÓRIO** e **LIMPAR** sobem mais na mesa da câmara; **INICIAR PARTIDA** mantém sua posição aprovada.
+- Totais das vias, painel da partida e resultado, Poderes individuais e contador do deck ficam atrás das duas mãos e de suas cartas.
+- **FOTO EM 3S** aparece sob o deck na partida e ao lado de **INICIAR PARTIDA** na câmara.
+- A captura usa a visão do headset após três segundos, tenta copiar o PNG e salva o arquivo quando a área de transferência não aceita imagens.
+
 # 1.10.0 — controles contidos e cartas em primeiro plano
 
 - Filtros, presets e ações sobem na superfície da mesa da câmara; **INICIAR PARTIDA** fica inteiramente dentro da pedra.

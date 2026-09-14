@@ -21,7 +21,7 @@ test('card pool follows state changes and hides all unused meshes',()=>{
 });
 test('hand fan keeps draw order in depth while following a centered arc',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());const fan=c.snapshot().hand.map(id=>w.cards.find(card=>card.definition.id===id));
- assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);assert.ok(fan[i].mesh.renderOrder>fan[i-1].mesh.renderOrder);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));assert.ok(fan.every(card=>card.mesh.material===w.cards[0].mesh.material&&card.mesh.material.depthTest===false&&card.mesh.renderOrder>=340));
+ assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);assert.ok(fan[i].mesh.renderOrder>fan[i-1].mesh.renderOrder);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));assert.ok(fan.every(card=>card.mesh.material===w.cards[0].mesh.material&&card.mesh.material.transparent===true&&card.mesh.material.depthTest===false&&card.mesh.renderOrder>=340));
 });
 test('floating lane totals, elevated round banner and hand energy stay readable',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:41});w.sync(c.snapshot(),c.powers());
@@ -42,7 +42,7 @@ test('opponent lane projection works for all lanes in a frontmost 2x2 layout',()
 });
 test('final result panel becomes a large centered projection over the Nile',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:8}),state=c.snapshot();state.ended=true;state.result={side:0,tiebreak:false,margin:0};state.wins=[2,1];w.sync(state,state.powers);
- assert.equal(w.matchPanel.mesh.position.x,0);assert.equal(w.matchPanel.mesh.position.z,-1.05);assert.ok(w.matchPanel.mesh.position.y>.7);assert.ok(w.matchPanel.mesh.scale.x>=1.65);assert.equal(w.matchPanel.mesh.material.transparent,true);assert.equal(w.matchPanel.mesh.userData.resultLayout,'three-columns');assert.equal(w.roundBanner.mesh.visible,false);assert.ok(w.matchPanel.mesh.renderOrder>w.projection.title.renderOrder);
+ assert.equal(w.matchPanel.mesh.position.x,0);assert.equal(w.matchPanel.mesh.position.z,-1.05);assert.ok(w.matchPanel.mesh.position.y>.7);assert.ok(w.matchPanel.mesh.scale.x>=1.65);assert.equal(w.matchPanel.mesh.material.transparent,true);assert.equal(w.matchPanel.mesh.userData.resultLayout,'three-columns');assert.equal(w.roundBanner.mesh.visible,false);assert.ok(w.matchPanel.mesh.renderOrder>w.projection.title.renderOrder&&w.matchPanel.mesh.renderOrder<330);
 });
 test('an unaffordable hand card can still move to the right grip for reading',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:0});w.sync(c.snapshot(),c.powers());const id=c.snapshot().hand.find(id=>c.validSlots(id).length===0),card=w.cards.find(card=>card.definition.id===id),grip=new THREE.Group();
@@ -60,8 +60,11 @@ test('game card inspection uses a frontmost portrait card and exposes body actio
 });
 test('right hand exclusively activates controls and draws in front of the left hand',()=>{
  assert.equal(canInteract('mouse'),true);assert.equal(canInteract({userData:{inputSource:{handedness:'right'}}}),true);assert.equal(canInteract({userData:{inputSource:{handedness:'left'}}}),false);assert.equal(canInteract({}),false);
- const left=createGauntlet('left'),right=createGauntlet('right');for(const hand of [left,right]){assert.ok(hand.children.length>=4);assert.ok(hand.children.length<10);const bounds=new THREE.Box3().setFromObject(hand);assert.ok(bounds.getSize(new THREE.Vector3()).length()<.3);assert.ok(hand.children.every(mesh=>mesh.material.depthTest===false&&mesh.material.depthWrite===false));}assert.ok(Math.min(...right.children.map(mesh=>mesh.renderOrder))>Math.max(...left.children.map(mesh=>mesh.renderOrder)));
+ const left=createGauntlet('left'),right=createGauntlet('right');for(const hand of [left,right]){assert.ok(hand.children.length>=4);assert.ok(hand.children.length<10);const bounds=new THREE.Box3().setFromObject(hand);assert.ok(bounds.getSize(new THREE.Vector3()).length()<.3);assert.ok(hand.children.every(mesh=>mesh.material.transparent===true&&mesh.material.depthTest===false&&mesh.material.depthWrite===false));}assert.ok(Math.min(...right.children.map(mesh=>mesh.renderOrder))>Math.max(...left.children.map(mesh=>mesh.renderOrder)));
 });
 test('match controls include chamber return and larger primary labels',()=>{
- const w=createWorld(new THREE.Scene()),byId=id=>w.controls.find(mesh=>mesh.userData.id===id),buttons=w.controls.filter(mesh=>mesh.userData.kind==='button');assert.ok(byId('lobby'));assert.ok(byId('reset').userData.fontSize>=48);assert.ok(byId('end').userData.fontSize>=48);assert.ok(buttons.every(mesh=>mesh.material.transparent===false&&mesh.renderOrder<330&&mesh.userData.depthLayer==='table'));
+ const w=createWorld(new THREE.Scene()),byId=id=>w.controls.find(mesh=>mesh.userData.id===id),buttons=w.controls.filter(mesh=>mesh.userData.kind==='button');assert.ok(byId('lobby'));assert.ok(byId('screenshot'));assert.ok(byId('reset').userData.fontSize>=48);assert.ok(byId('end').userData.fontSize>=48);assert.ok(buttons.every(mesh=>mesh.material.transparent===false&&mesh.renderOrder<330&&mesh.userData.depthLayer==='table'));
+});
+test('all game information panels stay below both hand layers',()=>{
+ const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:4}),state=c.snapshot();state.ended=true;state.result={side:0,tiebreak:false,margin:0};state.wins=[2,1];w.sync(state,state.powers);const indicators=[...w.laneLabels.map(label=>label.mesh),w.matchPanel.mesh,w.deckLabel.mesh,...w.cards.map(card=>card.badge)];assert.ok(indicators.every(mesh=>mesh.renderOrder<330));
 });

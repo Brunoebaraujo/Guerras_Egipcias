@@ -4,7 +4,7 @@ export function createCardView(table,hand,slots){
  const canvas=document.createElement('canvas');canvas.width=2048;canvas.height=2048;
  const ctx=canvas.getContext('2d'),texture=new THREE.CanvasTexture(canvas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=2;
  const material=new THREE.MeshBasicMaterial({map:texture,side:THREE.DoubleSide});
- const handMaterial=material.clone();handMaterial.depthTest=false;handMaterial.depthWrite=false;
+ const handMaterial=material.clone();handMaterial.transparent=true;handMaterial.depthTest=false;handMaterial.depthWrite=false;
  const images=new Map(),cards=[];let state=null,mounted=false,focusedId=null;
  const powerCanvas=document.createElement('canvas');powerCanvas.width=1024;powerCanvas.height=512;
  const powerCtx=powerCanvas.getContext('2d'),powerTexture=new THREE.CanvasTexture(powerCanvas);powerTexture.colorSpace=THREE.SRGBColorSpace;
@@ -119,5 +119,5 @@ export function createMatchPanel(parent){
   ctx.font='34px sans-serif';ctx.fillStyle='#80e4ef';ctx.fillText('Revela primeiro: '+(s.priority===0?'você':'bot'),35,120);
   ctx.fillStyle='#edf4ee';ctx.font='32px sans-serif';const rows=s.phase==='plan'?['1. Escolha uma carta na mão esquerda.','2. Aponte a direita para uma via.','3. Confirme com o gatilho direito.','Finalize para revelar os dois lados.']:['FILA · '+s.queue.remaining+' por revelar',...s.queue.items.slice(0,3).map((c,i)=>(i+1)+'. '+(c.owner===0?'Você':'Bot')+' · '+c.name+' · via '+(c.lane+1)),s.effect||'Resolvendo efeitos…'];rows.forEach((line,i)=>ctx.fillText(line,35,195+i*58,954));
  }
- return {mesh,paint(s){if(s.ended){mesh.position.set(0,.78,-1.05);mesh.rotation.set(0,0,0);mesh.scale.set(1.8,1.8,1.8);mesh.renderOrder=500;}else{mesh.position.set(1.55,.65,-1.3);mesh.rotation.set(-.15,-.25,0);mesh.scale.set(1,1,1);mesh.renderOrder=80;}ctx.fillStyle='#112733';ctx.fillRect(0,0,1024,512);ctx.strokeStyle='#c7aa6b';ctx.lineWidth=7;ctx.strokeRect(5,5,1014,502);if(s.ended)paintResult(s);else paintMatch(s);texture.needsUpdate=true;}};
+ return {mesh,paint(s){if(s.ended){mesh.position.set(0,.78,-1.05);mesh.rotation.set(0,0,0);mesh.scale.set(1.8,1.8,1.8);mesh.renderOrder=250;}else{mesh.position.set(1.55,.65,-1.3);mesh.rotation.set(-.15,-.25,0);mesh.scale.set(1,1,1);mesh.renderOrder=80;}ctx.fillStyle='#112733';ctx.fillRect(0,0,1024,512);ctx.strokeStyle='#c7aa6b';ctx.lineWidth=7;ctx.strokeRect(5,5,1014,502);if(s.ended)paintResult(s);else paintMatch(s);texture.needsUpdate=true;}};
 }
