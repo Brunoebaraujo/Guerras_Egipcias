@@ -1,0 +1,77 @@
+/* Ovo de Ammit + Ammit, a Devoradora — dupla de sacrifício/consumo. Módulo
+   próprio (padrão de lamina-oferenda.js / sekhem.js / ladrao-de-ka.js) para
+   não inchar ainda mais o catálogo monolítico de engine.js.
+
+   FLUXO DO COMBO:
+   1. Ovo de Ammit (1/1, custo 1) é jogado como fodder barato comum — igual a
+      qualquer outra carta de sacrifício do arquétipo.
+   2. Quando o Ovo morre — por sacrifício, combate de via, o que for — em vez
+      de ir para a pilha de destruídas, ele volta para a MÃO do dono já como
+      Ammit, a Devoradora. Isso usa o efeito `transformToHandOnDeath`,
+      resolvido no mesmo canal `beforeDeath` que já atende Múmia/Bennu (ver
+      handler "ovo-ammit-transform" e o loop generalizado em `destroyList()`,
+      ambos em engine.js).
+   3. Ammit, a Devoradora (0/4, custo 4) é uma FICHA — nunca aparece em deck
+      nem na Galeria, só nasce do Ovo. Ao entrar, destrói todos os OUTROS
+      aliados na via e ABSORVE o Poder total deles — reaproveita
+      `{ id: "sacrificeLane", absorb: true }`, o MESMO efeito que a Apófis já
+      usa (`resolveDestroyOwnLane` com `absorb: true`; rótulo genérico
+      "Absorção", sem acoplamento a Sobek). Cada aliado devorado ainda dispara
+      o próprio efeito de morte antes de ser contado na absorção, o que faz
+      da Ammit o gatilho que ativa vários sacrifícios pendentes de uma vez —
+      o "botão de detonar" do arquétipo — e sai da via mais forte quanto mais
+      fundo o combo for, exatamente como a lore already promete ("quanto mais
+      devorava, mais faminta e vasta se tornava").
+
+   CONVENÇÕES QUEBRADAS DE PROPÓSITO, E POR QUÊ:
+   - `key: "ammit"` não tem o prefixo `token-` usado pelas demais fichas: ela
+     REAPROVEITA a chave, a arte (`ammit.webp`) e a lore da carta antiga
+     "Ammit, a Devoradora" (hoje renomeada para Heh, o Infinito — ver
+     engine.js). Trocar a chave quebraria essa herança sem ganho nenhum.
+   - Custo 4, não 1: assim como o token-gafanhoto (custo 3), fichas com efeito
+     forte na entrada não seguem a convenção de custo 1 (alcance de Sekhmet /
+     bênção de Nut) — aqui o design é deliberadamente caro e definitivo. */
+
+export const OVO_DE_AMMIT = {
+  key: "ovo-ammit",
+  nome: "Ovo de Ammit",
+  nomeCurto: "Ovo",
+  tipo: "Criatura",
+  custo: 1,
+  poder: 1,
+  arch: "renascimento",
+  arte: "ovo-ammit",
+  arteFoco: "center 0%", // o brilho do topo da casca chega perto do corte
+  trigger: "morrer",
+  efeitos: [{ id: "transformToHandOnDeath", into: "ammit" }],
+  texto: "Ao Morrer: volta para sua mão como Ammit, a Devoradora.",
+  lore: "Antes da fome, o silêncio da casca. Tudo que Ammit viria a ser — crocodilo, leão, hipopótamo — já estava ali dentro, esperando a primeira morte para eclodir.",
+};
+
+export const AMMIT_DEVORADORA = {
+  key: "ammit",
+  nome: "Ammit, a Devoradora",
+  nomeCurto: "Ammit",
+  tipo: "Criatura",
+  custo: 4,
+  poder: 0,
+  arch: "sacrificio",
+  arte: "ammit",
+  token: true,
+  trigger: "entrar",
+  efeitos: [{ id: "sacrificeLane", absorb: true }],
+  texto: "Ao Entrar: destrói todos os outros aliados nesta via e ganha o Poder total deles.",
+  lore: "À sombra da balança, Ammit aguardava o veredito: todo coração mais pesado que a pena de Maat era seu. Crocodilo, leão e hipopótamo num só corpo, sua fome jamais se saciava — quanto mais devorava, mais faminta e vasta se tornava.",
+};
+
+export function registrarAmmitDevoradora(cards, tokens, byKey) {
+  if (!byKey[OVO_DE_AMMIT.key]) {
+    cards.push(OVO_DE_AMMIT);
+    byKey[OVO_DE_AMMIT.key] = OVO_DE_AMMIT;
+  }
+  if (!byKey[AMMIT_DEVORADORA.key]) {
+    tokens.push(AMMIT_DEVORADORA);
+    byKey[AMMIT_DEVORADORA.key] = AMMIT_DEVORADORA;
+  }
+  return { ovo: OVO_DE_AMMIT, ammit: AMMIT_DEVORADORA };
+}

@@ -1,0 +1,111 @@
+# Guerras Egípcias VR — demo jogável 1.11.0
+
+Partida local completa contra o bot Fácil da main, com seis rodadas. Usa os módulos originais de regras, efeitos, compra, energia, prioridade, fila de revelação, pontuação e resultado. Sem multiplayer ou contas.
+
+## Jogar no Quest 2
+
+Abra https://brunoebaraujo.github.io/Guerras_Egipcias/vr/?v=1.11.0 no navegador do Quest e confira **VR / 1.11.0**.
+
+1. Pressione **Entrar na câmara em VR**. A escolha acontece dentro de uma câmara de pirâmide, diante de uma mesa esculpida em pedra.
+2. Use o controle direito para selecionar **Seu deck** ou **Deck do bot**.
+3. Escolha um dos oito presets na mesa ou monte manualmente cada lista. O preset carregado fica iluminado. As listas e a ordem das cartas são as mesmas de `DEFAULT_PRESETS` da versão desktop. Filtros e presets ficam agrupados perto de **Iniciar partida**. O paredão mostra oito cartas por linha; segure uma carta ou o espaço entre elas e arraste para cima ou para baixo.
+4. Vire-se para a esquerda para ver somente as cartas do seu deck e para a direita para ver somente as cartas do bot. Os painéis ficam a 90° da parede frontal e ordenam as cartas por custo, de cima para baixo na coluna esquerda e depois na direita. Selecione qualquer carta do paredão ou desses painéis para abrir a mesma projeção usada durante a partida, agora mais baixa. A seleção nunca altera o deck sozinha: use **Adicionar** ou **Retirar** depois da leitura. A projeção fecha após a ação ou ao selecionar qualquer área externa.
+5. Cada lado precisa de 12 cartas únicas. Pressione o botão grande **Iniciar partida**, inteiramente apoiado sobre a frente da mesa de pedra. **Aleatório** e **Limpar** usam letras maiores para leitura no Quest 2. Os demais controles ficam mais acima na mesa, mantendo **Iniciar partida** no lugar.
+6. A câmara dá lugar ao tabuleiro e abre o ajuste de posição. Confirme **JOGAR** para começar.
+7. Levante o controle esquerdo para ver o leque e use o direito para escolher cartas e vias.
+8. Pressione **FINALIZAR TURNO**. O bot joga usando o deck escolhido, as cartas são reveladas em ordem e os efeitos são aplicados pelo motor original. Use **VOLTAR À CÂMARA** no centro da mesa para trocar os decks sem sair do modo VR.
+
+No desktop, **Jogar no desktop** mantém o construtor 2D como fallback.
+
+O Poder atual aparece em um medalhão acima de cada carta na mesa. Os totais de cada via ficam em placas ovais flutuantes, sem mastros, nas duas cabeceiras. A rodada aparece em um letreiro grande e elevado sobre o Nilo; o painel abaixo do leque mostra somente a energia. Ao selecionar uma carta, ela sai do leque, passa para a mão direita, aumenta de tamanho e mostra na própria face seu custo, Poder e texto de efeito.
+
+Uma carta cara também pode ser examinada. Se ela não puder ser jogada na rodada atual, nenhuma via será iluminada e a carta continuará na mão direita. Selecione outra carta no leque ou finalize o turno para passar.
+
+Selecione a cabeceira ou uma área livre de qualquer via do bot para abrir, diante do jogador, uma projeção vertical das cartas, dos Poderes e do total atual daquela via. A projeção tem fundo próprio, fica à frente dos elementos do tabuleiro e reproduz a matriz 2×2: superior esquerda, superior direita, inferior esquerda e inferior direita. Ela troca de via quando outra cabeceira adversária é selecionada e desaparece no próximo clique em qualquer outro lugar.
+
+As placas ovais do bot são maiores e usam números mais largos. Ao final da sexta rodada, o painel de vitória, derrota ou empate cresce, sobe e ocupa o centro da mesa acima do Nilo. As três vias aparecem em colunas; cada coluna compara o Poder do jogador e do bot e amplia o maior valor. Sempre que uma carta é destruída ou muda de via, cada lado é compactado novamente na ordem registrada pelo motor, sem deixar buracos entre os quatro espaços.
+
+Escaravelho pode ser selecionado no tabuleiro e movido para outra via quando sua regra permitir. A interface também suporta escolha de alvos e pular alvo quando o motor solicitar. Os decks atuais usam predominantemente efeitos automáticos. As cartas ocultas do bot aparecem de costas e não expõem nome, arte ou poder na interface pública.
+
+Selecione qualquer carta sua ou do bot no tabuleiro para abrir uma reprodução ampliada da carta desktop à sua frente. A projeção mantém moldura, arte, custo e Poder nos vértices superiores, tipo e texto preto centralizado na área inferior. Cartas ocultas continuam mostrando somente o verso. Para mover ou devolver uma carta própria, use o botão exibido no corpo da projeção. Hu revelado também apresenta **ATIVAR**; o botão aciona a habilidade real no motor e muda para **DESATIVAR** enquanto ela aguarda a próxima carta.
+
+As mãos são modelos 3D leves de manoplas, ligados aos controles Touch; não há rastreamento óptico dos dedos. A mão direita é a única que ativa cartas e botões. Ela e a carta selecionada ficam no primeiro plano; a mão esquerda e o leque formam o plano seguinte. Botões, totais das vias, painel da partida e resultado, Poderes individuais e contador do deck permanecem atrás dessas duas camadas. Seu laser termina no primeiro controle atingido e aplica uma camada luminosa sobre toda a superfície em foco. Ao segurar uma carta, o feixe ignora as cartas e alcança a mesa, acompanhando a via realçada. Troca de mão ainda não está incluída. Incline o pulso esquerdo para ajustar o ângulo das cartas. O leque forma um arco e usa camadas explícitas: cada carta nova permanece visualmente sobre todas as anteriores. A mão flutuante anterior permanece como fallback desktop ou na ausência do controle esquerdo.
+
+Use **FOTO EM 3S** sob o seu deck durante a partida ou ao lado de **INICIAR PARTIDA** na câmara. Após a contagem, o protótipo captura a visão do headset em PNG e tenta colocá-la na área de transferência. Se o navegador do Quest não aceitar imagens no clipboard, o PNG é salvo automaticamente para ser anexado.
+
+## Desktop
+
+Requer Node.js 20 ou superior. Não precisa instalar dependências:
+
+```sh
+node scripts/serve.mjs
+```
+
+Abra http://localhost:8080. Clique na carta e depois na via. Esc cancela seleção, R desfaz o planejamento atual, Enter finaliza o turno. A roda do mouse ajusta a câmera. Não abra index.html diretamente como arquivo.
+
+## Regras e origem
+
+Os 24 módulos em `dist/game-core/src/domain/` e `dist/game-core/src/match/` são cópias **sem alterações** do commit `30f6e39f75a9c4fcfdc1f987694dac3b0c7ae39f` da main de `Brunoebaraujo/Guerras_Egipcias`. `provenance.json` registra o SHA do commit e o SHA-256 de cada arquivo. O adaptador VR não redefine regras.
+
+- Cada lado usa o deck de 12 cartas escolhido no construtor. A coleção, os oito presets e o formato dos decks salvos vêm da main.
+- Abertura, compra e energia seguem a main: três cartas iniciais mais a compra da primeira rodada, uma energia na rodada 1. O leque cresce até o limite real de sete cartas.
+- Totais consideram cartas reveladas e todos os modificadores/auras do motor.
+- Vence quem ganhar mais vias; empate de vias usa o saldo de poder, conforme a main.
+- Efeitos são resolvidos sem animações. Anúbis conserva apenas a entrada holográfica curta, que desaparece e deixa a carta plana.
+- Cada nova partida usa uma semente; não há persistência da partida ao recarregar a página.
+
+Para atualizar o espelho, a partir da pasta do protótipo, com um checkout confiável da main:
+
+```sh
+node scripts/sync-core.mjs ../main-game
+node --test tests/*.test.mjs
+```
+
+O script também copia as 23 ilustrações usadas pelos decks. Atualizar o core exige revisar o contrato e rodar os testes antes de publicar.
+
+## Integração
+
+`dist/src/core.js` é o adaptador `MatchCore`: recebe intenções, chama `applyAction` original, executa o bot original e emite eventos `state:changed`, `intent`, `command:applied` e `command:rejected`. A cena consome somente o snapshot de apresentação.
+
+`window.guerrasVR` oferece `command`, `getState`, `getPlacement`, `getMetrics` e `events`. O estado público omite mãos/decks privados do bot. Esta é uma demo local, não uma fronteira de segurança multiplayer.
+
+- `scene.js`: ambiente, mesa, placares e holograma temporário.
+- `cards.js`: pool fixo de 32 cartas, atlas e painéis de leitura/fila.
+- `hands.js`: arte procedural das duas manoplas e seleção exclusiva pela direita.
+- `main.js`: mouse, WebXR, montagem no grip esquerdo, ciclo de apresentação.
+- `calibration.js` / `placement.js`: posição, centralização e exportação. Preserva as chaves de armazenamento da versão anterior.
+
+## Conforto
+
+Use **AJUSTAR POSIÇÃO** ou pressione o analógico para abrir o painel. Altura, distância, centralização e posição do oponente foram preservadas. **Usar posição baixa aprovada** aplica mesa a 40 cm. As opções de distância/altura das cartas controlam o fallback flutuante; em VR com controle esquerdo conectado o leque segue a mão.
+
+## HTTPS local
+
+WebXR precisa de contexto seguro. Para o Quest, prefira o link publicado acima. O endereço HTTP da rede local não habilita WebXR.
+
+Com mkcert instalado, gere um certificado para o computador e seu IP:
+
+```sh
+mkdir .cert
+mkcert -install
+mkcert -key-file .cert/key.pem -cert-file .cert/cert.pem localhost 127.0.0.1 ::1 192.168.1.100
+node scripts/serve.mjs --https
+```
+
+Substitua o IP pelo seu. Abra https://localhost:8443 no computador. O Quest precisa confiar na CA para abrir `https://IP:8443` como contexto seguro; instalar a CA só no computador não basta. Não publique chaves privadas. Se não houver um fluxo de certificado confiável no aparelho, use GitHub Pages.
+
+## GitHub Pages ou outro host HTTPS
+
+Todo o site está em `dist/`, incluindo engine, imagens e Three.js. Copie seu conteúdo para uma pasta do host, mantendo a estrutura. Os caminhos são relativos: pode ser `/vr/`.
+
+Neste repositório, os arquivos de distribuição ficam em `public/vr/` na branch de trabalho e em `vr/` na branch `gh-pages`. Preserve os demais arquivos do jogo ao publicar. O PR precisa ser incorporado pelo fluxo normal antes que uma publicação futura da main preserve automaticamente `/vr/`.
+
+## Verificação
+
+```sh
+node --test tests/*.test.mjs
+```
+
+Os 27 testes verificam hashes do core, presets da versão desktop, 40 partidas completas em comparação com execução direta do motor, fila, totais, resultado, reset, movimento do Escaravelho, ativação de Hu, inspeção ampliada compartilhada, painéis laterais dos decks, ordem e seleção do leque, limites, cartas ocultas, geometria, seleção pela direita e preservação da calibração. Testes geométricos não substituem teste físico no Quest.
+
+Three.js r170 está incluído com licença MIT. Sem sombras, pós-processamento ou modelos externos de mãos. Arquitetura e manoplas usam instâncias; cartas compartilham atlas e material. A sessão solicita 72 Hz quando disponível. FPS e draw calls aparecem na mesa; 72 FPS no aparelho precisam ser medidos no Quest 2.

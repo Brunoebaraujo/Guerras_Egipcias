@@ -1,0 +1,255 @@
+import * as THREE from '../vendor/three.module.min.js';
+import {MatchCore} from './core.js?v=1.11.0';
+import {createWorld} from './scene.js?v=1.11.0';
+import {createCalibration} from './calibration.js?v=1.11.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.11.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.11.0';
+import {createDeckRoom} from './deck-room.js?v=1.11.0';
+import {registerTools} from './webmcp.js?v=1.11.0';
+
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
+renderer.xr.enabled=true;renderer.xr.setReferenceSpaceType('local-floor');renderer.xr.setFramebufferScaleFactor(1);renderer.xr.setFoveation(1);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+document.querySelector('#game').appendChild(renderer.domElement);
+const scene=new THREE.Scene();const camera=new THREE.PerspectiveCamera(48,innerWidth/innerHeight,.05,35);scene.add(camera);
+const world=createWorld(scene);const core=new MatchCore();
+const raycaster=new THREE.Raycaster();const pointer=new THREE.Vector2();const rotation=new THREE.Matrix4();
+const v=new THREE.Vector3(),worldPoint=new THREE.Vector3(),normal=new THREE.Vector3(0,1,0),plane=new THREE.Plane();
+const controllers=[];let held=null,hover=null,lastHighlight='',pendingRecenter=false,pendingPanel=false,alignAfter=0,resetSpace=null,zoom=1,mouseActive=false;
+const status=document.querySelector('#status'),vrButton=document.querySelector('#vr'),lobbyVrButton=document.querySelector('#enter-vr-lobby'),vrButtons=[vrButton,lobbyVrButton];
+function say(text){status.textContent=text;world.message.paint(text);}
+let captureRequest=null,lastScreenshot=null;
+function photoFeedback(text){status.textContent=text;if(deckRoom.visible)deckRoom.notify(text);else world.message.paint(text);}
+function saveScreenshot(blob){const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`guerras-egipcias-vr-${Date.now()}.png`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function captureView(){
+  const size=1024,target=new THREE.WebGLRenderTarget(size,size,{format:THREE.RGBAFormat,type:THREE.UnsignedByteType,depthBuffer:true}),pixels=new Uint8Array(size*size*4),captureCamera=new THREE.Camera();
+  const xrCamera=renderer.xr.isPresenting?renderer.xr.getCamera(camera):camera,source=xrCamera.cameras?.[0]||xrCamera;
+  source.updateMatrixWorld(true);captureCamera.matrixAutoUpdate=false;captureCamera.matrix.copy(source.matrixWorld);captureCamera.matrixWorld.copy(source.matrixWorld);captureCamera.matrixWorldInverse.copy(source.matrixWorldInverse);captureCamera.projectionMatrix.copy(source.projectionMatrix);captureCamera.projectionMatrixInverse.copy(source.projectionMatrixInverse);
+  const previousTarget=renderer.getRenderTarget(),xrEnabled=renderer.xr.enabled;
+  try{renderer.xr.enabled=false;renderer.setRenderTarget(target);renderer.setViewport(0,0,size,size);renderer.clear();renderer.render(scene,captureCamera);renderer.readRenderTargetPixels(target,0,0,size,size,pixels);}
+  finally{renderer.setRenderTarget(previousTarget);renderer.xr.enabled=xrEnabled;target.dispose();}
+  const canvas=document.createElement('canvas');canvas.width=canvas.height=size;const context=canvas.getContext('2d'),image=context.createImageData(size,size),row=size*4;
+  for(let y=0;y<size;y++)image.data.set(pixels.subarray((size-1-y)*row,(size-y)*row),y*row);context.putImageData(image,0,0);
+  return new Promise((resolve,reject)=>canvas.toBlob(blob=>blob?resolve(blob):reject(new Error('Não foi possível gerar o PNG.')),'image/png'));
+}
+function scheduleScreenshot(){
+  if(captureRequest){photoFeedback('A foto já está na contagem regressiva.');return;}
+  let resolveBlob,rejectBlob;const blobPromise=new Promise((resolve,reject)=>{resolveBlob=resolve;rejectBlob=reject;});let clipboardResult=null;
+  if(isSecureContext&&navigator.clipboard?.write&&globalThis.ClipboardItem){try{clipboardResult=navigator.clipboard.write([new ClipboardItem({'image/png':blobPromise})]).then(()=>({ok:true}),error=>({ok:false,error}));}catch(error){clipboardResult=Promise.resolve({ok:false,error});}}
+  captureRequest={at:performance.now()+3000,lastSecond:3,resolveBlob,rejectBlob,clipboardResult,previousMessage:deckRoom.visible?deckRoom.message:current.message,room:deckRoom.visible};photoFeedback('FOTO EM 3…');
+}
+function updateScreenshot(time){
+  if(!captureRequest)return;const seconds=Math.max(0,Math.ceil((captureRequest.at-time)/1000));if(seconds>0){if(seconds!==captureRequest.lastSecond){captureRequest.lastSecond=seconds;photoFeedback(`FOTO EM ${seconds}…`);}return;}
+  const request=captureRequest;captureRequest=null;if(request.room)deckRoom.notify(request.previousMessage);else world.message.paint(request.previousMessage);
+  captureView().then(async blob=>{lastScreenshot=blob;request.resolveBlob(blob);const copied=request.clipboardResult?await request.clipboardResult:{ok:false};if(copied.ok)photoFeedback('Foto copiada para a área de transferência.');else{saveScreenshot(blob);photoFeedback('O navegador não permitiu copiar. A foto foi salva como PNG.');}}).catch(error=>{request.rejectBlob(error);photoFeedback('Não foi possível tirar a foto: '+error.message);});
+}
+function desktopCamera(){camera.position.set(0,2.7*zoom,2.1*zoom);camera.lookAt(0,.72,-.85);camera.aspect=innerWidth/innerHeight;camera.fov=innerWidth<640?64:48;camera.updateProjectionMatrix();}
+desktopCamera();
+let current=core.snapshot();
+function sync(){current=core.snapshot();world.sync(current,current.powers);say(current.message);document.querySelector('#end').textContent=current.ended?'Nova partida':'Finalizar turno';document.querySelector('#end').disabled=!current.ended&&current.phase!=='plan';document.querySelector('#reset').disabled=current.ended||current.phase!=='plan';}
+core.addEventListener('runtime:error',e=>say(e.detail.reason));
+core.addEventListener('state:changed',sync);sync();
+let deckBuilder;
+const deckRoom=createDeckRoom(scene,{onScreenshot:scheduleScreenshot,onStart(decks){cancel();const result=core.command('new-match',{decks});if(result.ok){deckBuilder?.setDecks(decks);document.querySelector('#deck-builder').hidden=true;document.body.classList.add('match-ready');world.stage.visible=true;const left=controllers.find(c=>c.userData.inputSource?.handedness==='left');if(left)mountCards(left.userData.grip);pendingRecenter=true;pendingPanel=true;alignAfter=performance.now()+100;say('Decks confirmados. Preparando a mesa de jogo.');}return result;}});
+world.stage.visible=false;
+deckBuilder=createDeckBuilder({root:document.querySelector('#deck-builder'),onStart(decks){cancel();const result=core.command('new-match',{decks});if(result.ok){deckRoom.setDecks(decks);deckRoom.hide();world.stage.visible=true;say('Decks confirmados. Entre em VR ou jogue no desktop.');}return result;}});
+document.querySelector('#decks').onclick=()=>deckBuilder.open();
+const calibration=createCalibration(scene,world,()=>cancel());
+function openCalibration(){
+  cancel();
+  const cam=renderer.xr.isPresenting?renderer.xr.getCamera():camera;
+  calibration.open(cam.getWorldPosition(new THREE.Vector3()),cam.getWorldQuaternion(new THREE.Quaternion()));
+}
+function cancel(){held=null;world.clearSelected();world.inspection.hide();hover=null;highlight();}
+function returnToDeckRoom(){cancel();world.projection.hide();calibration.panel.visible=false;unmountCards();deckRoom.alignFrom(world.stage);deckRoom.show();world.stage.visible=false;say('Escolha o seu deck e o deck do bot na câmara.');}
+function act(id){
+  if(id==='reset'){cancel();const r=core.command('reset');say(r.ok?'Jogadas desta rodada devolvidas à mão.':r.reason);}
+  if(id==='end'){cancel();const r=core.command(current.ended?'new-match':'end-turn');if(!r.ok)say(r.reason);}
+  if(id==='skip'){cancel();const r=core.command('skip-aim');if(!r.ok)say(r.reason);}
+  if(id==='lower'||id==='raise'){calibration.adjust('height',id==='raise'?.05:-.05);say(`Altura da mesa: ${Math.round(world.table.position.y*100)} cm`);}
+  if(id==='recenter')openCalibration();
+  if(id==='lobby')returnToDeckRoom();
+  if(id==='screenshot')scheduleScreenshot();
+}
+document.querySelector('#reset').onclick=()=>act('reset');document.querySelector('#end').onclick=()=>act('end');
+document.querySelector('#height').oninput=e=>calibration.setHeight(Number(e.target.value));
+document.querySelector('#placement').onclick=openCalibration;
+const flat=document.querySelector('#flat-placement');
+for(const [label,field,delta] of [['Mais longe','distance',.1],['Mais perto','distance',-.1],['Mesa abaixo','height',-.05],['Mesa acima','height',.05],['Mesa esquerda','lateral',-.05],['Mesa direita','lateral',.05],['Girar esquerda','angle',-5],['Girar direita','angle',5],['Jogador esquerda','playerX',-.05],['Jogador direita','playerX',.05],['Jogador avança','playerZ',-.05],['Jogador recua','playerZ',.05],['Cartas longe','handDistance',.05],['Cartas perto','handDistance',-.05],['Cartas abaixo','handDrop',.05],['Cartas acima','handDrop',-.05]]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.adjust(field,delta);flat.appendChild(b);}
+for(const [label,action] of [['Usar posição baixa aprovada','low'],['Salvar posição','save'],['Restaurar padrão (confirmar duas vezes)','defaults']]){const b=document.createElement('button');b.textContent=label;b.onclick=()=>calibration.action(action);flat.appendChild(b);}
+document.querySelector('#copy-coordinates').onclick=async()=>{const out=document.querySelector('#coordinates');out.value=JSON.stringify(calibration.report(),null,2);try{await navigator.clipboard.writeText(out.value);say('Coordenadas copiadas. Cole na conversa.');}catch{out.focus();out.select();say('Selecione e copie as coordenadas abaixo.');}};
+document.querySelector('#download-coordinates').onclick=()=>{const url=URL.createObjectURL(new Blob([JSON.stringify(calibration.report(),null,2)],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download='guerras-vr-posicao.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);};
+function rayFor(source){
+  scene.updateMatrixWorld(true);
+  if(source==='mouse')raycaster.setFromCamera(pointer,camera);
+  else {source.updateWorldMatrix(true,false);rotation.extractRotation(source.matrixWorld);raycaster.ray.origin.setFromMatrixPosition(source.matrixWorld);raycaster.ray.direction.set(0,0,-1).applyMatrix4(rotation).normalize();}
+}
+function pick(source,excludeId=null){
+  rayFor(source);scene.updateMatrixWorld(true);
+  const targets=deckRoom.visible?deckRoom.controls.filter(target=>target.visible):[...world.cardTargets.filter(target=>target.visible&&target.userData.id!==excludeId),...world.controls.filter(c=>c.visible)];
+  return raycaster.intersectObjects(targets,false)[0];
+}
+function chooseCard(source,card,forceAction=false){
+  const id=card.definition.id;
+  if(current.aim?.side===0){const r=core.command('aim',{cardId:id});if(!r.ok)say(r.reason);return;}
+  if(card.definition.zone==='board'&&!forceAction){cancel();world.inspection.show(card.definition);say(card.definition.hidden?'Carta do bot ainda oculta.':`${card.definition.name} · ${card.definition.cost} energia · ${card.definition.power} poder.`);return;}
+  if(card.definition.pickup){const r=core.command('pickup',{cardId:id});if(!r.ok)say(r.reason);return;}
+  const valid=core.validSlots(id);
+  if(!valid.length&&card.definition.zone!=='hand'){say(card.definition.hidden?'Carta do bot ainda oculta.':card.definition.text+' · '+(current.phase==='plan'?'Sem jogada disponível.':'Aguarde a revelação.'));return;}
+  if(card.definition.zone==='hand'&&current.phase!=='plan'){say('Aguarde a revelação antes de escolher outra carta.');return;}
+  held={source,card,valid};if(source!=='mouse')world.attachSelected(id,source.userData.grip);
+  if(valid.length)say(card.definition.name+': aponte e confirme uma via.');
+  else if(card.definition.cost>current.energy)say(`${card.definition.name} custa ${card.definition.cost} de energia. Você tem ${current.energy}. Escolha outra carta ou finalize o turno.`);
+  else say(`${card.definition.name} não pode ser jogada agora. Escolha outra carta ou finalize o turno.`);
+  highlight();
+  const gamepad=source?.userData?.inputSource?.gamepad;
+  gamepad?.hapticActuators?.[0]?.pulse(.25,35)?.catch(()=>{});
+}
+function begin(source){
+  if(!canInteract(source))return;
+  rayFor(source);
+  const panelAction=calibration.press(raycaster);
+  if(panelAction){world.projection.hide();if(panelAction==='align'){pendingRecenter=true;pendingPanel=true;if(!renderer.xr.isPresenting){world.stage.position.set(0,0,0);world.stage.rotation.y=0;calibration.apply();pendingRecenter=false;}}return;}
+  if(deckRoom.visible){const hit=pick(source);deckRoom.pointerStart(source,hit?.object.userData.kind==='deck-room'?hit:null);return;}
+  if(held){
+    if(held.source!==source)return;
+    const replacementHit=pick(source,held.card.definition.id);
+    const replacement=replacementHit?.object.userData.kind==='card'?world.cards.find(c=>c.definition.id===replacementHit.object.userData.id&&c.definition.zone==='hand'):null;
+    if(replacement){held=null;hover=null;world.clearSelected();chooseCard(source,replacement);return;}
+    release(source);return;
+  }
+  const hit=pick(source);
+  if(hit?.object.userData.kind==='inspection-action'){
+    const {action,cardId,enabled}=hit.object.userData;
+    if(!enabled){say('Esta habilidade não pode ser ativada agora.');return;}
+    if(action==='activate-card'){const r=core.command('activate-card',{cardId});say(r.ok?(current.cards.find(card=>card.id===cardId)?.activation?.active?'Habilidade ativada.':'Habilidade desativada.'):r.reason);return;}
+    const card=world.cards.find(card=>card.definition.id===cardId);world.inspection.hide();if(card)chooseCard(source,card,true);return;
+  }
+  if(world.inspection.visible)world.inspection.hide();
+  if(hit?.object.userData.kind==='opponent-lane'){cancel();world.showOpponentLane(hit.object.userData.lane);say(`Cartas do bot na via ${hit.object.userData.lane+1}. Selecione a via novamente para fechar.`);return;}
+  if(world.projection.group.visible)world.projection.hide();
+  if(!hit)return;
+  if(hit.object.userData.kind==='button'){act(hit.object.userData.id);return;}
+  const id=hit.object.userData.id;
+  const card=world.cards.find(c=>c.definition.id===id);if(!card)return;
+  chooseCard(source,card);
+}
+function moveHeld(){
+  if(!held)return;rayFor(held.source);
+  world.table.getWorldPosition(v);plane.set(normal,-v.y-.04);
+  hover=null;
+  if(raycaster.ray.intersectPlane(plane,worldPoint)&&worldPoint.distanceTo(raycaster.ray.origin)<4){
+    world.table.worldToLocal(worldPoint);
+    const lane=Math.round(worldPoint.x/.67)+1;
+    if(worldPoint.z>=-.91&&worldPoint.z<=-.24&&Math.abs(worldPoint.x-(lane-1)*.67)<.325&&held.valid.some(s=>s.startsWith('p-'+lane+'-')))hover=lane;
+  }
+  highlight();
+}
+function release(source){
+  if(!held||held.source!==source)return;
+  const target=pick(source,held.card.definition.id);if(target?.object.userData.kind==='button'){act(target.object.userData.id);return;}
+  if(!held.valid.length){hover=null;highlight();say(`${held.card.definition.name} continua selecionada, mas não pode ser jogada nesta rodada. Escolha outra carta ou finalize o turno.`);return;}
+  moveHeld();const card={definition:{...held.card.definition}};const lane=hover;held=null;hover=null;world.clearSelected();world.inspection.show(null);
+  if(lane!==null){const r=core.command('play-lane',{cardId:card.definition.id,lane});say(r.ok?`${card.definition.name} em campo. ${current.energy} de energia restante.`:r.reason);if(!r.ok)sync();}
+  else {sync();say('Carta devolvida à mão. Escolha uma via disponível.');}
+  highlight();
+}
+function highlight(){const valid=held?held.valid:[];const key=valid.join(',')+hover;if(key!==lastHighlight){world.highlight(valid,hover);lastHighlight=key;}}
+function mousePosition(e){const b=renderer.domElement.getBoundingClientRect();pointer.set((e.clientX-b.left)/b.width*2-1,-(e.clientY-b.top)/b.height*2+1);}
+let down=null;
+renderer.domElement.addEventListener('pointerdown',e=>{
+  if(renderer.xr.isPresenting||e.button!==0)return;mouseActive=true;mousePosition(e);
+  down={x:e.clientX,y:e.clientY};renderer.domElement.setPointerCapture(e.pointerId);begin('mouse');
+});
+renderer.domElement.addEventListener('pointermove',e=>{mousePosition(e);mouseActive=true;if(deckRoom.visible&&down){rayFor('mouse');deckRoom.pointerMove('mouse',raycaster.ray);}if(!held&&!renderer.xr.isPresenting)renderer.domElement.style.cursor=pick('mouse')?'pointer':'default';});
+renderer.domElement.addEventListener('pointerup',e=>{mousePosition(e);if(deckRoom.visible)deckRoom.pointerEnd('mouse');/* Click once on card, once on lane. */down=null;});
+renderer.domElement.addEventListener('pointercancel',()=>{down=null;cancel();});
+window.addEventListener('blur',()=>{down=null;cancel();});
+renderer.domElement.addEventListener('wheel',e=>{if(renderer.xr.isPresenting)return;e.preventDefault();zoom=THREE.MathUtils.clamp(zoom+e.deltaY*.0004,.75,1.4);desktopCamera();},{passive:false});
+window.addEventListener('keydown',e=>{if(!document.querySelector('#deck-builder').hidden||/INPUT|BUTTON|SUMMARY/.test(document.activeElement.tagName))return;if(e.key==='Escape')cancel();if(e.key.toLowerCase()==='r')act('reset');if(e.key==='Enter')act('end');});
+window.addEventListener('resize',()=>{renderer.setSize(innerWidth,innerHeight);if(!renderer.xr.isPresenting)desktopCamera();});
+
+const lineGeometry=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(0,0,-1)]);
+const handMount=new THREE.Group();let leftGrip=null;
+function mountCards(grip){leftGrip=grip;grip.add(handMount);handMount.position.set(0,.18,-.06);handMount.rotation.set(0,.65,0);handMount.add(world.hand);world.hand.position.set(0,0,0);world.hand.rotation.set(0,0,0);world.setHandMounted(true);}
+function unmountCards(){leftGrip=null;world.stage.add(world.hand);world.hand.rotation.set(0,0,0);world.setHandMounted(false);calibration.apply();}
+for(let i=0;i<2;i++){
+  const c=renderer.xr.getController(i),grip=renderer.xr.getControllerGrip(i);scene.add(c,grip);controllers.push(c);c.userData.grip=grip;
+  const line=new THREE.Line(lineGeometry,new THREE.LineBasicMaterial({color:0x72ddeb,depthTest:false,transparent:true,opacity:.92}));line.scale.z=2;line.renderOrder=300;c.add(line);c.userData.line=line;c.userData.buttons=new Set();
+  const pointerGlow=new THREE.Mesh(new THREE.RingGeometry(.009,.021,18),new THREE.MeshBasicMaterial({color:0xffe29a,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));pointerGlow.position.z=-2;pointerGlow.renderOrder=301;pointerGlow.visible=false;c.add(pointerGlow);c.userData.pointerGlow=pointerGlow;
+  const hoverFill=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color:0xffdb76,transparent:true,opacity:.28,side:THREE.DoubleSide,depthTest:false,depthWrite:false}));hoverFill.renderOrder=305;hoverFill.visible=false;scene.add(hoverFill);c.userData.hoverFill=hoverFill;
+  c.addEventListener('connected',e=>{c.userData.inputSource=e.data;c.visible=true;line.visible=e.data.handedness==='right';pointerGlow.visible=hoverFill.visible=false;grip.clear();if(['left','right'].includes(e.data.handedness))grip.add(createGauntlet(e.data.handedness));if(e.data.handedness==='left'&&!deckRoom.visible)mountCards(grip);});
+  c.addEventListener('disconnected',()=>{if(held?.source===c)cancel();if(leftGrip===grip)unmountCards();c.userData.buttons.clear();c.userData.inputSource=null;c.visible=false;hoverFill.visible=false;});
+  for(const kind of ['select','squeeze']){
+    c.addEventListener(kind+'start',()=>{c.userData.buttons.add(kind);if(c.userData.buttons.size===1)begin(c);});
+    c.addEventListener(kind+'end',()=>{if(deckRoom.visible)deckRoom.pointerEnd(c);c.userData.buttons.delete(kind);});
+  }
+}
+function recenter(frame){
+  const pose=frame?.getViewerPose(renderer.xr.getReferenceSpace());if(!pose)return;
+  const {position,orientation}=pose.transform;
+  const q=new THREE.Quaternion(orientation.x,orientation.y,orientation.z,orientation.w);
+  v.set(0,0,-1).applyQuaternion(q);const yaw=Math.atan2(-v.x,-v.z);
+  calibration.align(new THREE.Vector3(position.x,position.y,position.z),q,{center:true});
+  deckRoom.alignFrom(world.stage);
+  if(pendingPanel){calibration.open(new THREE.Vector3(position.x,position.y,position.z),q);pendingPanel=false;}
+  pendingRecenter=false;say(deckRoom.visible?'Escolha o seu deck e o deck do bot na mesa de pedra.':'Ajuste a posição e pressione JOGAR.');
+}
+function onReferenceReset(){cancel();pendingRecenter=true;pendingPanel=!deckRoom.visible&&calibration.panel.visible;alignAfter=performance.now()+250;}
+renderer.xr.addEventListener('sessionstart',()=>{cancel();document.body.classList.add('xr');camera.position.set(0,0,0);camera.quaternion.identity();const enterRoom=!document.querySelector('#deck-builder').hidden;if(enterRoom){deckRoom.show();world.stage.visible=false;}else{deckRoom.hide();world.stage.visible=true;}pendingRecenter=true;pendingPanel=!enterRoom;alignAfter=performance.now()+250;resetSpace=renderer.xr.getReferenceSpace();resetSpace?.addEventListener('reset',onReferenceReset);});
+renderer.xr.addEventListener('sessionend',()=>{resetSpace?.removeEventListener('reset',onReferenceReset);resetSpace=null;cancel();unmountCards();controllers.forEach(c=>c.userData.buttons.clear());calibration.panel.visible=false;document.body.classList.remove('xr');if(deckRoom.visible){deckRoom.hide();world.stage.visible=true;deckBuilder.open();}world.stage.position.set(0,0,0);world.stage.rotation.set(0,0,0);desktopCamera();vrButtons.forEach(button=>button.textContent=button===lobbyVrButton?'Entrar na câmara em VR':'Entrar em VR');});
+async function setupXR(){
+  const setButtons=(text,disabled=true)=>vrButtons.forEach(button=>{button.textContent=button===lobbyVrButton&&text==='Entrar em VR'?'Entrar na câmara em VR':text;button.disabled=disabled;});
+  if(!isSecureContext){setButtons('VR precisa de HTTPS');return;}
+  if(!navigator.xr){setButtons('Abra no Quest para VR');return;}
+  try{if(!await navigator.xr.isSessionSupported('immersive-vr')){setButtons('VR indisponível neste aparelho');return;}}
+  catch{setButtons('VR indisponível');return;}
+  setButtons('Entrar em VR',false);
+  const enter=async()=>{
+    vrButtons.forEach(button=>button.disabled=true);let session;
+    try{
+      session=await navigator.xr.requestSession('immersive-vr',{requiredFeatures:['local-floor']});
+      await renderer.xr.setSession(session);
+      if(session.supportedFrameRates?.includes(72)&&session.updateTargetFrameRate)await session.updateTargetFrameRate(72).catch(()=>{});
+      session.addEventListener('visibilitychange',()=>{if(session.visibilityState!=='visible')cancel();});
+    }catch(error){if(session)await session.end().catch(()=>{});say(`Não foi possível iniciar VR: ${error.message}`);}
+    finally{vrButtons.forEach(button=>button.disabled=false);}
+  };
+  vrButtons.forEach(button=>button.onclick=enter);
+}
+setupXR();
+let previous=0,elapsed=0,frames=0,lastStats={fps:0,calls:0,triangles:0};
+function updatePointer(controller,time){const line=controller.userData.line,glow=controller.userData.pointerGlow,fill=controller.userData.hoverFill;if(!line?.visible){if(fill)fill.visible=false;return;}rayFor(controller);let hit;if(calibration.panel.visible)hit=raycaster.intersectObject(calibration.panel,false)[0];else if(held){hit=raycaster.intersectObjects(world.controls.filter(target=>target.visible),false)[0];if(!hit){world.table.getWorldPosition(v);plane.set(normal,-v.y-.04);if(raycaster.ray.intersectPlane(plane,worldPoint))hit={distance:worldPoint.distanceTo(raycaster.ray.origin),point:worldPoint.clone(),object:null};}}else hit=pick(controller);const distance=Math.min(hit?.distance??2,2);line.scale.z=distance;line.material.color.setHex(hit?0xffd783:0x72ddeb);glow.visible=!!hit;glow.position.z=-distance;fill.visible=false;if(hit){const pulse=1+Math.sin(time*.012)*.18;glow.scale.setScalar(pulse);const geometry=hit.object?.geometry?.parameters;if(geometry?.width&&geometry?.height){hit.object.matrixWorld.decompose(fill.position,fill.quaternion,fill.scale);fill.scale.x*=geometry.width;fill.scale.y*=geometry.height;fill.scale.z=1;fill.visible=true;fill.material.opacity=.22+Math.sin(time*.012)*.06;}}}
+renderer.setAnimationLoop((time,frame)=>{
+  if(pendingRecenter&&frame&&time>=alignAfter)recenter(frame);
+  for(const c of controllers){
+    const input=c.userData.inputSource,pressed=!!input?.gamepad?.buttons[3]?.pressed;
+    if(!deckRoom.visible&&pressed&&!c.userData.stickPressed)openCalibration();c.userData.stickPressed=pressed;
+    if(deckRoom.visible&&input?.handedness==='right'){
+      const axes=input.gamepad?.axes||[],axis=axes.length>=4?axes[3]:(axes[1]||0),direction=axis>.65?1:axis<-.65?-1:0;
+      if(direction&&!c.userData.roomPageDirection)deckRoom.navigate(direction);c.userData.roomPageDirection=direction;
+    }else c.userData.roomPageDirection=0;
+    if(deckRoom.visible&&deckRoom.isDragging(c)){rayFor(c);deckRoom.pointerMove(c,raycaster.ray);}
+    updatePointer(c,time);
+  }
+  if(held)moveHeld();
+  const delta=previous?Math.min((time-previous)/1000,.1):0;
+  if(!calibration.panel.visible&&!deckRoom.visible)core.tick(delta);
+  if(leftGrip){world.hand.position.set(0,0,0);world.hand.rotation.set(0,0,0);}
+  world.update(delta);
+  updateScreenshot(time);
+  if(world.hologram.visible)world.hologram.rotation.y=Math.sin(time*.0007)*.12;
+  renderer.render(scene,camera);
+  if(previous){elapsed+=Math.min(time-previous,100);frames++;}
+  previous=time;
+  if(elapsed>1000){lastStats={fps:Math.round(frames*1000/elapsed),calls:renderer.info.render.calls,triangles:renderer.info.render.triangles};world.performance.paint([`${lastStats.fps} FPS`,`${lastStats.calls} draws · ${Math.round(lastStats.triangles/1000)}k tris`]);frames=0;elapsed=0;}
+});
+// Public integration seam: all mutations still pass through command validation.
+window.guerrasVR=Object.freeze({
+  version:'1.11.0',events:core,
+  command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
+  takeScreenshot:scheduleScreenshot,getLastScreenshot:()=>lastScreenshot,getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
+});
+registerTools(window.guerrasVR);
+renderer.domElement.addEventListener('webglcontextlost',e=>{e.preventDefault();cancel();say('A renderização foi interrompida. Recarregue a página.');});
