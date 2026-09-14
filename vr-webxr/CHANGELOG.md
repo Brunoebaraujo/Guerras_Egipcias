@@ -1,3 +1,9 @@
+# 1.10.0 — controles contidos e cartas em primeiro plano
+
+- Filtros, presets e ações sobem na superfície da mesa da câmara; **INICIAR PARTIDA** fica inteiramente dentro da pedra.
+- **ALEATÓRIO** e **LIMPAR** recebem tipografia maior.
+- Todos os botões da mesa de jogo passam para uma camada opaca inferior às manoplas e às cartas seguradas.
+
 # 1.9.0 — retorno à câmara e profundidade das mãos
 
 - Os painéis laterais dos decks ficam menores e acima da mesa de pedra, sem colisão visual.

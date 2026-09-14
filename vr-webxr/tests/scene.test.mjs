@@ -63,5 +63,5 @@ test('right hand exclusively activates controls and draws in front of the left h
  const left=createGauntlet('left'),right=createGauntlet('right');for(const hand of [left,right]){assert.ok(hand.children.length>=4);assert.ok(hand.children.length<10);const bounds=new THREE.Box3().setFromObject(hand);assert.ok(bounds.getSize(new THREE.Vector3()).length()<.3);assert.ok(hand.children.every(mesh=>mesh.material.depthTest===false&&mesh.material.depthWrite===false));}assert.ok(Math.min(...right.children.map(mesh=>mesh.renderOrder))>Math.max(...left.children.map(mesh=>mesh.renderOrder)));
 });
 test('match controls include chamber return and larger primary labels',()=>{
- const w=createWorld(new THREE.Scene()),byId=id=>w.controls.find(mesh=>mesh.userData.id===id);assert.ok(byId('lobby'));assert.ok(byId('reset').userData.fontSize>=48);assert.ok(byId('end').userData.fontSize>=48);
+ const w=createWorld(new THREE.Scene()),byId=id=>w.controls.find(mesh=>mesh.userData.id===id),buttons=w.controls.filter(mesh=>mesh.userData.kind==='button');assert.ok(byId('lobby'));assert.ok(byId('reset').userData.fontSize>=48);assert.ok(byId('end').userData.fontSize>=48);assert.ok(buttons.every(mesh=>mesh.material.transparent===false&&mesh.renderOrder<330&&mesh.userData.depthLayer==='table'));
 });
