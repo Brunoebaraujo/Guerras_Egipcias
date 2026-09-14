@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.9.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.10.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -51,7 +51,7 @@ export function createWorld(scene){
   // One canvas atlas and one material for every text surface, including card faces.
   const atlas=document.createElement('canvas');atlas.width=2048;atlas.height=2048;
   const ctx=atlas.getContext('2d');const texture=new THREE.CanvasTexture(atlas);texture.colorSpace=THREE.SRGBColorSpace;texture.anisotropy=2;
-  const labelMat=new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.DoubleSide});let cellIndex=0;
+  const labelMat=new THREE.MeshBasicMaterial({map:texture,transparent:true,side:THREE.DoubleSide});const buttonMat=labelMat.clone();buttonMat.transparent=false;let cellIndex=0;
   function label(width,height,x,y,z,lines,opts={}){
     const id=cellIndex++;const ax=id%4*512,ay=Math.floor(id/4)*256;
     if(id>=32)throw new Error('Text atlas full');
@@ -79,7 +79,7 @@ export function createWorld(scene){
   const deckLabel=label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
   const stateLabel=label(.69,.13,0,.09,-1.97,['OPONENTE','Guardião do horizonte'],{flat:false});
   const message=label(.78,.1,0,.055,-.155,'SELECIONE UMA CARTA');
-  function button(id,text,x,z,width=.43,singleSize=36){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce',singleSize});b.mesh.userData={kind:'button',id,fontSize:singleSize};controls.push(b.mesh);return b;}
+  function button(id,text,x,z,width=.43,singleSize=36){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce',singleSize});b.mesh.material=buttonMat;b.mesh.renderOrder=10;b.mesh.userData={kind:'button',id,fontSize:singleSize,depthLayer:'table'};controls.push(b.mesh);return b;}
   button('reset','REINICIAR JOGADA',-.78,-.03,.5,48);button('lobby','VOLTAR À CÂMARA',0,-.03,.43,38);const endButton=button('end','FINALIZAR TURNO',.78,-.03,.5,48);
   const skipButton=button('skip','PULAR ALVO',0,.095,.42);skipButton.mesh.visible=false;
   button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);

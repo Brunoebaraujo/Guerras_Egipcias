@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.9.0';
-import {effectivePresets,initialDecks} from './deck-builder.js?v=1.9.0';
-import {createInspection} from './cards.js?v=1.9.0';
+import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.10.0';
+import {effectivePresets,initialDecks} from './deck-builder.js?v=1.10.0';
+import {createInspection} from './cards.js?v=1.10.0';
 
 const STORAGE_KEY='ge_vr_deck_selection',catalog=[...CARD_CATALOG],FILTERS=[{label:'TODAS',accept:()=>true},...Array.from({length:7},(_,cost)=>({label:`CUSTO ${cost}`,accept:card=>card.cost===cost}))];
 function box(parent,x,y,z,w,h,d,color){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.9,metalness:0}));mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
@@ -26,11 +26,11 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
  const scrollSurface=new THREE.Mesh(new THREE.PlaneGeometry(3.2,1.2),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));scrollSurface.position.set(0,-.14,.012);scrollSurface.userData={kind:'deck-room',id:'scroll-area'};ui.add(scrollSurface);
  const cards=Array.from({length:16},(_,i)=>{const p=textPanel(ui,'card-'+i,.35,.49,{pixelsX:384,pixelsY:512});p.mesh.position.set(-1.47+(i%8)*.42,.28-Math.floor(i/8)*.54,.025);return p;});
  const previous=textPanel(ui,'previous',.34,.18),pageLabel=textPanel(ui,'none',.42,.18),next=textPanel(ui,'next',.34,.18);previous.mesh.position.set(-.4,-.73,.02);pageLabel.mesh.position.set(0,-.73,.02);pageLabel.mesh.raycast=()=>{};next.mesh.position.set(.4,-.73,.02);
- const filterButtons=FILTERS.map((_,i)=>{const p=textPanel(stage,'filter-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-1.43);p.mesh.rotation.x=-Math.PI/2;return p;});
+ const filterButtons=FILTERS.map((_,i)=>{const p=textPanel(stage,'filter-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.7,-1.55);p.mesh.rotation.x=-Math.PI/2;return p;});
  const presetEntries=Object.entries(effectivePresets(storage?.getItem?.('ge_preset_overrides')));
- const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-1.16);p.mesh.rotation.x=-Math.PI/2;return p;});
- const random=textPanel(stage,'random',.78,.2),clear=textPanel(stage,'clear',.66,.2);random.mesh.position.set(-.46,.675,-.88);clear.mesh.position.set(.46,.675,-.88);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
- const start=textPanel(stage,'start',1.62,.32,{pixelsX:1024,pixelsY:220});start.mesh.position.set(0,.68,-.64);start.mesh.rotation.x=-Math.PI/2;
+ const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.7,-1.28);p.mesh.rotation.x=-Math.PI/2;return p;});
+ const random=textPanel(stage,'random',.78,.2),clear=textPanel(stage,'clear',.66,.2);random.mesh.position.set(-.46,.7,-1);clear.mesh.position.set(.46,.7,-1);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
+ const start=textPanel(stage,'start',1.62,.32,{pixelsX:1024,pixelsY:220});start.mesh.position.set(0,.705,-.76);start.mesh.rotation.x=-Math.PI/2;
  const deckPanels=[[-1.42,-.3,Math.PI/2,0],[1.42,-.3,-Math.PI/2,1]].map(([x,z,yaw,deckSide])=>{const group=new THREE.Group();group.position.set(x,0,z);group.rotation.y=yaw;stage.add(group);const panel=textPanel(group,'none',1.1,1.85,{pixelsX:1024,pixelsY:1536});panel.mesh.position.set(0,1.68,0);panel.mesh.raycast=()=>{};const hits=Array.from({length:12},(_,index)=>{const hit=new THREE.Mesh(new THREE.PlaneGeometry(.47,.24),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));const col=Math.floor(index/6),row=index%6;hit.position.set(col? .27:-.27,2.31-row*.276,.025);hit.userData={kind:'deck-room',id:`deck-card-${deckSide}-${index}`,deckSide,cardIndex:index};group.add(hit);return hit;});return {group,panel,hits,deckSide};});
  const inspection=createInspection(stage,{position:[0,1.55,-.98],controlKind:'deck-room'}),detail=inspection.group;inspection.mesh.userData={kind:'deck-room',id:'detail-body'};
  controls.push(...sideButtons.map(p=>p.mesh),scrollSurface,...cards.map(p=>p.mesh),previous.mesh,next.mesh,...filterButtons.map(p=>p.mesh),...presetButtons.map(p=>p.mesh),random.mesh,clear.mesh,start.mesh,...deckPanels.flatMap(panel=>panel.hits),inspection.mesh,...inspection.targets);
@@ -49,7 +49,7 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
   paintButton(sideButtons[0],`SEU DECK · ${decks[0].length}/12`,{active:side===0});paintButton(sideButtons[1],`DECK DO BOT · ${decks[1].length}/12`,{active:side===1,accent:'#7dd3fc'});
   const offset=row*8;cards.forEach((panel,i)=>paintCard(panel,visibleCatalog[offset+i],offset+i));paintButton(previous,'▲',{enabled:row>0});paintButton(next,'▼',{enabled:row<maxRow});paintButton(pageLabel,`${row+1} / ${maxRow+1}`,{small:true});deckPanels.forEach(paintDeckPanel);
   filterButtons.forEach((button,i)=>paintButton(button,FILTERS[i].label,{active:i===filterIndex,fontSize:56}));presetButtons.forEach((button,i)=>{const [name,cards]=presetEntries[i],active=decks[side].length===cards.length&&decks[side].every((key,index)=>key===cards[index]);paintButton(button,name.toUpperCase(),{active,fontSize:56,accent:'#d8b46d'});});
-  paintButton(random,'ALEATÓRIO',{fontSize:46});paintButton(clear,'LIMPAR',{fontSize:46});paintButton(start,'INICIAR PARTIDA',{active:validateDecks(decks).ok,enabled:validateDecks(decks).ok});
+  paintButton(random,'ALEATÓRIO',{fontSize:64});paintButton(clear,'LIMPAR',{fontSize:64});paintButton(start,'INICIAR PARTIDA',{active:validateDecks(decks).ok,enabled:validateDecks(decks).ok});
   if(detailKey){const card=catalog.find(item=>item.key===detailKey),selected=decks[side].includes(card.key);inspection.show({...card,id:'deck-detail',hidden:false},[{action:selected?'detail-remove':'detail-add',label:selected?'RETIRAR':'ADICIONAR',enabled:selected||decks[side].length<DECK_SIZE}]);}else inspection.hide();
  }
  function activate(id,object){
