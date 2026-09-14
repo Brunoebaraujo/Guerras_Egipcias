@@ -1,7 +1,7 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.8.0';
-import {effectivePresets,initialDecks} from './deck-builder.js?v=1.8.0';
-import {createInspection} from './cards.js?v=1.8.0';
+import {CARD_CATALOG,DECK_SIZE,validateDecks} from './core.js?v=1.9.0';
+import {effectivePresets,initialDecks} from './deck-builder.js?v=1.9.0';
+import {createInspection} from './cards.js?v=1.9.0';
 
 const STORAGE_KEY='ge_vr_deck_selection',catalog=[...CARD_CATALOG],FILTERS=[{label:'TODAS',accept:()=>true},...Array.from({length:7},(_,cost)=>({label:`CUSTO ${cost}`,accept:card=>card.cost===cost}))];
 function box(parent,x,y,z,w,h,d,color){const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color,roughness:.9,metalness:0}));mesh.position.set(x,y,z);parent.add(mesh);return mesh;}
@@ -31,7 +31,7 @@ export function createDeckRoom(scene,{onStart,storage=globalThis.localStorage}={
  const presetButtons=presetEntries.map((_,i)=>{const p=textPanel(stage,'preset-'+i,.39,.2,{pixelsX:512,pixelsY:192});p.mesh.position.set(-1.47+i*.42,.675,-1.16);p.mesh.rotation.x=-Math.PI/2;return p;});
  const random=textPanel(stage,'random',.78,.2),clear=textPanel(stage,'clear',.66,.2);random.mesh.position.set(-.46,.675,-.88);clear.mesh.position.set(.46,.675,-.88);random.mesh.rotation.x=clear.mesh.rotation.x=-Math.PI/2;
  const start=textPanel(stage,'start',1.62,.32,{pixelsX:1024,pixelsY:220});start.mesh.position.set(0,.68,-.64);start.mesh.rotation.x=-Math.PI/2;
- const deckPanels=[[-1.48,-.35,Math.PI/2,0],[1.48,-.35,-Math.PI/2,1]].map(([x,z,yaw,deckSide])=>{const group=new THREE.Group();group.position.set(x,0,z);group.rotation.y=yaw;stage.add(group);const panel=textPanel(group,'none',1.34,2.3,{pixelsX:1024,pixelsY:1536});panel.mesh.position.set(0,1.65,0);panel.mesh.raycast=()=>{};const hits=Array.from({length:12},(_,index)=>{const hit=new THREE.Mesh(new THREE.PlaneGeometry(.59,.31),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));const col=Math.floor(index/6),row=index%6;hit.position.set(col? .33:-.33,2.48-row*.35,.025);hit.userData={kind:'deck-room',id:`deck-card-${deckSide}-${index}`,deckSide,cardIndex:index};group.add(hit);return hit;});return {group,panel,hits,deckSide};});
+ const deckPanels=[[-1.42,-.3,Math.PI/2,0],[1.42,-.3,-Math.PI/2,1]].map(([x,z,yaw,deckSide])=>{const group=new THREE.Group();group.position.set(x,0,z);group.rotation.y=yaw;stage.add(group);const panel=textPanel(group,'none',1.1,1.85,{pixelsX:1024,pixelsY:1536});panel.mesh.position.set(0,1.68,0);panel.mesh.raycast=()=>{};const hits=Array.from({length:12},(_,index)=>{const hit=new THREE.Mesh(new THREE.PlaneGeometry(.47,.24),new THREE.MeshBasicMaterial({transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));const col=Math.floor(index/6),row=index%6;hit.position.set(col? .27:-.27,2.31-row*.276,.025);hit.userData={kind:'deck-room',id:`deck-card-${deckSide}-${index}`,deckSide,cardIndex:index};group.add(hit);return hit;});return {group,panel,hits,deckSide};});
  const inspection=createInspection(stage,{position:[0,1.55,-.98],controlKind:'deck-room'}),detail=inspection.group;inspection.mesh.userData={kind:'deck-room',id:'detail-body'};
  controls.push(...sideButtons.map(p=>p.mesh),scrollSurface,...cards.map(p=>p.mesh),previous.mesh,next.mesh,...filterButtons.map(p=>p.mesh),...presetButtons.map(p=>p.mesh),random.mesh,clear.mesh,start.mesh,...deckPanels.flatMap(panel=>panel.hits),inspection.mesh,...inspection.targets);
  const artImages=new Map();

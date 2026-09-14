@@ -1,11 +1,11 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {MatchCore} from './core.js?v=1.8.0';
-import {createWorld} from './scene.js?v=1.8.0';
-import {createCalibration} from './calibration.js?v=1.8.0';
-import {createGauntlet,canInteract} from './hands.js?v=1.8.0';
-import {createDeckBuilder} from './deck-builder.js?v=1.8.0';
-import {createDeckRoom} from './deck-room.js?v=1.8.0';
-import {registerTools} from './webmcp.js?v=1.8.0';
+import {MatchCore} from './core.js?v=1.9.0';
+import {createWorld} from './scene.js?v=1.9.0';
+import {createCalibration} from './calibration.js?v=1.9.0';
+import {createGauntlet,canInteract} from './hands.js?v=1.9.0';
+import {createDeckBuilder} from './deck-builder.js?v=1.9.0';
+import {createDeckRoom} from './deck-room.js?v=1.9.0';
+import {registerTools} from './webmcp.js?v=1.9.0';
 
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.setSize(innerWidth,innerHeight);
@@ -37,12 +37,14 @@ function openCalibration(){
   calibration.open(cam.getWorldPosition(new THREE.Vector3()),cam.getWorldQuaternion(new THREE.Quaternion()));
 }
 function cancel(){held=null;world.clearSelected();world.inspection.hide();hover=null;highlight();}
+function returnToDeckRoom(){cancel();world.projection.hide();calibration.panel.visible=false;unmountCards();deckRoom.alignFrom(world.stage);deckRoom.show();world.stage.visible=false;say('Escolha o seu deck e o deck do bot na câmara.');}
 function act(id){
   if(id==='reset'){cancel();const r=core.command('reset');say(r.ok?'Jogadas desta rodada devolvidas à mão.':r.reason);}
   if(id==='end'){cancel();const r=core.command(current.ended?'new-match':'end-turn');if(!r.ok)say(r.reason);}
   if(id==='skip'){cancel();const r=core.command('skip-aim');if(!r.ok)say(r.reason);}
   if(id==='lower'||id==='raise'){calibration.adjust('height',id==='raise'?.05:-.05);say(`Altura da mesa: ${Math.round(world.table.position.y*100)} cm`);}
   if(id==='recenter')openCalibration();
+  if(id==='lobby')returnToDeckRoom();
 }
 document.querySelector('#reset').onclick=()=>act('reset');document.querySelector('#end').onclick=()=>act('end');
 document.querySelector('#height').oninput=e=>calibration.setHeight(Number(e.target.value));
@@ -218,7 +220,7 @@ renderer.setAnimationLoop((time,frame)=>{
 });
 // Public integration seam: all mutations still pass through command validation.
 window.guerrasVR=Object.freeze({
-  version:'1.8.0',events:core,
+  version:'1.9.0',events:core,
   command(type,payload){cancel();const result=core.command(type,payload);say(result.ok?'Estado atualizado.':result.reason);return result;},
   getPlacement:()=>calibration.report(),getState:()=>core.snapshot(),getMetrics:()=>({...lastStats}),
 });

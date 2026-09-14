@@ -1,5 +1,5 @@
 import * as THREE from '../vendor/three.module.min.js';
-import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.8.0';
+import {createCardView,createInspection,createMatchPanel,createOpponentProjection} from './cards.js?v=1.9.0';
 const GOLD=0xc39b55, INK=0x17222a, CYAN=0x53dff2;
 export function createWorld(scene){
   scene.background=new THREE.Color(0x32313a);scene.fog=new THREE.Fog(0x32313a,9,26);
@@ -74,13 +74,13 @@ export function createWorld(scene){
   }
   label(.32,.065,0,.034,-1.05,'RIO NILO',{bg:'#107991',border:'#107991',color:'#d1fcff'});
   const roundBanner=label(.92,.34,0,1.35,-1.05,['RODADA','1 / 6'],{flat:false,titleSize:54,valueSize:112,bg:'#102a34',border:'#d8b46d'});roundBanner.mesh.renderOrder=70;roundBanner.mesh.material=roundBanner.mesh.material.clone();roundBanner.mesh.material.depthTest=false;
-  const energy=label(.42,.11,0,-.24,.11,'1 ENERGIA',{parent:hand,flat:false,bg:'#102a34',border:'#63ddea',singleSize:48});energy.mesh.rotation.x=-.74;energy.mesh.renderOrder=60;energy.mesh.material=energy.mesh.material.clone();energy.mesh.material.depthTest=false;
+  const energy=label(.42,.11,0,-.24,.11,'1 ENERGIA',{parent:hand,flat:false,bg:'#102a34',border:'#63ddea',singleSize:48});energy.mesh.rotation.x=-.74;energy.mesh.renderOrder=350;energy.mesh.material=energy.mesh.material.clone();energy.mesh.material.depthTest=false;
   for(let i=0;i<6;i++)box(table,1.3,.035+i*.009,-.56,.23,.009,.32,i%2?INK:GOLD);
   const deckLabel=label(.23,.31,1.3,.094,-.56,['☥','DECK  15']);
   const stateLabel=label(.69,.13,0,.09,-1.97,['OPONENTE','Guardião do horizonte'],{flat:false});
   const message=label(.78,.1,0,.055,-.155,'SELECIONE UMA CARTA');
-  function button(id,text,x,z,width=.43){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce'});b.mesh.userData={kind:'button',id};controls.push(b.mesh);return b;}
-  button('reset','REINICIAR JOGADA',-.78,-.03,.5);const endButton=button('end','FINALIZAR TURNO',.78,-.03,.5);
+  function button(id,text,x,z,width=.43,singleSize=36){const b=label(width,.115,x,.05,z,text,{bg:'#20363c',border:'#63bfce',singleSize});b.mesh.userData={kind:'button',id,fontSize:singleSize};controls.push(b.mesh);return b;}
+  button('reset','REINICIAR JOGADA',-.78,-.03,.5,48);button('lobby','VOLTAR À CÂMARA',0,-.03,.43,38);const endButton=button('end','FINALIZAR TURNO',.78,-.03,.5,48);
   const skipButton=button('skip','PULAR ALVO',0,.095,.42);skipButton.mesh.visible=false;
   button('lower','MESA −',-1.3,-.88,.25);button('raise','MESA +',-1.3,-1.03,.25);
   button('recenter','AJUSTAR POSIÇÃO',1.3,-.93,.32);
