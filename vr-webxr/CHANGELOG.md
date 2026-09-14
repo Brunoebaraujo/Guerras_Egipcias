@@ -1,3 +1,10 @@
+# 1.9.0 — retorno à câmara e profundidade das mãos
+
+- Os painéis laterais dos decks ficam menores e acima da mesa de pedra, sem colisão visual.
+- A partida ganha **VOLTAR À CÂMARA**, preservando os decks atuais para uma nova seleção sem sair do VR.
+- A mão direita e a carta selecionada ocupam o primeiro plano; a mão esquerda e seu leque formam o plano seguinte.
+- **REINICIAR JOGADA** e **FINALIZAR TURNO** usam tipografia maior para leitura no Quest 2.
+
 # 1.8.0 — decks laterais e leque em camadas
 
 - Os painéis dos decks saem da parede frontal: ficam à esquerda e à direita do jogador, girados 90° e voltados para o centro da câmara.

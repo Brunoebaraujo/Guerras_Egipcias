@@ -21,7 +21,7 @@ test('card pool follows state changes and hides all unused meshes',()=>{
 });
 test('hand fan keeps draw order in depth while following a centered arc',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:123});w.sync(c.snapshot(),c.powers());const fan=c.snapshot().hand.map(id=>w.cards.find(card=>card.definition.id===id));
- assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);assert.ok(fan[i].mesh.renderOrder>fan[i-1].mesh.renderOrder);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));assert.ok(fan.every(card=>card.mesh.material===w.cards[0].mesh.material&&card.mesh.material.depthTest===false));
+ assert.ok(fan.length>=4);for(let i=1;i<fan.length;i++){assert.ok(fan[i].home.x>fan[i-1].home.x);assert.ok(fan[i].home.z>fan[i-1].home.z);assert.ok(fan[i].mesh.renderOrder>fan[i-1].mesh.renderOrder);}const heights=fan.map(card=>card.home.y),middle=Math.floor((heights.length-1)/2);assert.ok(heights[middle]>heights[0]);assert.ok(heights[middle]>=heights.at(-1));assert.ok(fan.every(card=>card.mesh.material===w.cards[0].mesh.material&&card.mesh.material.depthTest===false&&card.mesh.renderOrder>=340));
 });
 test('floating lane totals, elevated round banner and hand energy stay readable',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:41});w.sync(c.snapshot(),c.powers());
@@ -47,7 +47,7 @@ test('final result panel becomes a large centered projection over the Nile',()=>
 test('an unaffordable hand card can still move to the right grip for reading',()=>{
  const w=createWorld(new THREE.Scene()),c=new MatchCore({seed:0});w.sync(c.snapshot(),c.powers());const id=c.snapshot().hand.find(id=>c.validSlots(id).length===0),card=w.cards.find(card=>card.definition.id===id),grip=new THREE.Group();
  assert.ok(id);assert.equal(c.validSlots(id).length,0);
- w.attachSelected(id,grip);assert.equal(card.mesh.parent,grip);assert.equal(card.mesh.scale.x,1.5);assert.ok(card.mesh.position.y>0);
+ w.attachSelected(id,grip);assert.equal(card.mesh.parent,grip);assert.equal(card.mesh.scale.x,1.5);assert.ok(card.mesh.position.y>0);assert.ok(card.mesh.renderOrder>=370);
  w.clearSelected();assert.equal(card.mesh.parent,w.hand);assert.equal(card.mesh.scale.x,1);
 });
 test('game card inspection uses a frontmost portrait card and exposes body actions',()=>{
@@ -58,7 +58,10 @@ test('game card inspection uses a frontmost portrait card and exposes body actio
  w.inspection.show({...hu,id:'b-901',hidden:true,key:null,name:'Carta oculta',activation:null,movable:false});assert.equal(w.inspection.visible,true);assert.equal(w.inspection.targets.filter(mesh=>mesh.visible).length,0);
  w.inspection.hide();assert.equal(w.inspection.visible,false);
 });
-test('right hand exclusively activates controls, with mirrored low-poly hand artwork',()=>{
+test('right hand exclusively activates controls and draws in front of the left hand',()=>{
  assert.equal(canInteract('mouse'),true);assert.equal(canInteract({userData:{inputSource:{handedness:'right'}}}),true);assert.equal(canInteract({userData:{inputSource:{handedness:'left'}}}),false);assert.equal(canInteract({}),false);
- for(const side of ['left','right']){const hand=createGauntlet(side);assert.ok(hand.children.length>=4);assert.ok(hand.children.length<10);const bounds=new THREE.Box3().setFromObject(hand);assert.ok(bounds.getSize(new THREE.Vector3()).length()<.3);}
+ const left=createGauntlet('left'),right=createGauntlet('right');for(const hand of [left,right]){assert.ok(hand.children.length>=4);assert.ok(hand.children.length<10);const bounds=new THREE.Box3().setFromObject(hand);assert.ok(bounds.getSize(new THREE.Vector3()).length()<.3);assert.ok(hand.children.every(mesh=>mesh.material.depthTest===false&&mesh.material.depthWrite===false));}assert.ok(Math.min(...right.children.map(mesh=>mesh.renderOrder))>Math.max(...left.children.map(mesh=>mesh.renderOrder)));
+});
+test('match controls include chamber return and larger primary labels',()=>{
+ const w=createWorld(new THREE.Scene()),byId=id=>w.controls.find(mesh=>mesh.userData.id===id);assert.ok(byId('lobby'));assert.ok(byId('reset').userData.fontSize>=48);assert.ok(byId('end').userData.fontSize>=48);
 });
